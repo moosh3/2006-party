@@ -80,7 +80,7 @@ export default function EventPage() {
     displayName: viewer.displayName,
     avatar: viewer.avatar,
   } : null;
-  const viewersHere = useLobbyPresence(presenceSelf);
+  useLobbyPresence(presenceSelf);
 
   const activeCue = useMemo(
     () => getRunOfShowCue(streamData?.activeSlotId),
@@ -103,7 +103,6 @@ export default function EventPage() {
       streamData={streamData}
       streamError={streamError}
       tokenRefreshError={tokenRefreshError}
-      viewerCount={viewersHere.length || 1}
       activeCueLabel={activeCue?.label}
       refreshStream={refreshStream}
       onSignOff={() => router.replace('/login')}

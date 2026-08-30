@@ -331,14 +331,6 @@
 /* The Show: the roomy after-party broadcast view, reached from the iPod. */
 .xp2006-broadcast-desktop { display: block; padding: clamp(8px, 1.5vw, 20px); }
 .xp2006-broadcast-shell { width: min(100%, 1420px); margin: 0 auto; }
-.xp2006-broadcast-header { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 12px; margin-bottom: 10px; color: #fff; text-shadow: 0 2px 5px #000; }
-.xp2006-broadcast-header > img { display: block; width: clamp(116px, 13vw, 170px); height: auto; filter: drop-shadow(3px 3px 0 #ff00dc) drop-shadow(-3px 0 0 #00f4ff); }
-.xp2006-broadcast-back { min-height: 32px; border: 1px solid #fff; border-radius: 3px; background: linear-gradient(180deg, #fff, #d9d5c6); box-shadow: 1px 2px 0 rgba(0, 0, 0, .4); padding: 5px 11px; color: #1a3d6e; cursor: pointer; font: 600 11px Tahoma, Verdana, sans-serif; }
-.xp2006-broadcast-back:hover { background: #fff; }
-.xp2006-broadcast-back:active { transform: translateY(1px); }
-.xp2006-broadcast-heading { display: grid; min-width: 0; gap: 3px; }
-.xp2006-broadcast-heading strong { font-size: clamp(17px, 2vw, 25px); line-height: 1; letter-spacing: -.02em; }
-.xp2006-broadcast-heading span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .xp2006-broadcast-warning { margin-bottom: 8px; border: 1px solid #8a6500; background: #fff4bd; padding: 7px 10px; color: #5a4500; font-size: 12px; }
 
 .xp2006-broadcast-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 390px); align-items: stretch; gap: 14px; }
@@ -369,9 +361,6 @@
 
 @media (max-width: 560px) {
   .xp2006-broadcast-desktop { padding: 7px; }
-  .xp2006-broadcast-header { grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
-  .xp2006-broadcast-header > img { width: 108px; }
-  .xp2006-broadcast-heading { grid-column: 1 / -1; }
   .xp2006-broadcast-now { grid-template-columns: auto minmax(0, 1fr); }
   .xp2006-broadcast-now > span:last-of-type { grid-column: 1 / -1; }
   .xp2006-broadcast-extra { max-height: 360px; }

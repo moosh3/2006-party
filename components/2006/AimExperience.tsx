@@ -368,13 +368,12 @@ function BuddyModal({ buddy, screenName, type, close, showInfo }: {
 }
 
 export default function AimExperience({
-  viewer, streamData, streamError, tokenRefreshError, viewerCount, activeCueLabel, refreshStream, onSignOff,
+  viewer, streamData, streamError, tokenRefreshError, activeCueLabel, refreshStream, onSignOff,
 }: {
   viewer: Viewer;
   streamData: ExperienceStreamData | null;
   streamError: string | null;
   tokenRefreshError: string | null;
-  viewerCount: number;
   activeCueLabel?: string | null;
   refreshStream: () => void;
   onSignOff: () => void;
@@ -502,16 +501,6 @@ export default function AimExperience({
 
         {screen === 'show' && (
           <>
-            <header className="xp2006-broadcast-header">
-              <button type="button" className="xp2006-broadcast-back" onClick={() => navigate('home')}>‹ iPod menu</button>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/2006/art.png" alt="2006 — The Year, The Show, Live" />
-              <div className="xp2006-broadcast-heading">
-                <strong>The Show</strong>
-                <span>{viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'} signed on · audience chat open</span>
-              </div>
-            </header>
-
             {tokenRefreshError && <div className="xp2006-broadcast-warning" role="status">{tokenRefreshError}</div>}
 
             <section className="xp2006-broadcast-grid" aria-label="The Show broadcast and audience chat">
