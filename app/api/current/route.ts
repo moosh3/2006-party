@@ -16,6 +16,40 @@ import {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+function waitingRoomResponse() {
+  return NextResponse.json({
+    playbackId: 'demo-playback-id',
+    title: '2006 — waiting for the program',
+    kind: 'vod',
+    token: 'unsigned',
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    showPoster: false,
+    isHoldScreen: true,
+    playoutMode: 'manual',
+    playbackState: 'paused',
+    playbackPosition: 0,
+    playbackUpdatedAt: new Date().toISOString(),
+    playbackElapsedMs: 0,
+    scheduleStatus: 'Waiting for operator',
+    activeSlotId: null,
+    activeAssetKey: null,
+    nextTransitionAt: null,
+    eventSlug: '2006',
+    scheduleTitle: '2006 run of show',
+    sourceType: MUX_SOURCE_TYPE,
+    youtubePlaylistId: null,
+    sourceUrl: null,
+    captionFilename: null,
+    captionUrl: null,
+    captionLabel: null,
+    captionLanguage: null,
+  }, {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   // Verify viewer authentication (client-side localStorage-based)
   // In a production system, you might want to verify viewer data server-side
@@ -75,10 +109,10 @@ export async function GET(request: NextRequest) {
         });
       }
       
-      return NextResponse.json(
-        { error: 'No active stream configured' },
-        { status: 404 }
-      );
+      // An operator may not have loaded the first cue yet. That is a valid
+      // pre-show state, so keep audience and stage displays online with the
+      // branded slate instead of treating it as a connection failure.
+      return waitingRoomResponse();
     }
 
     const playoutMode: PlayoutMode = data.playout_mode || 'schedule';
