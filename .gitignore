@@ -25,8 +25,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
-.env.local
+.env*
+!.env.example
 
 # vercel
 .vercel
@@ -44,4 +44,3 @@ helm/**/values-production.yaml
 # public/assets/videos/*.webm
 # public/assets/**/*.psd
 # public/assets/**/*.ai
-
