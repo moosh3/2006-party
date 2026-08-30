@@ -34,9 +34,10 @@ interface Message {
 interface ChatProps {
   room?: string;
   userId: string;
+  embedded?: boolean;
 }
 
-export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
+export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = false }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageBody, setMessageBody] = useState('');
   const [userName, setUserName] = useState('');
@@ -379,6 +380,10 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
   }
 
   if (loading) {
+    if (embedded) {
+      return <div className="aim-chat-loading">Connecting to the room…</div>;
+    }
+
     return (
       <AimWindow title="Chat Room: 2006" className="aim-chat-window" menuItems={['File', 'Edit', 'People', 'Help']} status="connecting…">
         <div className="aim-chat-loading">Connecting to the room…</div>
@@ -386,14 +391,8 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
     );
   }
 
-  return (
-    <AimWindow
-      title="Chat Room: 2006"
-      className="aim-chat-window"
-      menuItems={['File', 'Edit', 'People', 'Help']}
-      status={`${messages.length} message${messages.length === 1 ? '' : 's'} in the room`}
-      live
-    >
+  const chatContent = (
+    <>
       <div className="aim-chat-room-heading">
         <strong>2006ers</strong>
         <span>Live audience chat</span>
@@ -571,6 +570,26 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
           </div>
         </form>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="aim-chat-window aim-chat-window-embedded">
+        {chatContent}
+      </div>
+    );
+  }
+
+  return (
+    <AimWindow
+      title="Chat Room: 2006"
+      className="aim-chat-window"
+      menuItems={['File', 'Edit', 'People', 'Help']}
+      status={`${messages.length} message${messages.length === 1 ? '' : 's'} in the room`}
+      live
+    >
+      {chatContent}
     </AimWindow>
   );
 }

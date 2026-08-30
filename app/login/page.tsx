@@ -2,116 +2,84 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import AimWindow from '@/components/aim/AimWindow';
-import { getViewerData, saveViewerData } from '@/lib/viewer';
+import { saveViewerData } from '@/lib/viewer';
+import '@/components/2006/experience.css';
+
+const ANON_NAMES = [
+  'xXbrokenheartXx', 'sk8rgrl2006', 'raWrXD', 'aimlessly_urs', 'ttyl_never',
+  'MCRisMYlife', 'glitterbomb182', 'notURbabygurl', 'away_msg_only',
+  'dialUpDarling', 'top8reject', 'sharpieCDR', 'flatironFatale',
+  'myspaceTom_stan', 'T9poet', 'burnedUaMix',
+];
+
+function anonymousScreenName() {
+  const storageKey = '2006_party_used_screen_names';
+  let used: string[] = [];
+  try { used = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { used = []; }
+  const available = ANON_NAMES.filter((name) => !used.includes(name));
+  const pool = available.length ? available : ANON_NAMES;
+  const base = pool[Math.floor(Math.random() * pool.length)];
+  const result = available.length ? base : `${base}${Math.floor(Math.random() * 89 + 10)}`;
+  localStorage.setItem(storageKey, JSON.stringify([...used, base].slice(-40)));
+  return result;
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [screenName, setScreenName] = useState('');
-  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    document.title = 'Sign On · 2006';
-    if (getViewerData()) router.replace('/event');
-  }, [router]);
+  useEffect(() => { document.title = 'Sign On · 2006'; }, []);
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/viewer/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, displayName: screenName }),
-      });
-      const data = await response.json();
-
-      if (!data.valid) {
-        setError(data.error || 'Unable to sign on');
-        return;
-      }
-
-      saveViewerData(email, screenName, 'aim');
-      router.push('/event');
-    } catch {
-      setError('Unable to sign on. Try again.');
-    } finally {
-      setLoading(false);
+  const signOn = (requestedName?: string, initialScreen = 'home') => {
+    const name = (requestedName || screenName).trim().slice(0, 20) || anonymousScreenName();
+    if (name.length < 2) {
+      setError('Screen name must be at least 2 characters.');
+      return;
     }
-  }
+    saveViewerData(`${name.toLowerCase().replace(/[^a-z0-9]+/g, '.') || 'anon'}@2006.local`, name, 'aim');
+    sessionStorage.setItem('2006_party_initial_screen', initialScreen);
+    router.push('/event');
+  };
 
   return (
-    <div className="aim-desktop aim-sign-on">
-      <a className="skip-link" href="#aim-sign-on-main">Skip to content</a>
-      <main id="aim-sign-on-main" className="aim-sign-on-main">
-        <div className="aim-sign-on-stack">
-          <AimWindow title="2006 — Sign On" menuItems={['My AIM', 'People', 'Help']} status="Screen names appear in the live chat">
-            <form className="aim-sign-on-form" onSubmit={handleSubmit}>
-              <div className="aim-sign-on-art">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/2006/art.png" alt="2006 — The Year, The Show, Live" />
-              </div>
-
-              <label>
-                <span>Screen Name</span>
-                <input
-                  value={screenName}
-                  onChange={(event) => setScreenName(event.target.value)}
-                  autoComplete="username"
-                  minLength={2}
-                  maxLength={50}
-                  required
-                  disabled={loading}
-                />
-              </label>
-
-              <label>
-                <span>E-mail Address</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
-                  required
-                  disabled={loading}
-                />
-              </label>
-
-              <p className="aim-sign-on-hint">Your screen name is public. Your email is not shown in chat.</p>
-              {error && <p className="aim-sign-on-error" role="alert">{error}</p>}
-
-              <div className="aim-sign-on-actions">
-                <button type="button" className="aim-xp-button" onClick={() => router.push('/')} disabled={loading}>Cancel</button>
-                <button type="submit" className="aim-xp-button aim-xp-button-primary" disabled={loading}>
-                  {loading ? 'Signing on…' : 'Sign On'}
-                </button>
-              </div>
-            </form>
-          </AimWindow>
-          <a className="aim-aac" href="https://www.artisticaccessibility.com" target="_blank" rel="noreferrer">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/2006/aac.png" alt="Artistic Accessibility Collective" />
-          </a>
-        </div>
+    <div className="aim-desktop xp2006-desktop">
+      <a className="sr-only" href="#xp2006-signon">Skip to the window</a>
+      <main id="xp2006-signon" className="xp2006-frame">
+        <h1 className="sr-only">Sign On · 2006</h1>
+        <section className="xp2006-window">
+          <div className="xp2006-titlebar">
+            <span className="xp2006-running-man" aria-hidden="true" />
+            <span className="xp2006-title">Sign On</span>
+            <span className="xp2006-window-buttons" aria-hidden="true"><span>_</span><span>□</span><span className="xp2006-signoff-x">×</span></span>
+          </div>
+          <form className="xp2006-signon-body" onSubmit={(event) => { event.preventDefault(); signOn(); }}>
+            <div className="xp2006-signon-art">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/2006/art.png" alt="2006, the year, the show, live" />
+            </div>
+            <div className="xp2006-signon-rule" />
+            <label className="xp2006-signon-row">
+              <span>Screen Name</span>
+              <span className="xp2006-signon-input"><input value={screenName} onChange={(event) => setScreenName(event.target.value)} maxLength={20} autoComplete="off" spellCheck={false} placeholder="<New User>" autoFocus /><i>▼</i></span>
+            </label>
+            <p className="xp2006-signon-hint">make up a screen name, or skip it and we&apos;ll pick one<br /><em>the password is being pure of heart</em></p>
+            {error && <p className="xp2006-signon-error" role="alert">{error}</p>}
+            <button type="button" className="xp2006-signon-anon" onClick={() => signOn(anonymousScreenName())}>Continue as Anon</button>
+            <div className="xp2006-signon-checks" aria-hidden="true"><span><i /> Save password</span><span><i /> Auto-login</span></div>
+            <div className="xp2006-signon-actions">
+              <button type="button" onClick={() => signOn(anonymousScreenName(), 'show')}><span>❓</span>Help</button>
+              <button type="button" onClick={() => signOn(anonymousScreenName(), 'graveyard')}><span>🔧</span>Setup</button>
+              <button type="submit" className="go"><span className="xp2006-running-man big" aria-hidden="true" />Sign On</button>
+            </div>
+            <div className="xp2006-signon-version">Version: 2006 · ONLINE NOW &amp; TAKING SUBMISSIONS</div>
+          </form>
+        </section>
+        <a className="xp2006-aac" href="https://www.artisticaccessibility.com" target="_blank" rel="noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/2006/aac.png" alt="Artistic Accessibility Collective" />
+        </a>
       </main>
-      <style jsx>{`
-        .aim-sign-on { padding: 20px; }
-        .aim-sign-on-main { min-height: calc(100dvh - 40px); display: grid; place-items: center; }
-        .aim-sign-on-stack { width: min(100%, 430px); }
-        .aim-sign-on-form { display: grid; gap: 10px; padding: 10px 12px 14px; }
-        .aim-sign-on-art { overflow: hidden; border: 1px solid #6f6f6f; background: #000; box-shadow: inset 1px 1px 0 #3a3a3a; }
-        .aim-sign-on-art img { display: block; width: 100%; height: auto; }
-        .aim-sign-on-form label { display: grid; grid-template-columns: 108px 1fr; align-items: center; gap: 8px; font-size: 12px; }
-        .aim-sign-on-form input { min-width: 0; border: 1px solid #808080; background: #fff; box-shadow: inset 1px 1px 0 #4a4a4a; font: inherit; padding: 5px 6px; }
-        .aim-sign-on-hint { margin: 0; color: #5a5a52; font-size: 10px; line-height: 1.4; text-align: center; }
-        .aim-sign-on-error { margin: 0; color: #a31616; font-size: 11px; text-align: center; }
-        .aim-sign-on-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
-        @media (max-width: 420px) { .aim-sign-on-form label { grid-template-columns: 1fr; gap: 3px; } }
-      `}</style>
     </div>
   );
 }

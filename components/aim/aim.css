@@ -199,6 +199,26 @@
   box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.75);
 }
 
+.show-loading-screen {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 20px;
+}
+
+.show-loading-screen > .aim-window {
+  width: min(100%, 420px);
+}
+
+.show-loading-message {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  padding: 24px;
+  font-size: 13px;
+  text-align: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .aim-desktop *,
   .aim-desktop *::before,

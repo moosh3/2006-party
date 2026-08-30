@@ -26,7 +26,7 @@ function getPlaylistUrl(playlistId: string) {
   return `https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`;
 }
 
-export default function VideoPlaylistShelf() {
+export default function VideoPlaylistShelf({ emptyMessage }: { emptyMessage?: string } = {}) {
   const [playlist, setPlaylist] = useState<VideoPlaylistResponse | null>(null);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function VideoPlaylistShelf() {
   }, []);
 
   if (!playlist?.enabled || !playlist.playlistId) {
-    return null;
+    return emptyMessage ? <p className="xp2006-queue-empty">{playlist ? emptyMessage : 'Checking the video queue…'}</p> : null;
   }
 
   return (
