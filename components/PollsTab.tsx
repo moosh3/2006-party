@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import PollCard from './PollCard';
 import {
@@ -33,6 +33,20 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
   const [polls, setPolls] = useState<PollData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'closed'>('active');
+
+  const loadPolls = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/polls?room=${room}&userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPolls(data.polls || []);
+      }
+    } catch (error) {
+      console.error('Failed to load polls:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [room, userId]);
 
   useEffect(() => {
     loadPolls();
@@ -67,21 +81,7 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [room, userId]);
-
-  async function loadPolls() {
-    try {
-      const response = await fetch(`/api/polls?room=${room}&userId=${userId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPolls(data.polls || []);
-      }
-    } catch (error) {
-      console.error('Failed to load polls:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [loadPolls]);
 
   const activePolls = polls.filter(p => p.is_open);
   const closedPolls = polls.filter(p => !p.is_open);
@@ -97,7 +97,7 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
   if (polls.length === 0) {
     return (
       <div className="text-center p-8">
-        <p className="f-comic text-sm" style={{ color: '#cbb6ff' }}>No polls yet. Check back later!</p>
+        <p className="text-sm" style={{ color: '#555' }}>No polls yet. Check back later.</p>
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
         <button
           onClick={() => setActiveTab('active')}
           className="px-4 py-2 font-semibold text-sm transition-colors relative f-comic"
-          style={{ color: activeTab === 'active' ? '#c9ff2d' : '#cbb6ff' }}
+          style={{ color: activeTab === 'active' ? '#0000cc' : '#555' }}
         >
           Active Polls
           {activePolls.length > 0 && (
@@ -118,13 +118,13 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
             </span>
           )}
           {activeTab === 'active' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: '#c9ff2d' }}></div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: '#316ac5' }}></div>
           )}
         </button>
         <button
           onClick={() => setActiveTab('closed')}
           className="px-4 py-2 font-semibold text-sm transition-colors relative f-comic"
-          style={{ color: activeTab === 'closed' ? '#c9ff2d' : '#cbb6ff' }}
+          style={{ color: activeTab === 'closed' ? '#0000cc' : '#555' }}
         >
           Past Results
           {closedPolls.length > 0 && (
@@ -133,7 +133,7 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
             </span>
           )}
           {activeTab === 'closed' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: '#c9ff2d' }}></div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: '#316ac5' }}></div>
           )}
         </button>
       </div>
@@ -175,4 +175,3 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
     </div>
   );
 }
-

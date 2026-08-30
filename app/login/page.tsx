@@ -2,181 +2,116 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LL_FONT_VARS } from '@/components/lobby-lounge/fonts';
-import { LL } from '@/components/lobby-lounge/tokens';
-import LLHeader from '@/components/lobby-lounge/LLHeader';
-import FrostCard from '@/components/lobby-lounge/FrostCard';
-import AvatarPicker from '@/components/lobby-lounge/AvatarPicker';
-import { saveViewerData, getViewerData } from '@/lib/viewer';
-import '@/components/lobby-lounge/lobby-lounge.css';
-
-const inputStyle: React.CSSProperties = {
-  border: `2.5px solid ${LL.ink}`,
-  borderRadius: 8,
-  background: '#fff',
-  padding: '10px 12px',
-  fontSize: 16,
-  fontFamily: 'var(--ll-f-outfit), system-ui, sans-serif',
-  boxShadow: 'inset 2px 2px 0 rgba(26,18,48,.15)',
-  color: LL.ink,
-};
+import AimWindow from '@/components/aim/AimWindow';
+import { getViewerData, saveViewerData } from '@/lib/viewer';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
+  const [screenName, setScreenName] = useState('');
   const [email, setEmail] = useState('');
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [tried, setTried] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = "Who's Watchin'? · Da Movies";
-    if (getViewerData()) {
-      router.replace('/home');
-    }
+    document.title = 'Sign On · 2006';
+    if (getViewerData()) router.replace('/event');
   }, [router]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setTried(true);
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError('');
-
-    if (!avatar) return;
-
     setLoading(true);
 
     try {
       const response = await fetch('/api/viewer/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, displayName: name }),
+        body: JSON.stringify({ email, displayName: screenName }),
       });
       const data = await response.json();
 
       if (!data.valid) {
-        setError(data.error || 'Validation failed');
-        setLoading(false);
+        setError(data.error || 'Unable to sign on');
         return;
       }
 
-      saveViewerData(email, name, avatar);
-      router.push('/home');
+      saveViewerData(email, screenName, 'aim');
+      router.push('/event');
     } catch {
-      setError('An error occurred. Please try again.');
+      setError('Unable to sign on. Try again.');
+    } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div
-      className={`dm-lobby-lounge ${LL_FONT_VARS}`}
-      style={{
-        background: LL.ink,
-        color: LL.frost1,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <a className="skip-link" href="#ll-login-main">
-        Skip to content
-      </a>
-      <LLHeader tagline="where we like to watch movies" lockText="MEMBERS ONLY · NO RANDOS" timestamp="LOG IN" />
+    <div className="aim-desktop aim-sign-on">
+      <a className="skip-link" href="#aim-sign-on-main">Skip to content</a>
+      <main id="aim-sign-on-main" className="aim-sign-on-main">
+        <div className="aim-sign-on-stack">
+          <AimWindow title="2006 — Sign On" menuItems={['My AIM', 'People', 'Help']} status="Screen names appear in the live chat">
+            <form className="aim-sign-on-form" onSubmit={handleSubmit}>
+              <div className="aim-sign-on-art">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/2006/art.png" alt="2006 — The Year, The Show, Live" />
+              </div>
 
-      <main id="ll-login-main" style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '26px 18px 36px' }}>
-        <div style={{ width: '100%', maxWidth: 440 }}>
-          <FrostCard title="★ WHO'S WATCHIN'?" meta="step 1 of 1" headBg={LL.ink} headText={LL.lime}>
-            <form onSubmit={handleSubmit} style={{ padding: '20px 22px 24px', display: 'grid', gap: 16, color: LL.ink }}>
-              <label className="f-comic" style={{ display: 'grid', gap: 4, fontSize: 14 }}>
-                name / username
+              <label>
+                <span>Screen Name</span>
                 <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
+                  value={screenName}
+                  onChange={(event) => setScreenName(event.target.value)}
                   autoComplete="username"
-                  placeholder="how you'll show up in chat"
                   minLength={2}
                   maxLength={50}
+                  required
                   disabled={loading}
-                  style={inputStyle}
                 />
               </label>
 
-              <label className="f-comic" style={{ display: 'grid', gap: 4, fontSize: 14 }}>
-                email
+              <label>
+                <span>E-mail Address</span>
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
-                  placeholder="you@wherever.com"
+                  required
                   disabled={loading}
-                  style={inputStyle}
                 />
               </label>
 
-              <div style={{ display: 'grid', gap: 9 }}>
-                <span className="f-comic" style={{ fontSize: 14 }}>
-                  pick ur avatar
-                </span>
-                <AvatarPicker picked={avatar} onPick={setAvatar} />
-                {tried && !avatar && (
-                  <span className="f-mono" role="alert" style={{ fontSize: 15, color: '#a31616' }}>
-                    pick one, they don&apos;t bite
-                  </span>
-                )}
+              <p className="aim-sign-on-hint">Your screen name is public. Your email is not shown in chat.</p>
+              {error && <p className="aim-sign-on-error" role="alert">{error}</p>}
+
+              <div className="aim-sign-on-actions">
+                <button type="button" className="aim-xp-button" onClick={() => router.push('/')} disabled={loading}>Cancel</button>
+                <button type="submit" className="aim-xp-button aim-xp-button-primary" disabled={loading}>
+                  {loading ? 'Signing on…' : 'Sign On'}
+                </button>
               </div>
-
-              {error && (
-                <span className="f-mono" role="alert" style={{ fontSize: 15, color: '#a31616' }}>
-                  {error}
-                </span>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="bevel-btn f-display"
-                style={{
-                  fontSize: 16,
-                  padding: '12px 24px',
-                  marginTop: 2,
-                  borderRadius: 10,
-                  background: `linear-gradient(180deg, ${LL.frost1} 0%, ${LL.lime} 55%, #95cc1f 100%)`,
-                  color: LL.ink,
-                  opacity: loading ? 0.6 : 1,
-                }}
-              >
-                {loading ? 'CHECKING…' : 'ENTER THE LOUNGE ▶'}
-              </button>
             </form>
-          </FrostCard>
+          </AimWindow>
+          <a className="aim-aac" href="https://www.artisticaccessibility.com" target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/2006/aac.png" alt="Artistic Accessibility Collective" />
+          </a>
         </div>
       </main>
-
-      <footer
-        style={{
-          padding: '12px 18px',
-          background: LL.deep,
-          color: LL.mint,
-          borderTop: `3px solid ${LL.mint}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 6,
-        }}
-      >
-        <span className="f-mono" style={{ fontSize: 14 }}>
-          © 2026 damovies.watch · made by friends for friends
-        </span>
-        <span className="f-mono" style={{ fontSize: 14 }}>
-          ★ invite only ★
-        </span>
-      </footer>
+      <style jsx>{`
+        .aim-sign-on { padding: 20px; }
+        .aim-sign-on-main { min-height: calc(100dvh - 40px); display: grid; place-items: center; }
+        .aim-sign-on-stack { width: min(100%, 430px); }
+        .aim-sign-on-form { display: grid; gap: 10px; padding: 10px 12px 14px; }
+        .aim-sign-on-art { overflow: hidden; border: 1px solid #6f6f6f; background: #000; box-shadow: inset 1px 1px 0 #3a3a3a; }
+        .aim-sign-on-art img { display: block; width: 100%; height: auto; }
+        .aim-sign-on-form label { display: grid; grid-template-columns: 108px 1fr; align-items: center; gap: 8px; font-size: 12px; }
+        .aim-sign-on-form input { min-width: 0; border: 1px solid #808080; background: #fff; box-shadow: inset 1px 1px 0 #4a4a4a; font: inherit; padding: 5px 6px; }
+        .aim-sign-on-hint { margin: 0; color: #5a5a52; font-size: 10px; line-height: 1.4; text-align: center; }
+        .aim-sign-on-error { margin: 0; color: #a31616; font-size: 11px; text-align: center; }
+        .aim-sign-on-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 2px; }
+        @media (max-width: 420px) { .aim-sign-on-form label { grid-template-columns: 1fr; gap: 3px; } }
+      `}</style>
     </div>
   );
 }

@@ -1,258 +1,74 @@
-# Event Streaming Platform
+# 2006 Party
 
-A private event streaming platform built with Next.js 14, Supabase, and Mux for live and VOD content delivery.
+The technical home of **2006**, a live performance and synchronized online broadcast by Artistic Accessibility Collective.
 
-Also made by MK.
+This project began as a local fork of [`moosh3/after-party`](https://github.com/moosh3/after-party). It keeps the source project’s Mux playback, Supabase realtime chat and polling, queue controls, captions, and synchronized playback engine while replacing the audience experience with the visual language of the existing [2006 website](https://www.artisticaccessibility.com/2006).
 
-## 📚 Quick Links
+## The three surfaces
 
-- **[Quick Mux Setup](QUICK_MUX_SETUP.md)** - Get a video playing in 10 minutes
-- **[Mux Video Guide](MUX_VIDEO_GUIDE.md)** - Comprehensive video upload guide
-- **[Vercel Deployment](VERCEL_DEPLOYMENT.md)** - Deploy to production
-- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre-deployment checklist
+All three surfaces read the same current program state from `/api/current`.
 
-## Features
+| Route | Surface | Purpose |
+| --- | --- | --- |
+| `/event` | Online audience | Synchronized video, AIM-style audience chat, video shelf, and voting |
+| `/stage` | Live room | Program video without chat, plus the current cue, next cue, and transition clock |
+| `/admin` | Operator | Existing media library, queue, playback, poll, and stream controls |
 
-- 🎥 Live and VOD video streaming powered by Mux
-- 💬 Real-time chat system with persistent display names
-- 📊 Interactive polls
-- 🔐 Password-protected admin access
-- 👥 Viewer registration with display names
-- 👨‍💼 Admin panel for content management
-- 🎨 Modern, responsive UI with Tailwind CSS
+`/schedule` exposes the working cue sequence from `lib/run-of-show.ts`. It deliberately does not invent durations or media IDs that have not been locked by the production team.
 
-## Tech Stack
+## Current state
 
-- **Framework:** Next.js 14 (App Router)
-- **Language:** TypeScript
-- **Database:** Supabase (PostgreSQL)
-- **Video:** Mux
-- **Styling:** Tailwind CSS
-- **Authentication:** Custom JWT-based auth
-- **Deployment:** Vercel
+- The landing and sign-on flow use the AIM/Windows XP visual system from the 2006 site.
+- The online audience sees the same synchronized Mux or YouTube program source as the stage display.
+- The chat retains Supabase realtime delivery, recovery, slow mode, reactions, and polls while rendering as an AIM chat room.
+- The stage display is designed for a 16:9 room screen and keeps a large cue clock visible below the program image.
+- Local preview mode works without Supabase or Mux credentials and clearly identifies itself as a preview.
+- New database setup defaults to manual playout until the real run times and media IDs are approved.
 
-## Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Supabase account (free tier)
-- Mux account (free tier with $20 credit)
-- Vercel account (for deployment)
-
-## Local Development Setup
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd after-party
-```
-
-### 2. Install dependencies
+## Local development
 
 ```bash
 npm install
-```
-
-### 3. Set up Supabase
-
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to Project Settings → API to get your credentials
-3. Go to SQL Editor and run the schema from `sql/schema.sql`
-4. Enable Realtime for the following tables:
-   - `messages`
-   - `current_stream`
-
-### 4. Set up Mux
-
-1. Create an account at [mux.com](https://mux.com)
-2. Go to Settings → Access Tokens to generate API keys
-3. Go to Settings → Signing Keys to create a signing key pair
-
-### 5. Configure environment variables
-
-Copy `.env.example` to `.env.local` and fill in your credentials:
-
-```bash
 cp .env.example .env.local
-```
-
-Update the following values in `.env.local`:
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon/public key
-- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
-- `MUX_TOKEN_ID` - Your Mux token ID
-- `MUX_TOKEN_SECRET` - Your Mux token secret
-- `MUX_SIGNING_KEY_ID` - Your Mux signing key ID
-- `MUX_SIGNING_KEY_PRIVATE` - Your Mux signing key private key
-- `YOUTUBE_API_KEY` - Server-only YouTube Data API key for the event playlist shelf
-
-**Note:** The placeholder passwords are:
-- Viewer: `viewer123`
-- Admin: `admin123`
-
-To change passwords, generate new bcrypt hashes:
-
-```bash
-node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('your-password', 10));"
-```
-
-### 6. Run the development server
-
-```bash
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to see the application.
+Open [http://localhost:3000](http://localhost:3000). Without credentials, the app renders a branded program-feed preview and keeps chat messages local to the current page.
 
-## Project Structure
+For production, configure:
 
-```
-/
-├── app/                    # Next.js app directory
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Landing page
-│   ├── event/             # Event viewer page
-│   ├── admin/             # Admin panel
-│   └── api/               # API routes
-├── lib/                   # Core utilities
-│   ├── supabase.ts       # Supabase client
-│   ├── mux.ts            # Mux client
-│   └── config.ts         # App configuration
-├── components/           # React components
-│   └── ui/              # Shared UI components
-├── sql/                  # Database schemas
-│   └── schema.sql       # Supabase schema
-├── public/              # Static assets
-└── slices/              # Development slices (documentation)
-```
+- Supabase URL, anonymous key, and service-role key
+- Mux API and signing credentials
+- admin password hash and a 32+ character session secret
+- YouTube API key if the public playlist shelf is enabled
 
-## Deployment to Vercel
+Run the SQL migrations in numerical order and enable Supabase Realtime for `messages`, `message_reactions`, `current_stream`, `polls`, and `poll_votes`.
 
-### 1. Install Vercel CLI (optional)
+## Verification
 
 ```bash
-npm install -g vercel
+npm run build
+npm run test:showtime
 ```
 
-### 2. Deploy via CLI
+The production build is credential-independent. Runtime administration still refuses operations that require missing secrets.
+
+## Production inputs still needed
+
+- show date, start time, and timezone
+- final duration for every cue and transition
+- Mux playback/asset IDs or approved YouTube sources
+- final countdown order and poll wording
+- caption files and the audio-description plan for each prerecorded asset
+- operator fallback policy for a failed live feed, failed video, or network interruption
+
+The original `showtime.yaml` remains an upstream scheduling-engine fixture. Do not switch production into schedule mode until it has been replaced with the approved 2006 timings and media. Manual playout is the safe default meanwhile.
+
+## Repository remotes
+
+The project repository is `origin`; the source repository remains available as `upstream`. GitHub does not allow one account to own both a repository and its native fork, so this repository preserves the complete `after-party` history without being part of GitHub's fork network.
 
 ```bash
-vercel
+git fetch upstream
+git merge upstream/main
 ```
-
-Or connect your GitHub repository to Vercel for automatic deployments.
-
-### 3. Configure environment variables
-
-In your Vercel project dashboard:
-1. Go to Settings → Environment Variables
-2. Add all variables from `.env.local`
-3. Make sure to set them for Production, Preview, and Development environments
-
-### 4. Environment variables needed in Vercel:
-
-Required variables:
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-MUX_TOKEN_ID
-MUX_TOKEN_SECRET
-MUX_SIGNING_KEY_ID
-MUX_SIGNING_KEY_PRIVATE
-YOUTUBE_API_KEY
-VIEWER_PASSWORD_HASH
-ADMIN_PASSWORD_HASH
-SESSION_SECRET
-NEXT_PUBLIC_EVENT_DATE
-EVENT_ROOM_ID
-```
-
-### 5. Deploy
-
-```bash
-vercel --prod
-```
-
-## API Endpoints
-
-- `GET /api/health` - Health check endpoint
-
-## Testing
-
-### Manual Tests
-
-1. Visit the homepage - should see landing page with two buttons
-2. Click "Join Event" - should see placeholder event page
-3. Click "Admin Panel" - should see placeholder admin page
-4. Visit `/api/health` - should return JSON with status "ok"
-
-### Health Check
-
-```bash
-curl http://localhost:3000/api/health
-```
-
-Expected response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-10-11T...",
-  "service": "event-streaming-platform"
-}
-```
-
-## Development Slices
-
-This project is developed in slices (incremental features):
-
-1. ✅ **Foundation** - Project setup, database, basic structure (current)
-2. 🔜 **Authentication** - Viewer and admin authentication
-3. 🔜 **Video Playback** - Mux integration and video player
-4. 🔜 **Stream Management** - Admin controls for managing streams
-5. 🔜 **Chat System** - Real-time chat and polls
-
-See the `slices/` directory for detailed specifications.
-
-## Database Schema
-
-The database includes tables for:
-- `current_stream` - Active stream configuration
-- `mux_items` - Video asset catalog
-- `messages` - Chat messages
-- `polls`, `poll_options`, `poll_votes` - Polling system
-- `chat_throttle` - Rate limiting
-- `admin_actions` - Audit log
-
-See `sql/schema.sql` for the complete schema.
-
-## Security Notes
-
-- Never commit `.env.local` to version control
-- Keep your Supabase service role key secret (server-side only)
-- Rotate API keys regularly
-- Use strong passwords for production
-- Enable RLS policies in Supabase for additional security
-
-## Troubleshooting
-
-### Issue: TypeScript errors on first run
-
-Solution: Run `npm run build` once to generate Next.js type definitions.
-
-### Issue: Supabase connection fails
-
-Solution: Verify your Supabase URL and keys in `.env.local`. Make sure the project is active.
-
-### Issue: Mux token errors
-
-Solution: Check that your Mux signing key is correctly formatted (should be a private key string).
-
-## Contributing
-
-This is a private event platform. See `PRD.md` for the complete product requirements.
-
-## License
-
-Private - All rights reserved

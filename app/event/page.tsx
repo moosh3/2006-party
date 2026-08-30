@@ -1,40 +1,25 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef, type TouchEvent, type WheelEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import VideoPlayer from '@/components/VideoPlayer';
+import AimWindow from '@/components/aim/AimWindow';
 import Chat from '@/components/Chat';
-import PollsTab from '@/components/PollsTab';
-import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { useTokenRefresh } from '@/hooks/useTokenRefresh';
-import { useStreamUpdates } from '@/hooks/useStreamUpdates';
-import { getViewerData } from '@/lib/viewer';
-import { supabase } from '@/lib/supabase';
-import {
-  ROOM_NAMES,
-  CHANNEL_NAMES,
-  DATABASE_TABLES,
-} from '@/lib/constants';
-import { LL_FONT_VARS } from '@/components/lobby-lounge/fonts';
-import { LL } from '@/components/lobby-lounge/tokens';
-import LLHeader from '@/components/lobby-lounge/LLHeader';
-import { LLPill } from '@/components/lobby-lounge/buttons';
-import DoorsCountdown from '@/components/lobby-lounge/DoorsCountdown';
-import Reel from '@/components/lobby-lounge/Reel';
-import MiniAvatar from '@/components/lobby-lounge/MiniAvatar';
-import PresenceToasts from '@/components/lobby-lounge/PresenceToasts';
+import PollsTab from '@/components/PollsTab';
+import VideoPlayer from '@/components/VideoPlayer';
+import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
 import { useLobbyPresence } from '@/components/lobby-lounge/useLobbyPresence';
-import '@/components/lobby-lounge/lobby-lounge.css';
+import { useTokenRefresh } from '@/hooks/useTokenRefresh';
+import { getViewerData } from '@/lib/viewer';
+import { getRunOfShowCue } from '@/lib/run-of-show';
+import { ROOM_NAMES } from '@/lib/constants';
 
-interface StreamData {
+type StreamData = {
   playbackId: string;
   token: string;
   expiresAt: string;
   title: string;
   kind: string;
-  showPoster?: boolean;
   isHoldScreen?: boolean;
   playoutMode?: 'manual' | 'schedule' | string;
   playbackState?: 'playing' | 'paused' | string;
@@ -50,640 +35,162 @@ interface StreamData {
   captionUrl?: string | null;
   captionLabel?: string | null;
   captionLanguage?: string | null;
+};
+
+type Viewer = {
+  id: string;
+  displayName: string;
+  avatar: string;
+};
+
+function isStreamData(value: unknown): value is StreamData {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.playbackId === 'string'
+    && typeof candidate.token === 'string'
+    && typeof candidate.expiresAt === 'string'
+    && typeof candidate.title === 'string'
+    && typeof candidate.kind === 'string';
 }
 
-function isStreamDataPayload(data: unknown): data is StreamData {
-  if (!data || typeof data !== 'object') return false;
-  const candidate = data as Record<string, unknown>;
-
-  return (
-    typeof candidate.playbackId === 'string' &&
-    typeof candidate.token === 'string' &&
-    typeof candidate.expiresAt === 'string' &&
-    typeof candidate.title === 'string' &&
-    typeof candidate.kind === 'string'
-  );
-}
-
-async function fetchCurrentStreamData() {
+async function fetchCurrentStream() {
   const response = await fetch('/api/current', { cache: 'no-store' });
-
-  if (!response.ok) {
-    throw new Error(`Current stream request failed with ${response.status}`);
-  }
-
-  const data = await response.json();
-  if (!isStreamDataPayload(data)) {
-    throw new Error('Current stream response was missing playback fields');
-  }
-
+  if (!response.ok) throw new Error(`Show feed returned ${response.status}`);
+  const data: unknown = await response.json();
+  if (!isStreamData(data)) throw new Error('Show feed response is incomplete');
   return data;
 }
 
-function ScreenChrome({ children }: { children: React.ReactNode }) {
+function TransitionClock({ nextTransitionAt }: { nextTransitionAt?: string | null }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  if (!nextTransitionAt) return <span>Manual cue</span>;
+
+  const seconds = Math.max(0, Math.floor((new Date(nextTransitionAt).getTime() - now) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return <span>Next transition in {minutes}:{String(remainder).padStart(2, '0')}</span>;
+}
+
+function LoadingWindow({ message }: { message: string }) {
   return (
-    <div className={`dm-lobby-lounge ${LL_FONT_VARS}`} style={{ minHeight: '100vh', background: LL.ink, color: LL.frost1 }}>
-      {children}
+    <div className="aim-desktop show-loading-screen">
+      <AimWindow title="2006 — Connecting" status="Please wait">
+        <div className="show-loading-message">{message}</div>
+      </AimWindow>
     </div>
-  );
-}
-
-function LoadingScreen({ message }: { message: string }) {
-  return (
-    <ScreenChrome>
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', display: 'grid', gap: 12, justifyItems: 'center' }}>
-          <Reel size={72} mood="sleepy" />
-          <p className="f-comic" style={{ color: LL.frost2 }}>
-            {message}
-          </p>
-        </div>
-      </div>
-    </ScreenChrome>
-  );
-}
-
-function isInteractiveVideoTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    Boolean(target.closest('button, input, a, [role="button"], [role="slider"]'))
   );
 }
 
 export default function EventPage() {
   const router = useRouter();
-  const watchBelowRef = useRef<HTMLDivElement>(null);
-  const videoTouchYRef = useRef<number | null>(null);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
   const [streamData, setStreamData] = useState<StreamData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string>('');
-  const [viewerName, setViewerName] = useState<string>('');
-  const [viewerAvatar, setViewerAvatar] = useState<string>('');
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [checkingRegistration, setCheckingRegistration] = useState(true);
-  const [showPoster, setShowPoster] = useState(false);
+  const [extraPanel, setExtraPanel] = useState<'polls' | 'videos'>('polls');
 
-  // Token refresh hook
-  const tokenRefreshError = useTokenRefresh(streamData, setStreamData);
-
-  // Memoize stream updates input to prevent recreating object on every render
-  const streamUpdateInput = useMemo(() => {
-    if (!streamData) return null;
-    return {
-      playbackId: streamData.playbackId,
-      title: streamData.title,
-      kind: streamData.kind,
-      sourceType: streamData.sourceType,
-      updatedAt: streamData.expiresAt || new Date().toISOString(),
-    };
-  }, [streamData]);
-
-  // Stream updates hook
-  const updatedStream = useStreamUpdates(streamUpdateInput);
-
-  // Handle stream updates
-  useEffect(() => {
-    if (!updatedStream || !streamData) return;
-
-    // Check if stream changed
-    if (updatedStream.playbackId !== streamData.playbackId) {
-      console.log('Stream changed, fetching new token...');
-
-      // Fetch new stream data with token
-      fetchCurrentStreamData()
-        .then(setStreamData)
-        .catch(err => {
-          console.error('Failed to fetch updated stream:', err);
-        });
-    }
-  }, [updatedStream, streamData]);
-
-  useEffect(() => {
-    if (!streamData || streamData.playoutMode !== 'schedule') return;
-
-    let timeout: number | undefined;
-
-    const refreshScheduleStream = async () => {
-      try {
-        const next = await fetchCurrentStreamData();
-        setStreamData((previous) => {
-          if (
-            !previous ||
-            previous.playbackId !== next.playbackId ||
-            previous.title !== next.title ||
-            previous.isHoldScreen !== next.isHoldScreen ||
-            previous.activeSlotId !== next.activeSlotId ||
-            previous.scheduleStatus !== next.scheduleStatus ||
-            previous.nextTransitionAt !== next.nextTransitionAt ||
-            previous.captionUrl !== next.captionUrl
-          ) {
-            return next;
-          }
-
-          return previous;
-        });
-        setShowPoster(next.showPoster || false);
-      } catch (err) {
-        console.error('Failed to refresh scheduled stream:', err);
-      }
-    };
-
-    const nextTransitionMs = streamData.nextTransitionAt
-      ? new Date(streamData.nextTransitionAt).getTime() - Date.now() + 500
-      : 30000;
-    timeout = window.setTimeout(
-      refreshScheduleStream,
-      Math.max(1000, Math.min(nextTransitionMs, 30000))
-    );
-
-    return () => {
-      if (timeout) window.clearTimeout(timeout);
-    };
-  }, [streamData]);
-
-  // Subscribe to hold screen changes specifically
-  useEffect(() => {
-    const channel = supabase
-      .channel(CHANNEL_NAMES.HOLD_SCREEN_UPDATES)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: DATABASE_TABLES.CURRENT_STREAM,
-          filter: 'id=eq.1',
-        },
-        (payload: any) => {
-          const newData = payload.new;
-          const oldData = payload.old;
-
-          if (
-            newData.hold_screen_enabled !== oldData.hold_screen_enabled ||
-            newData.playback_id !== oldData.playback_id ||
-            newData.playout_mode !== oldData.playout_mode ||
-            newData.schedule_early_ended_slot !== oldData.schedule_early_ended_slot ||
-            newData.last_command_id !== oldData.last_command_id
-          ) {
-            console.log('Stream state changed, refetching stream data...');
-            fetchCurrentStreamData()
-              .then(setStreamData)
-              .catch(err => {
-                console.error('Failed to fetch updated stream:', err);
-              });
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('Hold screen subscription status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // Check poster mode and viewer registration
-  useEffect(() => {
-    async function checkPosterMode() {
-      try {
-        const response = await fetch('/api/current', { cache: 'no-store' });
-        if (response.ok) {
-          const data = await response.json();
-          setShowPoster(data.showPoster || false);
-        }
-      } catch (error) {
-        console.error('Failed to check poster mode:', error);
-      }
-    }
-
-    const viewerData = getViewerData();
-    if (viewerData) {
-      setIsRegistered(true);
-      setUserId(viewerData.id);
-      setViewerName(viewerData.displayName);
-      setViewerAvatar(viewerData.avatar);
-    }
-
-    checkPosterMode();
-    setCheckingRegistration(false);
-  }, []);
-
-  // Subscribe to poster mode changes in realtime
-  useEffect(() => {
-    const channel = supabase
-      .channel(CHANNEL_NAMES.POSTER_MODE_UPDATES)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: DATABASE_TABLES.CURRENT_STREAM,
-          filter: 'id=eq.1',
-        },
-        (payload: any) => {
-          console.log('Poster mode updated via Realtime:', payload);
-          const newData = payload.new;
-          if (newData.show_poster !== undefined) {
-            setShowPoster(newData.show_poster);
-            console.log('Show poster state changed to:', newData.show_poster);
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('Poster mode subscription status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Only load stream if registered
-    if (!isRegistered) return;
-
-    async function loadStream() {
-      try {
-        const response = await fetch('/api/current', { cache: 'no-store' });
-
-        if (response.status === 401) {
-          router.push('/');
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error('Failed to load stream');
-        }
-
-        const data = await response.json();
-        if (!isStreamDataPayload(data)) {
-          throw new Error('Current stream response was missing playback fields');
-        }
-        setStreamData(data);
-      } catch (err) {
-        setError('Failed to load event. Please try again.');
-        console.error('Error loading stream:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadStream();
-  }, [router, isRegistered]);
-
-  const spawnEasterEmojis = useCallback(() => {
-    const emojis = ['🎬', '🍿', '🎥', '⭐', '🕹️', '📼'];
-    const count = 1000;
-    for (let i = 0; i < count; i++) {
-      const el = document.createElement('span');
-      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-      el.style.cssText = `
-        position:fixed;
-        left:${Math.random() * 100}vw;
-        top:-40px;
-        font-size:${20 + Math.random() * 24}px;
-        pointer-events:none;
-        z-index:9999;
-      `;
-      document.body.appendChild(el);
-      const duration = 2000 + Math.random() * 2000;
-      const drift = (Math.random() - 0.5) * 200;
-      const spin = (Math.random() - 0.5) * 720;
-      const delay = Math.random() * 600;
-      el.animate([
-        { transform: 'translateY(0) translateX(0) rotate(0deg)', opacity: 1 },
-        { transform: `translateY(${window.innerHeight + 80}px) translateX(${drift}px) rotate(${spin}deg)`, opacity: 0.6 },
-      ], { duration, delay, easing: 'ease-in', fill: 'forwards' });
-      setTimeout(() => el.remove(), duration + delay + 100);
+  const refreshStream = useCallback(async () => {
+    try {
+      const next = await fetchCurrentStream();
+      setStreamData(next);
+      setError(null);
+    } catch (refreshError) {
+      console.error('Unable to refresh show feed:', refreshError);
+      setError('The show feed is temporarily unavailable.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const previous = {
-      htmlHeight: html.style.height,
-      htmlOverflow: html.style.overflow,
-      htmlOverscrollY: html.style.getPropertyValue('overscroll-behavior-y'),
-      bodyBackground: body.style.background,
-      bodyHeight: body.style.height,
-      bodyOverflow: body.style.overflow,
-      bodyOverscrollY: body.style.getPropertyValue('overscroll-behavior-y'),
-    };
-
-    window.scrollTo(0, 0);
-    html.style.height = '100%';
-    html.style.overflow = 'hidden';
-    html.style.setProperty('overscroll-behavior-y', 'none');
-    body.style.background = LL.ink;
-    body.style.height = '100%';
-    body.style.overflow = 'hidden';
-    body.style.setProperty('overscroll-behavior-y', 'none');
-
-    return () => {
-      html.style.height = previous.htmlHeight;
-      html.style.overflow = previous.htmlOverflow;
-      html.style.setProperty('overscroll-behavior-y', previous.htmlOverscrollY);
-      body.style.background = previous.bodyBackground;
-      body.style.height = previous.bodyHeight;
-      body.style.overflow = previous.bodyOverflow;
-      body.style.setProperty('overscroll-behavior-y', previous.bodyOverscrollY);
-    };
-  }, []);
-
-  const isMobileWatchLayout = useCallback(() => {
-    return window.matchMedia('(max-width: 900px)').matches;
-  }, []);
-
-  const scrollWatchBelowBy = useCallback((deltaY: number) => {
-    const below = watchBelowRef.current;
-    if (!below || !isMobileWatchLayout()) return false;
-
-    below.scrollTop += deltaY;
-    return true;
-  }, [isMobileWatchLayout]);
-
-  const handleVideoWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
-    if (isInteractiveVideoTarget(event.target)) return;
-
-    if (scrollWatchBelowBy(event.deltaY)) {
-      event.preventDefault();
-    }
-  }, [scrollWatchBelowBy]);
-
-  const handleVideoTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
-    if (
-      !isMobileWatchLayout() ||
-      event.touches.length !== 1 ||
-      isInteractiveVideoTarget(event.target)
-    ) {
-      videoTouchYRef.current = null;
+    document.title = 'The Show · 2006';
+    const savedViewer = getViewerData();
+    if (!savedViewer) {
+      router.replace('/login');
       return;
     }
 
-    videoTouchYRef.current = event.touches[0].clientY;
-  }, [isMobileWatchLayout]);
+    setViewer(savedViewer);
+    refreshStream();
 
-  const handleVideoTouchMove = useCallback((event: TouchEvent<HTMLDivElement>) => {
-    if (videoTouchYRef.current === null || event.touches.length !== 1) return;
-
-    const nextY = event.touches[0].clientY;
-    const deltaY = videoTouchYRef.current - nextY;
-    videoTouchYRef.current = nextY;
-
-    if (Math.abs(deltaY) < 1) return;
-
-    if (scrollWatchBelowBy(deltaY)) {
-      event.preventDefault();
-    }
-  }, [scrollWatchBelowBy]);
-
-  const handleVideoTouchEnd = useCallback(() => {
-    videoTouchYRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(CHANNEL_NAMES.EASTER_EGGS)
-      .on('broadcast', { event: 'trigger' }, () => {
-        spawnEasterEmojis();
-      })
-      .subscribe();
+    const interval = window.setInterval(refreshStream, 3000);
+    const resume = () => {
+      if (document.visibilityState === 'visible') refreshStream();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('pageshow', resume);
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('pageshow', resume);
     };
-  }, [spawnEasterEmojis]);
+  }, [refreshStream, router]);
 
-  useEffect(() => {
-    document.title = 'Watch · Da Movies';
-  }, []);
+  const tokenRefreshError = useTokenRefresh(streamData, (next) => {
+    setStreamData((previous) => previous ? { ...previous, ...next } : next);
+  });
 
-  // First Mux playback error is likely a stale signed token (e.g. after the
-  // phone slept) — refetch stream data so the player gets a fresh one.
-  const handlePlaybackError = useCallback(() => {
-    fetchCurrentStreamData()
-      .then(setStreamData)
-      .catch((err) => {
-        console.error('Failed to refresh stream after player error:', err);
-      });
-  }, []);
-
-  // Redirect to login if not registered (once poster/registration check has run)
-  useEffect(() => {
-    if (checkingRegistration) return;
-    if (!isRegistered && !showPoster) {
-      router.replace('/login');
-    }
-  }, [checkingRegistration, isRegistered, showPoster, router]);
-
-  const presenceSelf = isRegistered && userId ? { userId, displayName: viewerName, avatar: viewerAvatar } : null;
+  const presenceSelf = viewer ? {
+    userId: viewer.id,
+    displayName: viewer.displayName,
+    avatar: viewer.avatar,
+  } : null;
   const viewersHere = useLobbyPresence(presenceSelf);
 
-  if (checkingRegistration) {
-    return <LoadingScreen message="loading…" />;
-  }
+  const activeCue = useMemo(
+    () => getRunOfShowCue(streamData?.activeSlotId),
+    [streamData?.activeSlotId]
+  );
 
-  // Doors aren't open yet
-  if (showPoster && !isRegistered) {
-    return (
-      <ScreenChrome>
-        <main
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 24,
-            padding: 24,
-          }}
-        >
-          <Reel size={90} mood="cheer" />
-          <DoorsCountdown />
-        </main>
-      </ScreenChrome>
-    );
-  }
-
-  // Not registered and doors are open — redirecting to /login
-  if (!isRegistered) {
-    return <LoadingScreen message="heading to the door…" />;
-  }
-
-  if (loading) {
-    return <LoadingScreen message="loading stream…" />;
-  }
+  if (!viewer || loading) return <LoadingWindow message="Connecting to the show…" />;
 
   if (error || !streamData) {
     return (
-      <ScreenChrome>
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center', display: 'grid', gap: 14, justifyItems: 'center' }}>
-            <p className="f-comic" style={{ color: LL.frost2 }}>
-              {error || 'No stream available'}
-            </p>
-            <button type="button" onClick={() => window.location.reload()} className="bevel-btn f-display" style={{
-              padding: '10px 20px', borderRadius: 8, color: LL.ink,
-              background: `linear-gradient(180deg, ${LL.frost1} 0%, ${LL.lime} 55%, #95cc1f 100%)`,
-            }}>
-              RETRY
-            </button>
+      <div className="aim-desktop show-loading-screen">
+        <AimWindow title="2006 — Connection Error" status="Offline">
+          <div className="show-loading-message">
+            <p>{error || 'No show feed is configured.'}</p>
+            <button type="button" className="aim-xp-button aim-xp-button-primary" onClick={refreshStream}>Try again</button>
           </div>
-        </div>
-      </ScreenChrome>
+        </AimWindow>
+      </div>
     );
   }
 
   return (
-    <div className={`dm-lobby-lounge ${LL_FONT_VARS} ll-watch-root`} style={{ background: LL.ink, color: LL.frost1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <style>{`
-        /* Height lives here (not inline) so the dvh fallback chain applies:
-           dvh tracks Chrome mobile's collapsing URL bar. */
-        .ll-watch-root {
-          position: fixed;
-          inset: 0;
-          width: 100%;
-          height: 100vh;
-          height: 100dvh;
-          min-height: 0;
-          overscroll-behavior: none;
-        }
+    <div className="aim-desktop show-audience-desktop">
+      <a className="skip-link" href="#show-audience-main">Skip to the show</a>
 
-        /* Desktop: video top-left, extras under it, chat spans the right column. */
-        .ll-watch-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 320px;
-          grid-template-rows: auto minmax(0, 1fr);
-          grid-template-areas: "video chat" "extras chat";
-          gap: 14px; padding: 14px; flex: 1; min-height: 0; overflow: hidden;
-        }
-        .ll-watch-below { display: contents; }
-        .ll-watch-video { grid-area: video; overscroll-behavior: contain; }
-        .ll-watch-extras { grid-area: extras; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .ll-watch-chat { grid-area: chat; min-height: 0; }
-
-        .ll-nowplaying { display: flex; gap: 14px; align-items: center; font-size: 14px; padding: 6px 16px; }
-        .ll-nowplaying-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ll-nowplaying-right { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-        .ll-nowplaying-avatars { display: flex; }
-
-        @media (max-width: 900px) {
-          /* Video pinned at top; one scroll region below where chat exactly
-             fills the visible space and polls/extras sit past the fold. */
-          .ll-watch-grid { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
-          .ll-watch-video { flex-shrink: 0; touch-action: none; }
-          .ll-watch-below {
-            display: block;
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch;
-            background: ${LL.ink};
-            padding-bottom: max(8px, env(safe-area-inset-bottom));
-          }
-          .ll-watch-chat { display: block; height: 100%; }
-          .ll-watch-extras { margin-top: 8px; overflow: visible; }
-
-          .ll-nowplaying { font-size: 12px; gap: 8px; padding: 4px 10px; }
-          .ll-nowplaying-avatars { display: none; }
-        }
-      `}</style>
-      <a className="skip-link" href="#ll-watch-main">
-        Skip to content
-      </a>
-      <LLHeader
-        compact
-        tagline="where we like to watch movies"
-        lockText="MEMBERS ONLY · QUIET PLEASE"
-        timestamp="CAGE-A-THON"
-        actions={
-          <>
-            <LLPill as={Link} href="/home">🏠 HOME</LLPill>
-            <LLPill as={Link} href="/schedule">🗓 SCHEDULE</LLPill>
-          </>
-        }
-      />
-
-      {tokenRefreshError && (
-        <div style={{ background: 'rgba(255,230,0,.15)', borderBottom: `1px solid ${LL.yellow}`, color: LL.yellow, fontSize: 13, padding: '6px 16px', textAlign: 'center' }}>
-          {tokenRefreshError}
+      <header className="show-audience-brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/2006/art.png" alt="2006 — The Year, The Show, Live" />
+        <div>
+          <strong>Online broadcast</strong>
+          <span>{viewersHere.length || 1} viewer{(viewersHere.length || 1) === 1 ? '' : 's'} signed on</span>
         </div>
-      )}
+      </header>
 
-      <div
-        className="f-mono ll-nowplaying"
-        style={{
-          background: LL.deep,
-          color: LL.mint,
-          borderBottom: `2px solid ${LL.ink}`,
-        }}
-      >
-        <span style={{ color: LL.lime, flexShrink: 0 }}>NOW PLAYING ·</span>
-        <strong
-          className="ll-nowplaying-title"
-          style={{ color: LL.frost1, cursor: 'pointer' }}
-          onClick={spawnEasterEmojis}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && spawnEasterEmojis()}
-        >
-          {streamData.title}
-        </strong>
-        {viewersHere.length > 0 && (
-          <div className="ll-nowplaying-right">
-            <span className="now-pill">
-              <span className="dot" />
-              LIVE
-            </span>
-            <div className="ll-nowplaying-avatars">
-              {viewersHere.slice(0, 8).map((v, i) => (
-                <div key={v.userId} style={{ marginLeft: i === 0 ? 0 : -8 }}>
-                  <MiniAvatar avatarId={v.avatar} size={26} ring={LL.mint} />
-                </div>
-              ))}
-            </div>
-            <span style={{ color: LL.frost2, whiteSpace: 'nowrap' }}>{viewersHere.length} in the room</span>
-          </div>
-        )}
-      </div>
+      {tokenRefreshError && <div className="show-feed-warning" role="status">{tokenRefreshError}</div>}
 
-      <main id="ll-watch-main" className="ll-watch-grid">
-        <div
-          className="ll-watch-video"
-          onWheel={handleVideoWheel}
-          onTouchStart={handleVideoTouchStart}
-          onTouchMove={handleVideoTouchMove}
-          onTouchEnd={handleVideoTouchEnd}
-          onTouchCancel={handleVideoTouchEnd}
-          style={{
-            position: 'relative',
-            background: '#000',
-            border: `3px solid ${LL.ink}`,
-            borderRadius: 6,
-            overflow: 'hidden',
-            boxShadow: '4px 4px 0 rgba(0,0,0,.5)',
-          }}
+      <main id="show-audience-main" className="show-audience-grid">
+        <AimWindow
+          title={`${streamData.title} — Windows Media Player`}
+          className="show-player-window"
+          menuItems={['File', 'View', 'Play', 'Tools', 'Help']}
+          status={activeCue?.label || streamData.scheduleStatus || 'Online program feed'}
+          live
         >
-            <ErrorBoundary
-              fallback={
-                <div style={{ aspectRatio: '16/9', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ textAlign: 'center', padding: 24 }}>
-                    <p className="f-comic" style={{ color: LL.frost2, marginBottom: 12 }}>Video player encountered an error</p>
-                    <button type="button" onClick={() => window.location.reload()} className="bevel-btn f-display" style={{
-                      padding: '8px 16px', borderRadius: 8, color: LL.ink,
-                      background: `linear-gradient(180deg, ${LL.frost1} 0%, ${LL.lime} 55%, #95cc1f 100%)`,
-                    }}>
-                      REFRESH
-                    </button>
-                  </div>
-                </div>
-              }
-            >
+          <div className="show-video-frame">
+            <ErrorBoundary fallback={<div className="show-video-error">The video player stopped. Reload this page to reconnect.</div>}>
               <VideoPlayer
-                key={`${streamData.sourceType || 'mux'}:${streamData.playbackId}:${streamData.activeSlotId || 'no-slot'}:${streamData.isHoldScreen ? 'hold' : 'movie'}`}
+                key={`${streamData.sourceType || 'mux'}:${streamData.playbackId}:${streamData.activeSlotId || 'manual'}:${streamData.isHoldScreen ? 'hold' : 'show'}`}
                 playbackId={streamData.playbackId}
                 token={streamData.token}
                 title={streamData.title}
@@ -701,52 +208,103 @@ export default function EventPage() {
                 captionUrl={streamData.captionUrl}
                 captionLabel={streamData.captionLabel}
                 captionLanguage={streamData.captionLanguage}
-                onPlaybackError={handlePlaybackError}
+                onPlaybackError={refreshStream}
               />
             </ErrorBoundary>
-            <ErrorBoundary fallback={null}>
-              <PresenceToasts viewers={viewersHere} selfId={userId} />
-            </ErrorBoundary>
-        </div>
-
-        <div className="ll-watch-below" ref={watchBelowRef}>
-          <aside className="ll-watch-chat">
-            <ErrorBoundary
-              fallback={
-                <div style={{ height: '100%', background: LL.deep, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ textAlign: 'center', padding: 16 }}>
-                    <p className="f-comic" style={{ color: LL.frost2, fontSize: 13, marginBottom: 8 }}>Chat unavailable</p>
-                    <button type="button" onClick={() => window.location.reload()} style={{ color: LL.lime, fontSize: 12, textDecoration: 'underline', background: 'none', border: 0, cursor: 'pointer' }}>
-                      Reload to fix
-                    </button>
-                  </div>
-                </div>
-              }
-            >
-              <Chat room={ROOM_NAMES.DEFAULT} userId={userId} />
-            </ErrorBoundary>
-          </aside>
-
-          <div className="ll-watch-extras">
-            <ErrorBoundary fallback={null}>
-              <VideoPlaylistShelf />
-            </ErrorBoundary>
-
-            <div>
-              <h3 className="f-display" style={{ textAlign: 'center', color: LL.lime, fontSize: 12, marginBottom: 4 }}>
-                ★ POLLS ★
-              </h3>
-              <ErrorBoundary
-                fallback={
-                  <p className="f-comic" style={{ textAlign: 'center', color: LL.frost2, fontSize: 13 }}>Polls unavailable</p>
-                }
-              >
-                <PollsTab userId={userId} room={ROOM_NAMES.DEFAULT} />
-              </ErrorBoundary>
-            </div>
           </div>
-        </div>
+
+          <div className="show-now-playing">
+            <strong>Now playing:</strong>
+            <span>{streamData.title}</span>
+            <TransitionClock nextTransitionAt={streamData.nextTransitionAt} />
+          </div>
+
+          <div className="show-extra-tabs" role="tablist" aria-label="Show extras">
+            <button type="button" role="tab" aria-selected={extraPanel === 'polls'} onClick={() => setExtraPanel('polls')}>Vote</button>
+            <button type="button" role="tab" aria-selected={extraPanel === 'videos'} onClick={() => setExtraPanel('videos')}>Videos</button>
+          </div>
+
+          <div className="show-extra-panel">
+            {extraPanel === 'polls' ? (
+              <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}>
+                <PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} />
+              </ErrorBoundary>
+            ) : (
+              <ErrorBoundary fallback={<p>The playlist is temporarily unavailable.</p>}>
+                <VideoPlaylistShelf />
+              </ErrorBoundary>
+            )}
+          </div>
+
+          <nav className="aim-toolbar" aria-label="2006 online sections">
+            <button type="button" className="aim-tool" aria-current="page">
+              The Show
+            </button>
+            <button type="button" className="aim-tool" onClick={() => document.getElementById('show-chat')?.scrollIntoView({ behavior: 'smooth' })}>
+              2006ers
+            </button>
+            <button type="button" className="aim-tool" onClick={() => setExtraPanel('videos')}>
+              Videos
+            </button>
+            <button type="button" className="aim-tool" onClick={() => setExtraPanel('polls')}>
+              Vote
+            </button>
+          </nav>
+        </AimWindow>
+
+        <aside id="show-chat" className="show-chat-column" aria-label="Audience chat">
+          <ErrorBoundary fallback={<div className="show-chat-error">Chat is temporarily unavailable.</div>}>
+            <Chat room={ROOM_NAMES.DEFAULT} userId={viewer.id} />
+          </ErrorBoundary>
+        </aside>
       </main>
+
+      <a className="aim-aac show-audience-aac" href="https://www.artisticaccessibility.com" target="_blank" rel="noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/2006/aac.png" alt="Artistic Accessibility Collective" />
+      </a>
+
+      <style jsx>{`
+        .show-audience-desktop { min-height: 100dvh; padding: 16px; }
+        .show-audience-brand { width: min(100%, 1420px); margin: 0 auto 10px; display: flex; align-items: center; gap: 12px; color: #fff; text-shadow: 0 2px 5px #000; }
+        .show-audience-brand img { width: 160px; height: auto; filter: drop-shadow(3px 3px 0 #ff00dc) drop-shadow(-3px 0 0 #00f4ff); }
+        .show-audience-brand div { display: grid; gap: 2px; }
+        .show-audience-brand strong { font-size: 14px; }
+        .show-audience-brand span { font-size: 11px; }
+        .show-feed-warning { width: min(100%, 1420px); margin: 0 auto 8px; border: 1px solid #8a6500; background: #fff4bd; padding: 7px 10px; color: #5a4500; font-size: 12px; }
+        .show-audience-grid { width: min(100%, 1420px); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 390px); gap: 14px; align-items: stretch; }
+        .show-player-window { min-width: 0; }
+        .show-video-frame { padding: 8px; background: #111; }
+        .show-video-frame :global(.relative.aspect-video), .show-video-frame :global(.aspect-video) { border-radius: 0 !important; }
+        .show-video-error { aspect-ratio: 16 / 9; display: grid; place-items: center; padding: 24px; color: #fff; text-align: center; }
+        .show-now-playing { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 10px; border-bottom: 1px solid #aca899; background: linear-gradient(180deg, #fff, #ece9d8); font-size: 11px; }
+        .show-now-playing > span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1a3d6e; }
+        .show-now-playing > span:last-child { color: #555; font-variant-numeric: tabular-nums; }
+        .show-extra-tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid #aca899; }
+        .show-extra-tabs button { position: relative; top: 1px; min-width: 82px; border: 1px solid #aca899; border-bottom-color: #aca899; border-radius: 4px 4px 0 0; background: #d9d5c6; padding: 5px 12px; font: inherit; font-size: 11px; cursor: pointer; }
+        .show-extra-tabs button[aria-selected='true'] { z-index: 1; border-bottom-color: #fff; background: #fff; }
+        .show-extra-panel { min-height: 122px; max-height: 260px; overflow: auto; margin: 0 8px 8px; border: 1px solid #aca899; border-top: 0; background: #fff; padding: 8px; }
+        .show-chat-column { min-height: 680px; }
+        .show-chat-error { height: 100%; display: grid; place-items: center; background: #ece9d8; }
+        .show-audience-aac { width: min(100%, 1420px); margin: 0 auto; }
+        .show-audience-aac img { width: min(90vw, 360px); }
+        .show-loading-screen { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
+        .show-loading-screen > :global(.aim-window) { width: min(100%, 420px); }
+        .show-loading-message { min-height: 150px; display: grid; place-items: center; gap: 12px; padding: 24px; text-align: center; font-size: 13px; }
+        @media (max-width: 920px) {
+          .show-audience-desktop { padding: 8px; }
+          .show-audience-brand { margin-bottom: 7px; }
+          .show-audience-brand img { width: 112px; }
+          .show-audience-grid { grid-template-columns: 1fr; }
+          .show-chat-column { min-height: 520px; height: 72dvh; }
+          .show-extra-panel { max-height: 320px; }
+        }
+        @media (max-width: 560px) {
+          .show-now-playing { grid-template-columns: auto minmax(0, 1fr); }
+          .show-now-playing > span:last-child { grid-column: 1 / -1; }
+          .show-extra-panel { max-height: 360px; }
+        }
+      `}</style>
     </div>
   );
 }

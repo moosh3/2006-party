@@ -7,7 +7,8 @@ export interface ViewerData {
   registeredAt: number;
 }
 
-const VIEWER_STORAGE_KEY = 'after_party_viewer';
+const VIEWER_STORAGE_KEY = '2006_party_viewer';
+const LEGACY_VIEWER_STORAGE_KEY = 'after_party_viewer';
 
 export function generateViewerId(): string {
   return `viewer_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -32,7 +33,7 @@ export function saveViewerData(email: string, displayName: string, avatar: strin
 export function getViewerData(): ViewerData | null {
   if (typeof window === 'undefined') return null;
   
-  const stored = localStorage.getItem(VIEWER_STORAGE_KEY);
+  const stored = localStorage.getItem(VIEWER_STORAGE_KEY) || localStorage.getItem(LEGACY_VIEWER_STORAGE_KEY);
   if (!stored) return null;
   
   try {
@@ -45,10 +46,10 @@ export function getViewerData(): ViewerData | null {
 export function clearViewerData(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(VIEWER_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_VIEWER_STORAGE_KEY);
   }
 }
 
 export function isViewerRegistered(): boolean {
   return getViewerData() !== null;
 }
-

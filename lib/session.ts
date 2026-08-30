@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
  * - In production: MUST have SESSION_SECRET configured (32+ characters)
  * - In development: Allow fallback with warning
  */
-const SESSION_SECRET = (() => {
+function getSessionSecret() {
   const secret = process.env.SESSION_SECRET;
   
   if (!secret) {
@@ -28,7 +28,7 @@ const SESSION_SECRET = (() => {
   }
   
   return new TextEncoder().encode(secret);
-})();
+}
 
 export interface AdminSessionData {
   userId: string;
@@ -55,14 +55,14 @@ export async function createAdminSession(userId: string = 'admin'): Promise<stri
   const token = await new SignJWT({ ...sessionData })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(new Date(expiresAt))
-    .sign(SESSION_SECRET);
+    .sign(getSessionSecret());
 
   return token;
 }
 
 export async function verifyAdminSession(token: string): Promise<AdminSessionData | null> {
   try {
-    const verified = await jwtVerify(token, SESSION_SECRET);
+    const verified = await jwtVerify(token, getSessionSecret());
     return verified.payload as unknown as AdminSessionData;
   } catch {
     return null;
@@ -107,4 +107,3 @@ export async function getSession(): Promise<SessionData | null> {
   // The API endpoints will accept userId from request body
   return null;
 }
-

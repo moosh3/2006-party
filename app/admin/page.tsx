@@ -171,11 +171,17 @@ export default function AdminDashboard() {
               <p className="text-xs sm:text-sm text-twitch-text-alt">Manage your stream</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
+              <a
+                href="/stage"
+                className="twitch-button-secondary text-sm flex-1 sm:flex-none text-center min-h-[44px] flex items-center justify-center"
+              >
+                Stage Display
+              </a>
               <a 
                 href="/event"
                 className="twitch-button-secondary text-sm flex-1 sm:flex-none text-center min-h-[44px] flex items-center justify-center"
               >
-                View Stream
+                Audience View
               </a>
               <button
                 onClick={async () => {

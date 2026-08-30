@@ -671,13 +671,6 @@ export default function VideoPlayer({
   }, [sourceType, viewerLocked, isHoldScreen, playbackId, safePlay]);
 
   useEffect(() => {
-    if (sourceType === MUX_SOURCE_TYPE && playbackId === 'demo-playback-id') {
-      console.log('Development mode: Mock video player (configure Mux for real playback)');
-      setError('Configure Mux credentials in .env.local to enable video playback');
-    }
-  }, [playbackId, sourceType]);
-
-  useEffect(() => {
     endedSlotRef.current = null;
     manualEndedPlaybackRef.current = null;
     lastSyncedStateRef.current = null;
@@ -1048,6 +1041,38 @@ export default function VideoPlayer({
       }
     }
   };
+
+  if (sourceType === MUX_SOURCE_TYPE && playbackId === 'demo-playback-id') {
+    return (
+      <div
+        className="relative aspect-video overflow-hidden bg-black"
+        style={{ display: 'grid', placeItems: 'center' }}
+        role="img"
+        aria-label="2006 program feed preview"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/2006/art.png"
+          alt=""
+          style={{ width: 'min(68%, 620px)', height: 'auto', filter: 'drop-shadow(4px 0 #ff00dc) drop-shadow(-4px 0 #00f4ff)' }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 10,
+            left: 12,
+            color: '#b8b8b8',
+            fontFamily: 'Tahoma, Verdana, sans-serif',
+            fontSize: 11,
+            textAlign: 'center',
+          }}
+        >
+          Program feed preview — add Mux credentials and media IDs for playback
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (

@@ -1,12 +1,12 @@
 -- Showtime playout mode and safer queue ordering.
 
 ALTER TABLE current_stream
-ADD COLUMN IF NOT EXISTS playout_mode text DEFAULT 'schedule',
+ADD COLUMN IF NOT EXISTS playout_mode text DEFAULT 'manual',
 ADD COLUMN IF NOT EXISTS schedule_early_ended_slot text,
 ADD COLUMN IF NOT EXISTS schedule_early_ended_at timestamptz;
 
 UPDATE current_stream
-SET playout_mode = COALESCE(playout_mode, 'schedule')
+SET playout_mode = COALESCE(playout_mode, 'manual')
 WHERE id = 1;
 
 DO $$

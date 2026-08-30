@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getViewerData } from '@/lib/viewer';
 import PollCard from './PollCard';
+import AimWindow from './aim/AimWindow';
 import {
   ROOM_NAMES,
   CHANNEL_NAMES,
@@ -56,8 +57,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
       setUserName(viewerData.displayName);
     } else {
       // Fallback for guests who haven't registered
-      const randomName = `Guest${Math.floor(Math.random() * 1000)}`;
-      setUserName(randomName);
+      setUserName('Guest');
     }
   }, []);
 
@@ -93,7 +93,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
           id: 1,
           user_id: 'system',
           user_name: 'System',
-          body: '💡 Chat is ready! Configure Supabase in .env.local to enable real-time messaging.',
+          body: 'Chat preview is ready. Configure Supabase to enable real-time messages.',
           kind: 'system' as const,
           created_at: new Date().toISOString(),
         }]);
@@ -104,7 +104,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
         id: 1,
         user_id: 'system',
         user_name: 'System',
-        body: '⚠️ Unable to connect to chat server. Check your network connection.',
+        body: 'Unable to connect to chat. Check your network connection.',
         kind: 'system' as const,
         created_at: new Date().toISOString(),
       }]);
@@ -269,6 +269,24 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
         }
         setError(data.error);
       } else if (!response.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          setMessages((previous) => [
+            ...previous,
+            {
+              id: Date.now(),
+              user_id: userId,
+              user_name: userName,
+              body: messageBody.trim(),
+              kind: 'user',
+              created_at: new Date().toISOString(),
+              reactions: [],
+              viewerReaction: null,
+            },
+          ]);
+          setMessageBody('');
+          setRateLimitSeconds(CHAT_SLOWMODE_SECONDS);
+          return;
+        }
         setError(data.error || 'Failed to send message');
       } else {
         if (/easter/i.test(messageBody)) {
@@ -362,40 +380,37 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ background: '#f5fbff' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: '#a18ad4' }}></div>
-      </div>
+      <AimWindow title="Chat Room: 2006" className="aim-chat-window" menuItems={['File', 'Edit', 'People', 'Help']} status="connecting…">
+        <div className="aim-chat-loading">Connecting to the room…</div>
+      </AimWindow>
     );
   }
 
   return (
-    <div
-      className="flex flex-col h-full"
-      style={{ fontFamily: 'var(--ll-f-outfit), system-ui, sans-serif', background: '#f5fbff', border: '2px solid #1a1230', borderRadius: 14, boxShadow: '4px 4px 0 rgba(26,18,48,.35)', overflow: 'hidden' }}
+    <AimWindow
+      title="Chat Room: 2006"
+      className="aim-chat-window"
+      menuItems={['File', 'Edit', 'People', 'Help']}
+      status={`${messages.length} message${messages.length === 1 ? '' : 's'} in the room`}
+      live
     >
-      {/* Header */}
-      <div className="flex-shrink-0" style={{ padding: '7px 12px', background: '#1a1230', borderBottom: '2px solid #1a1230' }}>
-        <h2 className="f-display" style={{ margin: 0, fontSize: 13, letterSpacing: '.04em', color: '#c9ff2d' }}>💬 CHAT</h2>
+      <div className="aim-chat-room-heading">
+        <strong>2006ers</strong>
+        <span>Live audience chat</span>
       </div>
 
-      {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto min-h-0"
-        style={{ padding: '4px 0' }}
+        className="aim-chat-log"
+        aria-live="polite"
       >
         {messages.length === 0 ? (
-          <div className="p-4 text-center">
-            <p className="f-comic text-sm" style={{ color: '#2a1a55' }}>
-              Welcome to the chat!
-            </p>
-          </div>
+          <div className="aim-chat-auto">The room is quiet. Say hello when you&apos;re ready.</div>
         ) : (
           messages.map((message) => {
-            // Render poll messages differently
             if (message.kind === 'poll') {
               return (
-                <div key={message.id} className="p-2">
+                <div key={message.id} className="aim-chat-poll">
                   <PollCard 
                     pollId={message.body} 
                     userId={userId} 
@@ -405,27 +420,21 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
               );
             }
 
-            // Render system messages differently
             if (message.kind === 'system') {
               return (
-                <div key={message.id} style={{ padding: '4px 10px' }}>
-                  <div className="f-comic text-xs italic" style={{ color: '#a18ad4' }}>
-                    {message.body}
-                  </div>
+                <div key={message.id} className="aim-chat-auto">
+                  {message.body}
                 </div>
               );
             }
 
-            // Render regular user messages (compact, inline)
             const userColor = getUsernameColor(message.user_name);
             return (
               <div
                 key={message.id}
-                style={{
-                  padding: '4px 10px',
-                  position: 'relative',
-                  zIndex: activeReactionMessageId === message.id ? 20 : 'auto',
-                }}
+                className="aim-chat-message"
+                style={{ zIndex: activeReactionMessageId === message.id ? 20 : 'auto' }}
+                title={formatTimestamp(message.created_at)}
                 onPointerDown={(event) => {
                   if ((event.target as HTMLElement).closest('button')) return;
                   startLongPress(message.id);
@@ -439,18 +448,17 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
                   setActiveReactionMessageId(message.id);
                 }}
               >
-                <div className="flex flex-wrap items-baseline gap-1 text-sm leading-relaxed">
+                <div className="aim-chat-line">
                   <span
-                    className="font-bold"
+                    className="aim-chat-screen-name"
                     style={{ color: userColor }}
                   >
-                    {message.user_name}
+                    {message.user_name}:
                   </span>
-                  <span style={{ color: '#a18ad4' }}>:</span>
-                  <span className="break-words" style={{ color: '#1a1230' }}>{message.body}</span>
+                  <span className="aim-chat-body">{message.body}</span>
                 </div>
                 {message.reactions && message.reactions.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
+                  <div className="aim-chat-reactions">
                     {message.reactions.map((reaction) => (
                       <button
                         key={reaction.reaction}
@@ -459,14 +467,9 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
                           event.stopPropagation();
                           handleReactionToggle(message, reaction.reaction);
                         }}
-                        className="text-xs leading-none"
+                        className="aim-chat-reaction"
                         style={{
-                          border: '1px solid #c6b7f4',
-                          borderRadius: 999,
-                          background: reaction.viewerReacted ? '#fbcfe8' : '#fff',
-                          color: '#1a1230',
-                          padding: '2px 6px',
-                          boxShadow: reaction.viewerReacted ? '1px 1px 0 rgba(26,18,48,.25)' : 'none',
+                          background: reaction.viewerReacted ? '#dce8f8' : '#fff',
                         }}
                         aria-label={`${REACTION_LABEL[reaction.reaction]} reaction, ${reaction.count}`}
                         disabled={reactingMessageId === message.id}
@@ -478,17 +481,9 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
                 )}
                 {activeReactionMessageId === message.id && (
                   <div
-                    className="absolute left-2 bottom-full z-30 flex w-max max-w-[calc(100%-16px)] flex-wrap gap-1"
+                    className="aim-chat-reaction-menu"
                     role="menu"
                     aria-label="React to message"
-                    style={{
-                      border: '2px solid #1a1230',
-                      borderRadius: 999,
-                      background: '#fff',
-                      padding: 4,
-                      boxShadow: '3px 3px 0 rgba(26,18,48,.25)',
-                      transform: 'translateY(-4px)',
-                    }}
                   >
                     {MESSAGE_REACTIONS.map((reaction) => (
                       <button
@@ -498,12 +493,9 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
                           event.stopPropagation();
                           handleReactionToggle(message, reaction);
                         }}
-                        className="flex h-8 w-8 items-center justify-center text-base"
+                        className="aim-chat-reaction-choice"
                         style={{
-                          borderRadius: 999,
-                          background: message.viewerReaction === reaction ? '#fbcfe8' : 'transparent',
-                          color: '#1a1230',
-                          border: 'none',
+                          background: message.viewerReaction === reaction ? '#dce8f8' : 'transparent',
                         }}
                         title={REACTION_LABEL[reaction]}
                         aria-label={REACTION_LABEL[reaction]}
@@ -520,50 +512,65 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId }: ChatProps) {
         )}
       </div>
 
-      {/* Scroll to bottom indicator */}
       {!autoScroll && (
-        <div className="flex-shrink-0" style={{ padding: '4px 8px', borderTop: '2px solid #1a1230' }}>
+        <div className="aim-chat-more">
           <button
+            type="button"
             onClick={() => {
               scrollToBottom();
               setAutoScroll(true);
             }}
-            className="w-full text-xs py-1 f-comic"
-            style={{ color: '#2a1a55' }}
+            className="aim-xp-button"
           >
             More messages below
           </button>
         </div>
       )}
 
-      {/* Input */}
-      <div className="flex-shrink-0" style={{ padding: 8, borderTop: '2px solid #1a1230', background: '#f0e6cf' }}>
+      <div className="aim-chat-compose">
         {error && (
-          <div className="text-xs mb-1" style={{ color: '#a31616' }}>{error}</div>
+          <div className="aim-chat-error" role="alert">{error}</div>
         )}
 
         {rateLimitSeconds > 0 && (
-          <div className="text-xs mb-1 f-mono" style={{ color: '#2a1a55' }}>
+          <div className="aim-chat-slowmode">
             Slow mode: {rateLimitSeconds}s
           </div>
         )}
 
-        <form onSubmit={handleSend} className="flex flex-col gap-2">
-          <div className="text-xs mb-1 f-mono" style={{ color: '#2a1a55' }}>
-            Chatting as: <span className="font-medium">{userName}</span>
+        <form onSubmit={handleSend}>
+          <div className="aim-chat-tools" aria-hidden="true">
+            <span className="aim-chat-format aim-chat-format-bold">A</span>
+            <span className="aim-chat-format aim-chat-format-italic">A</span>
+            <span className="aim-chat-format aim-chat-format-underline">A</span>
           </div>
-          <input
-            type="text"
+          <textarea
             value={messageBody}
             onChange={(e) => setMessageBody(e.target.value)}
-            placeholder="say something..."
-            className="w-full text-sm"
-            style={{ border: '2px solid #1a1230', borderRadius: 6, padding: '7px 10px', background: '#fff', color: '#1a1230' }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            placeholder="type ur message..."
+            className="aim-chat-entry"
             disabled={sending || rateLimitSeconds > 0}
             maxLength={MAX_MESSAGE_LENGTH}
+            rows={3}
           />
+          <div className="aim-chat-actions">
+            <span>Chatting as <strong>{userName}</strong></span>
+            <button
+              type="submit"
+              className="aim-xp-button aim-xp-button-primary"
+              disabled={sending || rateLimitSeconds > 0 || !messageBody.trim()}
+            >
+              {sending ? 'Sending…' : 'Send'}
+            </button>
+          </div>
         </form>
       </div>
-    </div>
+    </AimWindow>
   );
 }

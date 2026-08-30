@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         
         return NextResponse.json({
           playbackId: 'demo-playback-id',
-          title: 'Demo Stream - Configure Supabase & Mux for real video',
+          title: '2006 program feed preview',
           kind: 'vod',
           token: mockToken,
           expiresAt,
