@@ -1,5 +1,6 @@
 import Mux from '@mux/mux-node';
 import { SignJWT, importPKCS8 } from 'jose';
+import { createPrivateKey } from 'node:crypto';
 import { isDevelopment } from './config';
 
 let muxClient: Mux | null = null;
@@ -23,6 +24,19 @@ export interface PlaybackTokenOptions {
   params?: Record<string, any>;
 }
 
+function normalizeMuxPrivateKey(value: string): string {
+  const normalizedValue = value.trim().replace(/\\n/g, '\n');
+  const keyMaterial = normalizedValue.includes('-----BEGIN')
+    ? normalizedValue
+    : Buffer.from(normalizedValue, 'base64').toString('utf8').trim();
+
+  // Mux signing keys have historically been supplied as either PKCS#1 or
+  // PKCS#8 PEM. jose requires PKCS#8, so normalize both forms before import.
+  return createPrivateKey(keyMaterial.replace(/\\n/g, '\n'))
+    .export({ format: 'pem', type: 'pkcs8' })
+    .toString();
+}
+
 export async function generatePlaybackToken(
   playbackId: string,
   options: PlaybackTokenOptions = {}
@@ -32,6 +46,11 @@ export async function generatePlaybackToken(
     expiration = '1h',
     params = {},
   } = options;
+
+  // The built-in waiting slate is not a Mux asset.
+  if (playbackId === 'demo-playback-id') {
+    return 'unsigned';
+  }
 
   // Check if signing keys are configured
   const hasSigningKeys = process.env.MUX_SIGNING_KEY_ID && 
@@ -47,9 +66,9 @@ export async function generatePlaybackToken(
 
   try {
     // Generate signed token using jose library (already a dependency)
-    // Mux uses RS256 with base64-encoded PKCS8 private keys
+    // Mux uses RS256 with a private signing key.
     if (process.env.MUX_SIGNING_KEY_PRIVATE) {
-      const privateKeyPem = Buffer.from(process.env.MUX_SIGNING_KEY_PRIVATE, 'base64').toString('utf8');
+      const privateKeyPem = normalizeMuxPrivateKey(process.env.MUX_SIGNING_KEY_PRIVATE);
       
       const token = await new SignJWT({
         sub: playbackId,
