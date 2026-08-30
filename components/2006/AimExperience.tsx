@@ -6,6 +6,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import PollsTab from '@/components/PollsTab';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
+import AimWindow from '@/components/aim/AimWindow';
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
@@ -385,7 +386,7 @@ export default function AimExperience({
   const [groups, setGroups] = useState({ cast: true, bots: true, offline: true });
   const [statusMessage, setStatusMessage] = useState('tap a buddy twice for their profile');
   const [openPlaylist, setOpenPlaylist] = useState<string | null>(null);
-  const [showExtra, setShowExtra] = useState<'none' | 'polls' | 'videos'>('none');
+  const [showExtra, setShowExtra] = useState<'polls' | 'videos'>('polls');
 
   useEffect(() => {
     const requested = sessionStorage.getItem('2006_party_initial_screen') as ExperienceScreen | null;
@@ -428,9 +429,9 @@ export default function AimExperience({
   };
 
   return (
-    <div className="aim-desktop xp2006-desktop">
+    <div className={`aim-desktop xp2006-desktop ${screen === 'show' ? 'xp2006-broadcast-desktop' : ''}`}>
       <a className="sr-only" href="#xp2006-main">Skip to the window</a>
-      <main id="xp2006-main" className="xp2006-frame">
+      <main id="xp2006-main" className={screen === 'show' ? 'xp2006-broadcast-shell' : 'xp2006-frame'}>
         <h1 className="sr-only">2006</h1>
 
         {screen === 'home' && (
@@ -500,31 +501,84 @@ export default function AimExperience({
         )}
 
         {screen === 'show' && (
-          <ExperienceWindow title="Chat Room: 2006" screen={screen} navigate={navigate} status={`${viewerCount} ${viewerCount === 1 ? 'person' : 'people'} here`} chat live>
-            {tokenRefreshError && <div className="xp2006-warning">{tokenRefreshError}</div>}
-            <div className="xp2006-show-feed">
-              <strong>what:</strong>
-              {streamData ? (
-                <ErrorBoundary fallback={<div className="xp2006-feed-error">The video player stopped. Reload to reconnect.</div>}>
-                  <VideoPlayer
-                    key={`${streamData.sourceType || 'mux'}:${streamData.playbackId}:${streamData.activeSlotId || 'manual'}:${streamData.isHoldScreen ? 'hold' : 'show'}`}
-                    playbackId={streamData.playbackId} token={streamData.token} title={streamData.title} kind={streamData.kind}
-                    sourceType={streamData.sourceType} youtubePlaylistId={streamData.youtubePlaylistId} sourceUrl={streamData.sourceUrl}
-                    isHoldScreen={streamData.isHoldScreen} playoutMode={streamData.playoutMode} playbackState={streamData.playbackState}
-                    playbackPosition={streamData.playbackPosition} playbackUpdatedAt={streamData.playbackUpdatedAt} playbackElapsedMs={streamData.playbackElapsedMs}
-                    activeSlotId={streamData.activeSlotId} captionUrl={streamData.captionUrl} captionLabel={streamData.captionLabel}
-                    captionLanguage={streamData.captionLanguage} onPlaybackError={refreshStream}
-                  />
+          <>
+            <header className="xp2006-broadcast-header">
+              <button type="button" className="xp2006-broadcast-back" onClick={() => navigate('home')}>‹ iPod menu</button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/2006/art.png" alt="2006 — The Year, The Show, Live" />
+              <div className="xp2006-broadcast-heading">
+                <strong>The Show</strong>
+                <span>{viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'} signed on · audience chat open</span>
+              </div>
+            </header>
+
+            {tokenRefreshError && <div className="xp2006-broadcast-warning" role="status">{tokenRefreshError}</div>}
+
+            <section className="xp2006-broadcast-grid" aria-label="The Show broadcast and audience chat">
+              <AimWindow
+                title={`${streamData?.title || '2006'} — Windows Media Player`}
+                className="xp2006-broadcast-player"
+                menuItems={['File', 'View', 'Play', 'Tools', 'Help']}
+                status={activeCueLabel || streamData?.scheduleStatus || 'Following the show operator'}
+                live
+              >
+                <div className="xp2006-broadcast-video">
+                  {streamData ? (
+                    <ErrorBoundary fallback={<div className="xp2006-broadcast-error">The video player stopped. Reload to reconnect.</div>}>
+                      <VideoPlayer
+                        key={`${streamData.sourceType || 'mux'}:${streamData.playbackId}:${streamData.activeSlotId || 'manual'}:${streamData.isHoldScreen ? 'hold' : 'show'}`}
+                        playbackId={streamData.playbackId} token={streamData.token} title={streamData.title} kind={streamData.kind}
+                        sourceType={streamData.sourceType} youtubePlaylistId={streamData.youtubePlaylistId} sourceUrl={streamData.sourceUrl}
+                        isHoldScreen={streamData.isHoldScreen} playoutMode={streamData.playoutMode} playbackState={streamData.playbackState}
+                        playbackPosition={streamData.playbackPosition} playbackUpdatedAt={streamData.playbackUpdatedAt} playbackElapsedMs={streamData.playbackElapsedMs}
+                        activeSlotId={streamData.activeSlotId} captionUrl={streamData.captionUrl} captionLabel={streamData.captionLabel}
+                        captionLanguage={streamData.captionLanguage} onPlaybackError={refreshStream}
+                      />
+                    </ErrorBoundary>
+                  ) : (
+                    <div className="xp2006-broadcast-error">
+                      <p>{streamError || 'Connecting to the program feed…'}</p>
+                      {streamError && <button type="button" className="aim-xp-button" onClick={refreshStream}>Try again</button>}
+                    </div>
+                  )}
+                </div>
+
+                <div className="xp2006-broadcast-now">
+                  <strong>Now playing:</strong>
+                  <span>{streamData?.title || 'connecting…'}</span>
+                  <TransitionClock nextTransitionAt={streamData?.nextTransitionAt} />
+                </div>
+
+                <div className="xp2006-broadcast-tabs" role="tablist" aria-label="Show extras">
+                  <button type="button" role="tab" aria-selected={showExtra === 'polls'} onClick={() => setShowExtra('polls')}>Vote</button>
+                  <button type="button" role="tab" aria-selected={showExtra === 'videos'} onClick={() => setShowExtra('videos')}>Videos</button>
+                </div>
+                <div className="xp2006-broadcast-extra">
+                  {showExtra === 'polls' ? (
+                    <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary>
+                  ) : (
+                    <ErrorBoundary fallback={<p>The playlist is temporarily unavailable.</p>}><VideoPlaylistShelf emptyMessage="No queued videos yet. Check back when the show starts." /></ErrorBoundary>
+                  )}
+                </div>
+
+                <nav className="aim-toolbar" aria-label="The Show sections">
+                  <button type="button" className="aim-tool" onClick={() => navigate('home')}><span className="aim-tool-icon" aria-hidden="true">🎧</span>iPod</button>
+                  <button type="button" className="aim-tool" onClick={() => navigate('buddies')}><span className="aim-tool-icon" aria-hidden="true">👥</span>2006ers</button>
+                  <button type="button" className="aim-tool" aria-current={showExtra === 'videos' ? 'page' : undefined} onClick={() => setShowExtra('videos')}><span className="aim-tool-icon" aria-hidden="true">🎬</span>Videos</button>
+                  <button type="button" className="aim-tool" aria-current={showExtra === 'polls' ? 'page' : undefined} onClick={() => setShowExtra('polls')}><span className="aim-tool-icon" aria-hidden="true">🗳️</span>Vote</button>
+                  <button type="button" className="aim-tool" aria-current="page"><span className="aim-tool-icon" aria-hidden="true">📺</span>The Show</button>
+                </nav>
+              </AimWindow>
+
+              <aside className="xp2006-broadcast-chat" aria-label="Audience AIM chat">
+                <ErrorBoundary fallback={<div className="xp2006-broadcast-chat-error">Chat is temporarily unavailable.</div>}>
+                  <Chat room={ROOM_NAMES.DEFAULT} userId={viewer.id} />
                 </ErrorBoundary>
-              ) : <div className="xp2006-feed-error"><p>{streamError || 'Connecting to the program feed…'}</p>{streamError && <button type="button" className="xp2006-button" onClick={refreshStream}>Try again</button>}</div>}
-              <div className="xp2006-now"><strong>Now playing:</strong><span>{streamData?.title || 'connecting…'}</span><TransitionClock nextTransitionAt={streamData?.nextTransitionAt} /></div>
-            </div>
-            <div className="xp2006-cast-lines">{BUDDIES.filter((buddy) => buddy.about).map((buddy) => <p key={buddy.screenName} style={{ background: buddy.background, color: buddy.foreground, fontFamily: buddy.font }}><strong>{buddy.screenName}:</strong> {buddy.about}</p>)}</div>
-            <ErrorBoundary fallback={<div className="xp2006-feed-error">Chat is temporarily unavailable.</div>}><Chat room={ROOM_NAMES.DEFAULT} userId={viewer.id} embedded /></ErrorBoundary>
-            <div className="xp2006-show-tabs" role="tablist" aria-label="Show extras"><button type="button" role="tab" aria-selected={showExtra === 'polls'} onClick={() => setShowExtra(showExtra === 'polls' ? 'none' : 'polls')}>Vote</button><button type="button" role="tab" aria-selected={showExtra === 'videos'} onClick={() => setShowExtra(showExtra === 'videos' ? 'none' : 'videos')}>Videos</button></div>
-            {showExtra !== 'none' && <div className="xp2006-show-extra">{showExtra === 'polls' ? <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary> : <ErrorBoundary fallback={<p>The playlist is temporarily unavailable.</p>}><VideoPlaylistShelf emptyMessage="No queued videos yet. Check back when the show starts." /></ErrorBoundary>}</div>}
-            <div className="xp2006-show-info"><strong>2006: the year, the show, live</strong><p><b>feed:</b> {activeCueLabel || streamData?.scheduleStatus || 'following the operator'}<br /><b>chat:</b> open now<br /><b>submissions:</b> <span>OPEN NOW</span></p></div>
-          </ExperienceWindow>
+              </aside>
+            </section>
+
+            <DesktopFooter />
+          </>
         )}
       </main>
 
