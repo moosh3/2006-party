@@ -543,7 +543,6 @@ export default function AimExperience({
   const [groups, setGroups] = useState({ cast: true, bots: true, offline: true });
   const [statusMessage, setStatusMessage] = useState('tap a buddy twice for their profile');
   const [openPlaylist, setOpenPlaylist] = useState<string | null>(null);
-  const [showExtra, setShowExtra] = useState<'polls' | 'videos'>('polls');
   const [activeMacWindow, setActiveMacWindow] = useState<MacWindowName>('safari');
   const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true });
   const [zoomedMacWindow, setZoomedMacWindow] = useState<MacWindowName | null>(null);
@@ -703,8 +702,8 @@ export default function AimExperience({
               </div>
               <nav className="mac2006-bookmarks" aria-label="Safari bookmarks bar">
                 <button type="button" onClick={() => navigate('home')}>iPod</button>
-                <button type="button" aria-current={showExtra === 'polls' ? 'page' : undefined} onClick={() => setShowExtra('polls')}>Vote</button>
-                <button type="button" aria-current={showExtra === 'videos' ? 'page' : undefined} onClick={() => setShowExtra('videos')}>Videos</button>
+                <button type="button" aria-current="page">Vote</button>
+                <button type="button" onClick={() => navigate('videos')}>Videos</button>
               </nav>
 
               <div className="mac2006-safari-page">
@@ -736,15 +735,10 @@ export default function AimExperience({
                 </div>
 
                 <div className="mac2006-tabs" role="tablist" aria-label="Show extras">
-                  <button type="button" role="tab" aria-selected={showExtra === 'polls'} onClick={() => setShowExtra('polls')}>Vote</button>
-                  <button type="button" role="tab" aria-selected={showExtra === 'videos'} onClick={() => setShowExtra('videos')}>Videos</button>
+                  <button type="button" role="tab" aria-selected="true">Vote</button>
                 </div>
                 <div className="mac2006-extra-panel">
-                  {showExtra === 'polls' ? (
-                    <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary>
-                  ) : (
-                    <ErrorBoundary fallback={<p>The playlist is temporarily unavailable.</p>}><VideoPlaylistShelf emptyMessage="No queued videos yet. Check back when the show starts." /></ErrorBoundary>
-                  )}
+                  <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary>
                 </div>
                 <div className="mac2006-safari-status">{activeCueLabel || streamData?.scheduleStatus || 'Following the show operator'}</div>
               </div>
