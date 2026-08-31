@@ -526,13 +526,12 @@ function BuddyModal({ buddy, screenName, type, close, showInfo }: {
 }
 
 export default function AimExperience({
-  viewer, streamData, streamError, tokenRefreshError, activeCueLabel, refreshStream, onSignOff,
+  viewer, streamData, streamError, tokenRefreshError, refreshStream, onSignOff,
 }: {
   viewer: Viewer;
   streamData: ExperienceStreamData | null;
   streamError: string | null;
   tokenRefreshError: string | null;
-  activeCueLabel?: string | null;
   refreshStream: () => void;
   onSignOff: () => void;
 }) {
@@ -740,7 +739,6 @@ export default function AimExperience({
                 <div className="mac2006-extra-panel">
                   <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary>
                 </div>
-                <div className="mac2006-safari-status">{activeCueLabel || streamData?.scheduleStatus || 'Following the show operator'}</div>
               </div>
             </MacWindow>
 

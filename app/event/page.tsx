@@ -1,12 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AimExperience, { type ExperienceStreamData } from '@/components/2006/AimExperience';
 import AimWindow from '@/components/aim/AimWindow';
 import { useLobbyPresence } from '@/components/lobby-lounge/useLobbyPresence';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
-import { getRunOfShowCue } from '@/lib/run-of-show';
 import { getViewerData } from '@/lib/viewer';
 
 type Viewer = {
@@ -82,11 +81,6 @@ export default function EventPage() {
   } : null;
   useLobbyPresence(presenceSelf);
 
-  const activeCue = useMemo(
-    () => getRunOfShowCue(streamData?.activeSlotId),
-    [streamData?.activeSlotId]
-  );
-
   if (!viewer) {
     return (
       <div className="aim-desktop show-loading-screen">
@@ -103,7 +97,6 @@ export default function EventPage() {
       streamData={streamData}
       streamError={streamError}
       tokenRefreshError={tokenRefreshError}
-      activeCueLabel={activeCue?.label}
       refreshStream={refreshStream}
       onSignOff={() => router.replace('/login')}
     />
