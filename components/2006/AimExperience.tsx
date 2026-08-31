@@ -202,20 +202,45 @@ function MacMenuBar({ activeWindow, navigate }: { activeWindow: MacWindowName; n
 
 function useMacWindowDrag(onFocus: () => void) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const drag = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } | null>(null);
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!bounds) return;
+    const baseLeft = bounds.left - position.x;
+    const baseTop = bounds.top - position.y;
     onFocus();
-    drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: position.x, originY: position.y };
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: position.x,
+      originY: position.y,
+      minX: 8 - baseLeft,
+      maxX: window.innerWidth - bounds.width - 8 - baseLeft,
+      minY: 26 - baseTop,
+      maxY: window.innerHeight - 40 - baseTop,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!drag.current || drag.current.pointerId !== event.pointerId) return;
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, Math.min(min, max)), Math.max(min, max));
     setPosition({
-      x: drag.current.originX + event.clientX - drag.current.startX,
-      y: drag.current.originY + event.clientY - drag.current.startY,
+      x: clamp(drag.current.originX + event.clientX - drag.current.startX, drag.current.minX, drag.current.maxX),
+      y: clamp(drag.current.originY + event.clientY - drag.current.startY, drag.current.minY, drag.current.maxY),
     });
   };
 
