@@ -165,6 +165,14 @@ function TransitionClock({ nextTransitionAt }: { nextTransitionAt?: string | nul
 }
 
 type MacWindowName = 'safari' | 'aim' | 'mail' | 'textedit';
+type MacWindowSize = { width: number; height: number };
+
+const MAC_WINDOW_MIN_SIZE: Record<MacWindowName, MacWindowSize> = {
+  safari: { width: 520, height: 360 },
+  aim: { width: 300, height: 420 },
+  mail: { width: 520, height: 400 },
+  textedit: { width: 480, height: 390 },
+};
 
 function MacMenuClock() {
   const [now, setNow] = useState<Date | null>(null);
@@ -254,6 +262,81 @@ function useMacWindowDrag(onFocus: () => void) {
   return { position, onPointerDown, onPointerMove, onPointerUp: finishDrag, onPointerCancel: finishDrag };
 }
 
+function useMacWindowResize(onFocus: () => void, minimum: MacWindowSize) {
+  const [size, setSize] = useState<MacWindowSize | null>(null);
+  const resize = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    maxWidth: number;
+    maxHeight: number;
+  } | null>(null);
+
+  const clampSize = (width: number, height: number, bounds: DOMRect) => ({
+    width: Math.round(Math.min(Math.max(width, minimum.width), Math.max(minimum.width, window.innerWidth - bounds.left - 8))),
+    height: Math.round(Math.min(Math.max(height, minimum.height), Math.max(minimum.height, window.innerHeight - bounds.top - 84))),
+  });
+
+  const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || window.matchMedia('(max-width: 900px)').matches) return;
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!bounds) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onFocus();
+    resize.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: bounds.width,
+      startHeight: bounds.height,
+      maxWidth: Math.max(minimum.width, window.innerWidth - bounds.left - 8),
+      maxHeight: Math.max(minimum.height, window.innerHeight - bounds.top - 84),
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      if (!resize.current || resize.current.pointerId !== event.pointerId) return;
+      setSize({
+        width: Math.round(Math.min(Math.max(resize.current.startWidth + event.clientX - resize.current.startX, minimum.width), resize.current.maxWidth)),
+        height: Math.round(Math.min(Math.max(resize.current.startHeight + event.clientY - resize.current.startY, minimum.height), resize.current.maxHeight)),
+      });
+    };
+    const finishResize = (event: PointerEvent) => {
+      if (resize.current?.pointerId === event.pointerId) resize.current = null;
+    };
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', finishResize);
+    window.addEventListener('pointercancel', finishResize);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', finishResize);
+      window.removeEventListener('pointercancel', finishResize);
+    };
+  }, [minimum.height, minimum.width]);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!bounds) return;
+    event.preventDefault();
+    onFocus();
+    const step = event.shiftKey ? 32 : 8;
+    const widthDelta = event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0;
+    const heightDelta = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0;
+    setSize(clampSize(bounds.width + widthDelta, bounds.height + heightDelta, bounds));
+  };
+
+  return {
+    size,
+    handlers: { onPointerDown, onKeyDown },
+  };
+}
+
 function MacWindow({
   name, title, visible, active, zoomed, onFocus, onClose, onMinimize, onZoom, children,
 }: {
@@ -269,9 +352,11 @@ function MacWindow({
   children: React.ReactNode;
 }) {
   const { position, ...dragHandlers } = useMacWindowDrag(onFocus);
+  const { size, handlers: resizeHandlers } = useMacWindowResize(onFocus, MAC_WINDOW_MIN_SIZE[name]);
   const style = {
     '--mac2006-drag-x': `${position.x}px`,
     '--mac2006-drag-y': `${position.y}px`,
+    ...(!zoomed && size ? { width: `${size.width}px`, height: `${size.height}px` } : {}),
   } as React.CSSProperties;
 
   return (
@@ -291,6 +376,13 @@ function MacWindow({
         <strong>{title}</strong>
       </div>
       {children}
+      <button
+        type="button"
+        className="mac2006-resize-handle"
+        aria-label={`Resize ${title}`}
+        title="Drag to resize. Arrow keys also work."
+        {...resizeHandlers}
+      />
     </section>
   );
 }

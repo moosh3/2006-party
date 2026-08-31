@@ -405,9 +405,26 @@
 .mac2006-window.hidden { display: none; }
 .mac2006-window.zoomed { z-index: 32; inset: 31px 12px 82px; width: auto; height: auto; transform: none; }
 .mac2006-window-safari { top: 54px; left: 24px; width: min(72vw, 1000px); height: calc(100dvh - 142px); }
-.mac2006-window-aim { top: 84px; right: 24px; width: min(350px, 31vw); height: calc(100dvh - 172px); }
+.mac2006-window-aim { top: 84px; left: max(24px, calc(100vw - min(350px, 31vw) - 24px)); width: min(350px, 31vw); height: calc(100dvh - 172px); }
 .mac2006-window-mail { top: 68px; left: 11vw; width: min(720px, 62vw); height: min(570px, calc(100dvh - 150px)); }
 .mac2006-window-textedit { top: 88px; left: 17vw; width: min(680px, 64vw); height: min(560px, calc(100dvh - 168px)); }
+
+.mac2006-resize-handle {
+  position: absolute;
+  z-index: 8;
+  right: 0;
+  bottom: 0;
+  width: 19px;
+  height: 19px;
+  border: 0;
+  border-radius: 0 0 4px;
+  background: linear-gradient(135deg, transparent 0 36%, rgba(255, 255, 255, .92) 37% 43%, #8b8b8b 44% 49%, transparent 50% 57%, rgba(255, 255, 255, .92) 58% 64%, #777 65% 70%, transparent 71% 78%, rgba(255, 255, 255, .92) 79% 85%, #666 86% 91%, transparent 92%);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.mac2006-resize-handle:hover,
+.mac2006-resize-handle:focus-visible { background-color: rgba(77, 143, 204, .18); outline: 1px solid rgba(30, 91, 148, .72); outline-offset: -2px; }
+.mac2006-window.zoomed .mac2006-resize-handle { display: none; }
 
 .mac2006-titlebar {
   position: relative;
@@ -570,6 +587,7 @@
   .mac2006-menubar span:not(.mac2006-menubar-time):nth-of-type(n+4) { display: none; }
   .mac2006-warning { position: relative; top: auto; left: auto; width: 100%; transform: none; }
   .mac2006-window, .mac2006-window.zoomed { position: relative; inset: auto; width: 100%; height: auto; min-height: 0; transform: none !important; }
+  .mac2006-resize-handle { display: none; }
   .mac2006-titlebar { cursor: default; }
   .mac2006-safari-page { max-height: none; overflow: visible; }
   .mac2006-window-aim { height: 70dvh; min-height: 520px; }
