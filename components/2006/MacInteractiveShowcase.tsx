@@ -125,7 +125,7 @@ export function ClippyAssistant({
         </div>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/2006/clippy.svg" alt="Clippy, an animated paperclip assistant" />
+      <img src="/2006/clippy.png" alt="Clippy, an animated paperclip assistant" />
     </aside>
   );
 }

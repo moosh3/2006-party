@@ -544,7 +544,7 @@
 .mac2006-document textarea::placeholder { color: #aaa; }
 
 .mac2006-clippy { position: absolute; z-index: 85; right: 375px; bottom: 78px; display: flex; max-width: 375px; align-items: flex-end; animation: mac2006-clippy-arrive 420ms cubic-bezier(.2, .85, .25, 1.2) both; filter: drop-shadow(0 9px 12px rgba(0, 28, 68, .38)); }
-.mac2006-clippy > img { width: 92px; height: 116px; flex: none; object-fit: contain; }
+.mac2006-clippy > img { width: 126px; height: 156px; flex: none; object-fit: contain; }
 .mac2006-clippy-bubble { position: relative; width: 270px; margin: 0 -6px 48px 0; border: 1px solid #6d6334; border-radius: 9px; background: linear-gradient(135deg, #fffef4, #fff3ae); box-shadow: inset 0 1px 0 #fff, 0 2px 7px rgba(0, 0, 0, .3); padding: 13px 12px 10px; color: #222; font: 11px/1.45 'Lucida Grande', Helvetica, Arial, sans-serif; }
 .mac2006-clippy-bubble::after { position: absolute; right: -13px; bottom: 17px; width: 22px; height: 22px; border-top: 1px solid #6d6334; border-right: 1px solid #6d6334; background: #fff5bd; content: ''; transform: rotate(45deg); }
 .mac2006-clippy-bubble p { position: relative; z-index: 1; margin: 0 20px 10px 0; }
@@ -574,7 +574,7 @@
 .mac2006-textedit-icon::before { width: 27px; height: 33px; border: 1px solid #aaa; background: repeating-linear-gradient(#fff 0 6px, #b7cce1 7px, #fff 8px); content: ''; box-shadow: 0 1px 2px rgba(0, 0, 0, .24); }
 .mac2006-textedit-icon::after { position: absolute; right: 7px; bottom: 5px; width: 5px; height: 29px; border: 1px solid #8b5b27; border-radius: 3px; background: linear-gradient(90deg, #e6a43f, #fff1a6, #c47c27); content: ''; transform: rotate(35deg); }
 .mac2006-clippy-icon { border: 1px solid #777; border-radius: 9px; background: linear-gradient(145deg, #fff, #c8d3dd); box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgba(0, 0, 0, .38); }
-.mac2006-clippy-icon img { width: 34px; height: 39px; object-fit: contain; }
+.mac2006-clippy-icon img { position: absolute; top: -2px; width: 47px; height: 70px; object-fit: contain; }
 .mac2006-dock-badge { position: absolute; z-index: 2; top: -2px; right: 0; display: grid; width: 16px; height: 16px; place-items: center; border: 1px solid #8f1717; border-radius: 50%; background: linear-gradient(#ff7b6f, #c81c14); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); color: #fff; font: 700 9px Arial, sans-serif; text-shadow: 0 1px 1px #7b0000; }
 .mac2006-ipod-icon { border: 1px solid #aaa; border-radius: 8px; background: linear-gradient(145deg, #fff, #d8d8dc); box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgba(0, 0, 0, .38); }
 .mac2006-ipod-icon::before { position: absolute; top: 6px; width: 29px; height: 16px; border: 2px solid #555; border-radius: 2px; background: linear-gradient(#8da6bc, #dce8ef); content: ''; }
@@ -615,13 +615,13 @@
   .mac2006-document-wrap { padding: 8px; }
   .mac2006-document { min-height: 540px; padding: 25px 21px; }
   .mac2006-clippy { max-width: calc(100vw - 10px); }
-  .mac2006-clippy > img { width: 70px; height: 96px; }
+  .mac2006-clippy > img { width: 102px; height: 132px; }
   .mac2006-clippy-bubble { width: min(230px, calc(100vw - 82px)); margin-bottom: 36px; }
   .mac2006-dock { height: 58px; gap: 4px; padding: 4px 7px 6px; }
   .mac2006-dock > button { width: 40px; height: 46px; }
   .mac2006-safari-icon, .mac2006-aim-icon, .mac2006-mail-icon, .mac2006-textedit-icon, .mac2006-clippy-icon, .mac2006-ipod-icon { width: 36px; height: 36px; }
   .mac2006-aim-icon img { width: 27px; height: 27px; }
-  .mac2006-clippy-icon img { width: 29px; height: 33px; }
+  .mac2006-clippy-icon img { width: 40px; height: 60px; }
 }
 
 /* Buddy IM and profile windows */

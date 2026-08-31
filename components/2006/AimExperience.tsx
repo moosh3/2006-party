@@ -420,7 +420,7 @@ function MacDock({
       <button type="button" onClick={showClippy}>
         <span className="mac2006-clippy-icon" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/2006/clippy.svg" alt="" />
+          <img src="/2006/clippy.png" alt="" />
         </span><small>Clippy</small>
       </button>
       <span className="mac2006-dock-divider" aria-hidden="true" />
