@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 146" role="img" aria-labelledby="title desc">
+  <title id="title">Clippy</title>
+  <desc id="desc">A friendly paperclip office assistant with eyes</desc>
+  <defs>
+    <linearGradient id="wire" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fcfcfc"/>
+      <stop offset=".35" stop-color="#a7adb5"/>
+      <stop offset=".58" stop-color="#f5f6f7"/>
+      <stop offset="1" stop-color="#6c727a"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="1" dy="3" stdDeviation="2" flood-color="#17375d" flood-opacity=".42"/>
+    </filter>
+  </defs>
+  <ellipse cx="59" cy="137" rx="31" ry="5" fill="#143d70" opacity=".28"/>
+  <path d="M72 15c24 4 34 25 27 47L80 116c-6 17-27 23-42 13-13-9-17-25-11-40l20-51c4-10 15-15 25-11 10 4 15 15 11 25L64 103c-2 6-9 9-15 6-6-2-9-9-6-15l17-45" fill="none" stroke="#555b63" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)"/>
+  <path d="M72 15c24 4 34 25 27 47L80 116c-6 17-27 23-42 13-13-9-17-25-11-40l20-51c4-10 15-15 25-11 10 4 15 15 11 25L64 103c-2 6-9 9-15 6-6-2-9-9-6-15l17-45" fill="none" stroke="url(#wire)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="rotate(8 73 42)" filter="url(#shadow)">
+    <ellipse cx="64" cy="39" rx="12" ry="14" fill="#fff" stroke="#555" stroke-width="2"/>
+    <ellipse cx="84" cy="41" rx="12" ry="14" fill="#fff" stroke="#555" stroke-width="2"/>
+    <circle cx="68" cy="42" r="4.5" fill="#20242a"/>
+    <circle cx="80" cy="44" r="4.5" fill="#20242a"/>
+    <circle cx="69" cy="40" r="1.3" fill="#fff"/>
+    <circle cx="81" cy="42" r="1.3" fill="#fff"/>
+    <path d="M66 59c6 5 13 5 19 0" fill="none" stroke="#454a51" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+</svg>

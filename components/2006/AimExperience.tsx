@@ -6,6 +6,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import PollsTab from '@/components/PollsTab';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
+import { ClippyAssistant, MailApp, TextEditApp, type ClippyMode } from '@/components/2006/MacInteractiveShowcase';
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
@@ -163,7 +164,7 @@ function TransitionClock({ nextTransitionAt }: { nextTransitionAt?: string | nul
   return <span>Next in {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>;
 }
 
-type MacWindowName = 'safari' | 'aim';
+type MacWindowName = 'safari' | 'aim' | 'mail' | 'textedit';
 
 function MacMenuClock() {
   const [now, setNow] = useState<Date | null>(null);
@@ -185,7 +186,7 @@ function MacMenuClock() {
 }
 
 function MacMenuBar({ activeWindow, navigate }: { activeWindow: MacWindowName; navigate: (screen: ExperienceScreen) => void }) {
-  const appName = activeWindow === 'safari' ? 'Safari' : 'AIM';
+  const appName: Record<MacWindowName, string> = { safari: 'Safari', aim: 'AIM', mail: 'Mail', textedit: 'TextEdit' };
 
   return (
     <nav className="mac2006-menubar" aria-label="Mac menu bar">
@@ -193,7 +194,7 @@ function MacMenuBar({ activeWindow, navigate }: { activeWindow: MacWindowName; n
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/2006/mac-apple.svg" alt="" />
       </button>
-      <strong>{appName}</strong>
+      <strong>{appName[activeWindow]}</strong>
       <span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
       <span className="mac2006-menubar-time"><MacMenuClock /></span>
     </nav>
@@ -295,12 +296,15 @@ function MacWindow({
 }
 
 function MacDock({
-  activeWindow, safariOpen, aimOpen, openWindow, navigate,
+  activeWindow, safariOpen, aimOpen, mailOpen, textEditOpen, openWindow, showClippy, navigate,
 }: {
   activeWindow: MacWindowName;
   safariOpen: boolean;
   aimOpen: boolean;
+  mailOpen: boolean;
+  textEditOpen: boolean;
   openWindow: (name: MacWindowName) => void;
+  showClippy: () => void;
   navigate: (screen: ExperienceScreen) => void;
 }) {
   return (
@@ -313,6 +317,19 @@ function MacDock({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/2006/aim-running-man.svg" alt="" />
         </span><small>AIM</small>
+      </button>
+      <button type="button" className={activeWindow === 'mail' && mailOpen ? 'active' : ''} onClick={() => openWindow('mail')}>
+        <span className="mac2006-mail-icon" aria-hidden="true"><i /></span><small>Mail</small>
+        <span className="mac2006-dock-badge" aria-label="1 unread message">1</span>
+      </button>
+      <button type="button" className={activeWindow === 'textedit' && textEditOpen ? 'active' : ''} onClick={() => openWindow('textedit')}>
+        <span className="mac2006-textedit-icon" aria-hidden="true"><i /></span><small>TextEdit</small>
+      </button>
+      <button type="button" onClick={showClippy}>
+        <span className="mac2006-clippy-icon" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/2006/clippy.svg" alt="" />
+        </span><small>Clippy</small>
       </button>
       <span className="mac2006-dock-divider" aria-hidden="true" />
       <button type="button" onClick={() => navigate('home')}>
@@ -543,8 +560,13 @@ export default function AimExperience({
   const [statusMessage, setStatusMessage] = useState('tap a buddy twice for their profile');
   const [openPlaylist, setOpenPlaylist] = useState<string | null>(null);
   const [activeMacWindow, setActiveMacWindow] = useState<MacWindowName>('safari');
-  const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true });
+  const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true, mail: false, textedit: false });
   const [zoomedMacWindow, setZoomedMacWindow] = useState<MacWindowName | null>(null);
+  const [clippyVisible, setClippyVisible] = useState(false);
+  const [clippyMode, setClippyMode] = useState<ClippyMode>('mail');
+  const [essayPrompt, setEssayPrompt] = useState(0);
+  const [essayDraft, setEssayDraft] = useState('');
+  const [essaySaved, setEssaySaved] = useState(false);
 
   useEffect(() => {
     const requested = sessionStorage.getItem('2006_party_initial_screen') as ExperienceScreen | null;
@@ -559,6 +581,25 @@ export default function AimExperience({
       home: 'iPod menu', buddies: 'Buddy list, the cast of 2006', videos: 'Videos', playlists: 'Playlists', graveyard: 'The Graveyard', show: 'The Show',
     };
     document.title = `${titles[screen]} · 2006`;
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen !== 'show') return;
+
+    // Preview choreography. These timers can later be replaced by operator-controlled show cues.
+    const clippyTimer = window.setTimeout(() => {
+      setClippyMode('mail');
+      setClippyVisible(true);
+    }, 1_200);
+    const mailTimer = window.setTimeout(() => {
+      setMacWindows((windows) => ({ ...windows, mail: true }));
+      setActiveMacWindow('mail');
+    }, 4_200);
+
+    return () => {
+      window.clearTimeout(clippyTimer);
+      window.clearTimeout(mailTimer);
+    };
   }, [screen]);
 
   const navigate = (destination: ExperienceScreen) => {
@@ -600,6 +641,23 @@ export default function AimExperience({
   const toggleMacZoom = (name: MacWindowName) => {
     setActiveMacWindow(name);
     setZoomedMacWindow((zoomed) => zoomed === name ? null : name);
+  };
+
+  const openMail = () => {
+    openMacWindow('mail');
+    setClippyVisible(false);
+  };
+
+  const openEssay = () => {
+    openMacWindow('textedit');
+    setClippyMode('essay');
+    setClippyVisible(true);
+  };
+
+  const saveEssay = () => {
+    setEssaySaved(true);
+    setClippyMode('saved');
+    setClippyVisible(true);
   };
 
   return (
@@ -762,11 +820,58 @@ export default function AimExperience({
               <div className="mac2006-aim-status"><span aria-hidden="true" />Online</div>
             </MacWindow>
 
+            <MacWindow
+              name="mail"
+              title="Essay due! — Mail"
+              visible={macWindows.mail}
+              active={activeMacWindow === 'mail'}
+              zoomed={zoomedMacWindow === 'mail'}
+              onFocus={() => setActiveMacWindow('mail')}
+              onClose={() => hideMacWindow('mail')}
+              onMinimize={() => hideMacWindow('mail')}
+              onZoom={() => toggleMacZoom('mail')}
+            >
+              <MailApp onStartEssay={openEssay} />
+            </MacWindow>
+
+            <MacWindow
+              name="textedit"
+              title="2006 Essay — TextEdit"
+              visible={macWindows.textedit}
+              active={activeMacWindow === 'textedit'}
+              zoomed={zoomedMacWindow === 'textedit'}
+              onFocus={() => setActiveMacWindow('textedit')}
+              onClose={() => hideMacWindow('textedit')}
+              onMinimize={() => hideMacWindow('textedit')}
+              onZoom={() => toggleMacZoom('textedit')}
+            >
+              <TextEditApp
+                promptIndex={essayPrompt}
+                setPromptIndex={setEssayPrompt}
+                draft={essayDraft}
+                setDraft={(draft) => { setEssayDraft(draft); setEssaySaved(false); }}
+                saved={essaySaved}
+                onSave={saveEssay}
+              />
+            </MacWindow>
+
+            {clippyVisible && (
+              <ClippyAssistant
+                mode={clippyMode}
+                onOpenMail={openMail}
+                onOpenEssay={() => { openMacWindow('textedit'); setClippyVisible(false); }}
+                onDismiss={() => setClippyVisible(false)}
+              />
+            )}
+
             <MacDock
               activeWindow={activeMacWindow}
               safariOpen={macWindows.safari}
               aimOpen={macWindows.aim}
+              mailOpen={macWindows.mail}
+              textEditOpen={macWindows.textedit}
               openWindow={openMacWindow}
+              showClippy={() => setClippyVisible(true)}
               navigate={navigate}
             />
           </>
