@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Chat from '@/components/Chat';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PollsTab from '@/components/PollsTab';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
-import AimWindow from '@/components/aim/AimWindow';
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
@@ -162,6 +161,140 @@ function TransitionClock({ nextTransitionAt }: { nextTransitionAt?: string | nul
   if (!nextTransitionAt) return <span>Manual cue</span>;
   const seconds = Math.max(0, Math.floor((new Date(nextTransitionAt).getTime() - now) / 1000));
   return <span>Next in {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>;
+}
+
+type MacWindowName = 'safari' | 'aim';
+
+function MacMenuClock() {
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const update = () => setNow(new Date());
+    update();
+    const interval = window.setInterval(update, 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  if (!now) return <span aria-hidden="true">&nbsp;</span>;
+
+  return (
+    <time dateTime={now.toISOString()}>
+      {new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(now)}
+    </time>
+  );
+}
+
+function MacMenuBar({ activeWindow, navigate }: { activeWindow: MacWindowName; navigate: (screen: ExperienceScreen) => void }) {
+  const appName = activeWindow === 'safari' ? 'Safari' : 'AIM';
+
+  return (
+    <nav className="mac2006-menubar" aria-label="Mac menu bar">
+      <button type="button" className="mac2006-apple-menu" aria-label="Return to iPod" onClick={() => navigate('home')}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/2006/mac-apple.svg" alt="" />
+      </button>
+      <strong>{appName}</strong>
+      <span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
+      <span className="mac2006-menubar-time"><MacMenuClock /></span>
+    </nav>
+  );
+}
+
+function useMacWindowDrag(onFocus: () => void) {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+    onFocus();
+    drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: position.x, originY: position.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current || drag.current.pointerId !== event.pointerId) return;
+    setPosition({
+      x: drag.current.originX + event.clientX - drag.current.startX,
+      y: drag.current.originY + event.clientY - drag.current.startY,
+    });
+  };
+
+  const finishDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current || drag.current.pointerId !== event.pointerId) return;
+    drag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  return { position, onPointerDown, onPointerMove, onPointerUp: finishDrag, onPointerCancel: finishDrag };
+}
+
+function MacWindow({
+  name, title, visible, active, zoomed, onFocus, onClose, onMinimize, onZoom, children,
+}: {
+  name: MacWindowName;
+  title: string;
+  visible: boolean;
+  active: boolean;
+  zoomed: boolean;
+  onFocus: () => void;
+  onClose: () => void;
+  onMinimize: () => void;
+  onZoom: () => void;
+  children: React.ReactNode;
+}) {
+  const { position, ...dragHandlers } = useMacWindowDrag(onFocus);
+  const style = {
+    '--mac2006-drag-x': `${position.x}px`,
+    '--mac2006-drag-y': `${position.y}px`,
+  } as React.CSSProperties;
+
+  return (
+    <section
+      className={`mac2006-window mac2006-window-${name} ${active ? 'active' : ''} ${zoomed ? 'zoomed' : ''} ${visible ? '' : 'hidden'}`}
+      style={style}
+      aria-label={`${title} window`}
+      aria-hidden={!visible}
+      onPointerDown={onFocus}
+    >
+      <div className="mac2006-titlebar" {...dragHandlers}>
+        <div className="mac2006-traffic-lights">
+          <button type="button" className="close" aria-label={`Close ${title}`} onClick={onClose} />
+          <button type="button" className="minimize" aria-label={`Minimize ${title}`} onClick={onMinimize} />
+          <button type="button" className="zoom" aria-label={`Zoom ${title}`} onClick={onZoom} />
+        </div>
+        <strong>{title}</strong>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function MacDock({
+  activeWindow, safariOpen, aimOpen, openWindow, navigate,
+}: {
+  activeWindow: MacWindowName;
+  safariOpen: boolean;
+  aimOpen: boolean;
+  openWindow: (name: MacWindowName) => void;
+  navigate: (screen: ExperienceScreen) => void;
+}) {
+  return (
+    <nav className="mac2006-dock" aria-label="Dock">
+      <button type="button" className={activeWindow === 'safari' && safariOpen ? 'active' : ''} onClick={() => openWindow('safari')}>
+        <span className="mac2006-safari-icon" aria-hidden="true"><i /></span><small>Safari</small>
+      </button>
+      <button type="button" className={activeWindow === 'aim' && aimOpen ? 'active' : ''} onClick={() => openWindow('aim')}>
+        <span className="mac2006-aim-icon" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/2006/aim-running-man.svg" alt="" />
+        </span><small>AIM</small>
+      </button>
+      <span className="mac2006-dock-divider" aria-hidden="true" />
+      <button type="button" onClick={() => navigate('home')}>
+        <span className="mac2006-ipod-icon" aria-hidden="true"><i /></span><small>iPod</small>
+      </button>
+    </nav>
+  );
 }
 
 function DesktopFooter() {
@@ -386,6 +519,9 @@ export default function AimExperience({
   const [statusMessage, setStatusMessage] = useState('tap a buddy twice for their profile');
   const [openPlaylist, setOpenPlaylist] = useState<string | null>(null);
   const [showExtra, setShowExtra] = useState<'polls' | 'videos'>('polls');
+  const [activeMacWindow, setActiveMacWindow] = useState<MacWindowName>('safari');
+  const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true });
+  const [zoomedMacWindow, setZoomedMacWindow] = useState<MacWindowName | null>(null);
 
   useEffect(() => {
     const requested = sessionStorage.getItem('2006_party_initial_screen') as ExperienceScreen | null;
@@ -427,10 +563,26 @@ export default function AimExperience({
     setStatusMessage(buddy.bot ? 'SmarterChild is a robot. tap again to chat!' : `tap again to open ${buddy.screenName}`);
   };
 
+  const openMacWindow = (name: MacWindowName) => {
+    setMacWindows((windows) => ({ ...windows, [name]: true }));
+    setActiveMacWindow(name);
+  };
+
+  const hideMacWindow = (name: MacWindowName) => {
+    setMacWindows((windows) => ({ ...windows, [name]: false }));
+    setZoomedMacWindow((zoomed) => zoomed === name ? null : zoomed);
+    setActiveMacWindow(name === 'safari' ? 'aim' : 'safari');
+  };
+
+  const toggleMacZoom = (name: MacWindowName) => {
+    setActiveMacWindow(name);
+    setZoomedMacWindow((zoomed) => zoomed === name ? null : name);
+  };
+
   return (
-    <div className={`aim-desktop xp2006-desktop ${screen === 'show' ? 'xp2006-broadcast-desktop' : ''}`}>
+    <div className={`aim-desktop xp2006-desktop ${screen === 'show' ? 'mac2006-desktop' : ''}`}>
       <a className="sr-only" href="#xp2006-main">Skip to the window</a>
-      <main id="xp2006-main" className={screen === 'show' ? 'xp2006-broadcast-shell' : 'xp2006-frame'}>
+      <main id="xp2006-main" className={screen === 'show' ? 'mac2006-shell' : 'xp2006-frame'}>
         <h1 className="sr-only">2006</h1>
 
         {screen === 'home' && (
@@ -501,19 +653,39 @@ export default function AimExperience({
 
         {screen === 'show' && (
           <>
-            {tokenRefreshError && <div className="xp2006-broadcast-warning" role="status">{tokenRefreshError}</div>}
+            <MacMenuBar activeWindow={activeMacWindow} navigate={navigate} />
+            {tokenRefreshError && <div className="mac2006-warning" role="status">{tokenRefreshError}</div>}
 
-            <section className="xp2006-broadcast-grid" aria-label="The Show broadcast and audience chat">
-              <AimWindow
-                title={`${streamData?.title || '2006'} — Windows Media Player`}
-                className="xp2006-broadcast-player"
-                menuItems={['File', 'View', 'Play', 'Tools', 'Help']}
-                status={activeCueLabel || streamData?.scheduleStatus || 'Following the show operator'}
-                live
-              >
-                <div className="xp2006-broadcast-video">
+            <MacWindow
+              name="safari"
+              title={`${streamData?.title || '2006'} — Safari`}
+              visible={macWindows.safari}
+              active={activeMacWindow === 'safari'}
+              zoomed={zoomedMacWindow === 'safari'}
+              onFocus={() => setActiveMacWindow('safari')}
+              onClose={() => hideMacWindow('safari')}
+              onMinimize={() => hideMacWindow('safari')}
+              onZoom={() => toggleMacZoom('safari')}
+            >
+              <div className="mac2006-safari-toolbar">
+                <div className="mac2006-browser-actions">
+                  <button type="button" onClick={() => navigate('home')}>Back</button>
+                  <button type="button" disabled>Forward</button>
+                  <button type="button" onClick={refreshStream}>Reload</button>
+                  <button type="button" onClick={() => navigate('home')}>Home</button>
+                </div>
+                <label className="mac2006-address"><span className="sr-only">Address</span><input readOnly value="https://2006-party.vercel.app/event" /></label>
+              </div>
+              <nav className="mac2006-bookmarks" aria-label="Safari bookmarks bar">
+                <button type="button" onClick={() => navigate('home')}>iPod</button>
+                <button type="button" aria-current={showExtra === 'polls' ? 'page' : undefined} onClick={() => setShowExtra('polls')}>Vote</button>
+                <button type="button" aria-current={showExtra === 'videos' ? 'page' : undefined} onClick={() => setShowExtra('videos')}>Videos</button>
+              </nav>
+
+              <div className="mac2006-safari-page">
+                <div className="mac2006-video">
                   {streamData ? (
-                    <ErrorBoundary fallback={<div className="xp2006-broadcast-error">The video player stopped. Reload to reconnect.</div>}>
+                    <ErrorBoundary fallback={<div className="mac2006-video-error">The video player stopped. Reload to reconnect.</div>}>
                       <VideoPlayer
                         key={`${streamData.sourceType || 'mux'}:${streamData.playbackId}:${streamData.activeSlotId || 'manual'}:${streamData.isHoldScreen ? 'hold' : 'show'}`}
                         playbackId={streamData.playbackId} token={streamData.token} title={streamData.title} kind={streamData.kind}
@@ -525,48 +697,61 @@ export default function AimExperience({
                       />
                     </ErrorBoundary>
                   ) : (
-                    <div className="xp2006-broadcast-error">
+                    <div className="mac2006-video-error">
                       <p>{streamError || 'Connecting to the program feed…'}</p>
-                      {streamError && <button type="button" className="aim-xp-button" onClick={refreshStream}>Try again</button>}
+                      {streamError && <button type="button" className="mac2006-aqua-button" onClick={refreshStream}>Try again</button>}
                     </div>
                   )}
                 </div>
 
-                <div className="xp2006-broadcast-now">
+                <div className="mac2006-now-playing">
                   <strong>Now playing:</strong>
                   <span>{streamData?.title || 'connecting…'}</span>
                   <TransitionClock nextTransitionAt={streamData?.nextTransitionAt} />
                 </div>
 
-                <div className="xp2006-broadcast-tabs" role="tablist" aria-label="Show extras">
+                <div className="mac2006-tabs" role="tablist" aria-label="Show extras">
                   <button type="button" role="tab" aria-selected={showExtra === 'polls'} onClick={() => setShowExtra('polls')}>Vote</button>
                   <button type="button" role="tab" aria-selected={showExtra === 'videos'} onClick={() => setShowExtra('videos')}>Videos</button>
                 </div>
-                <div className="xp2006-broadcast-extra">
+                <div className="mac2006-extra-panel">
                   {showExtra === 'polls' ? (
                     <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary>
                   ) : (
                     <ErrorBoundary fallback={<p>The playlist is temporarily unavailable.</p>}><VideoPlaylistShelf emptyMessage="No queued videos yet. Check back when the show starts." /></ErrorBoundary>
                   )}
                 </div>
+                <div className="mac2006-safari-status">{activeCueLabel || streamData?.scheduleStatus || 'Following the show operator'}</div>
+              </div>
+            </MacWindow>
 
-                <nav className="aim-toolbar" aria-label="The Show sections">
-                  <button type="button" className="aim-tool" onClick={() => navigate('home')}><span className="aim-tool-icon" aria-hidden="true">🎧</span>iPod</button>
-                  <button type="button" className="aim-tool" onClick={() => navigate('buddies')}><span className="aim-tool-icon" aria-hidden="true">👥</span>2006ers</button>
-                  <button type="button" className="aim-tool" aria-current={showExtra === 'videos' ? 'page' : undefined} onClick={() => setShowExtra('videos')}><span className="aim-tool-icon" aria-hidden="true">🎬</span>Videos</button>
-                  <button type="button" className="aim-tool" aria-current={showExtra === 'polls' ? 'page' : undefined} onClick={() => setShowExtra('polls')}><span className="aim-tool-icon" aria-hidden="true">🗳️</span>Vote</button>
-                  <button type="button" className="aim-tool" aria-current="page"><span className="aim-tool-icon" aria-hidden="true">📺</span>The Show</button>
-                </nav>
-              </AimWindow>
-
-              <aside className="xp2006-broadcast-chat" aria-label="Audience AIM chat">
-                <ErrorBoundary fallback={<div className="xp2006-broadcast-chat-error">Chat is temporarily unavailable.</div>}>
-                  <Chat room={ROOM_NAMES.DEFAULT} userId={viewer.id} />
+            <MacWindow
+              name="aim"
+              title={`AIM — ${viewer.displayName}`}
+              visible={macWindows.aim}
+              active={activeMacWindow === 'aim'}
+              zoomed={zoomedMacWindow === 'aim'}
+              onFocus={() => setActiveMacWindow('aim')}
+              onClose={() => hideMacWindow('aim')}
+              onMinimize={() => hideMacWindow('aim')}
+              onZoom={() => toggleMacZoom('aim')}
+            >
+              <div className="mac2006-aim-menu"><span>AIM</span><span>File</span><span>Edit</span><span>People</span><span>Help</span></div>
+              <div className="mac2006-aim-body">
+                <ErrorBoundary fallback={<div className="mac2006-chat-error">Chat is temporarily unavailable.</div>}>
+                  <Chat room={ROOM_NAMES.DEFAULT} userId={viewer.id} embedded />
                 </ErrorBoundary>
-              </aside>
-            </section>
+              </div>
+              <div className="mac2006-aim-status"><span aria-hidden="true" />Online</div>
+            </MacWindow>
 
-            <DesktopFooter />
+            <MacDock
+              activeWindow={activeMacWindow}
+              safariOpen={macWindows.safari}
+              aimOpen={macWindows.aim}
+              openWindow={openMacWindow}
+              navigate={navigate}
+            />
           </>
         )}
       </main>

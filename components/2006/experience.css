@@ -328,42 +328,188 @@
 .xp2006-stones strong { display: block; font-size: 12px; }
 .xp2006-stones i { display: block; margin-top: 2px; color: #666; font-size: 10px; line-height: 1.4; }
 
-/* The Show: the roomy after-party broadcast view, reached from the iPod. */
-.xp2006-broadcast-desktop { display: block; padding: clamp(8px, 1.5vw, 20px); }
-.xp2006-broadcast-shell { width: min(100%, 1420px); margin: 0 auto; }
-.xp2006-broadcast-warning { margin-bottom: 8px; border: 1px solid #8a6500; background: #fff4bd; padding: 7px 10px; color: #5a4500; font-size: 12px; }
+/* The Show: a draggable 2006-era Mac OS X desktop. */
+.xp2006-desktop.mac2006-desktop {
+  position: relative;
+  display: block;
+  min-height: 100dvh;
+  overflow: clip;
+  padding: 0;
+  background:
+    radial-gradient(ellipse 120% 75% at 70% -12%, rgba(255, 255, 255, .9) 0 12%, rgba(255, 255, 255, 0) 42%),
+    radial-gradient(ellipse 115% 62% at 14% 108%, rgba(96, 211, 255, .78) 0 24%, rgba(7, 81, 176, 0) 63%),
+    linear-gradient(142deg, #0a3e96 0%, #0b78cf 36%, #55b9ed 64%, #0b5fbc 100%);
+  color: #111;
+  font-family: 'Lucida Grande', 'Lucida Sans Unicode', Helvetica, Arial, sans-serif;
+}
 
-.xp2006-broadcast-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 390px); align-items: stretch; gap: 14px; }
-.xp2006-broadcast-player { min-width: 0; }
-.xp2006-broadcast-video { background: #111; padding: 8px; }
-.xp2006-broadcast-video :where(.relative.aspect-video, .aspect-video) { border-radius: 0 !important; }
-.xp2006-broadcast-error { display: grid; min-height: 280px; aspect-ratio: 16 / 9; place-items: center; gap: 12px; padding: 24px; color: #fff; text-align: center; }
-.xp2006-broadcast-error p { margin: 0; }
-.xp2006-broadcast-now { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; border-bottom: 1px solid #aca899; background: linear-gradient(180deg, #fff, #ece9d8); padding: 7px 10px; font-size: 11px; }
-.xp2006-broadcast-now > span:first-of-type { min-width: 0; overflow: hidden; color: #1a3d6e; text-overflow: ellipsis; white-space: nowrap; }
-.xp2006-broadcast-now > span:last-of-type { color: #555; font-variant-numeric: tabular-nums; }
-.xp2006-broadcast-tabs { display: flex; gap: 2px; border-bottom: 1px solid #aca899; padding: 8px 8px 0; }
-.xp2006-broadcast-tabs button { position: relative; top: 1px; min-width: 82px; border: 1px solid #aca899; border-radius: 4px 4px 0 0; background: #d9d5c6; padding: 5px 12px; cursor: pointer; font: 11px Tahoma, Verdana, sans-serif; }
-.xp2006-broadcast-tabs button:hover { background: #f6f4ec; }
-.xp2006-broadcast-tabs button[aria-selected='true'] { z-index: 1; border-bottom-color: #fff; background: #fff; }
-.xp2006-broadcast-extra { min-height: 122px; max-height: 260px; overflow: auto; margin: 0 8px 8px; border: 1px solid #aca899; border-top: 0; background: #fff; padding: 8px; font-size: 11px; }
+.xp2006-desktop.mac2006-desktop::before,
+.xp2006-desktop.mac2006-desktop::after {
+  position: absolute;
+  z-index: 0;
+  border: 2px solid rgba(255, 255, 255, .32);
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+  transform: rotate(-18deg);
+}
+.xp2006-desktop.mac2006-desktop::before { width: 84vw; height: 58vh; right: -19vw; bottom: -31vh; box-shadow: 0 -22px 55px rgba(95, 224, 255, .22), inset 0 18px 42px rgba(255, 255, 255, .12); }
+.xp2006-desktop.mac2006-desktop::after { width: 76vw; height: 46vh; left: -31vw; top: -25vh; box-shadow: 0 18px 54px rgba(255, 255, 255, .18); }
+
+.mac2006-shell { position: relative; z-index: 1; width: 100%; min-height: 100dvh; overflow: hidden; }
+
+.mac2006-menubar {
+  position: absolute;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  display: flex;
+  width: 100%;
+  height: 24px;
+  align-items: center;
+  gap: 17px;
+  border-bottom: 1px solid rgba(70, 70, 70, .65);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(225, 225, 225, .96) 48%, rgba(190, 190, 190, .96) 52%, rgba(235, 235, 235, .97));
+  box-shadow: 0 1px 5px rgba(0, 32, 87, .45);
+  padding: 0 13px 0 9px;
+  color: #111;
+  font-size: 12px;
+  text-shadow: 0 1px 0 #fff;
+}
+.mac2006-menubar strong { font-weight: 700; }
+.mac2006-apple-menu { display: grid; width: 24px; height: 23px; place-items: center; border: 0; background: transparent; padding: 2px; cursor: pointer; }
+.mac2006-apple-menu:hover { background: linear-gradient(#4f9de8, #1466ba); }
+.mac2006-apple-menu img { display: block; width: 14px; height: 17px; }
+.mac2006-menubar-time { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.mac2006-warning { position: absolute; z-index: 55; top: 31px; left: 50%; width: min(92vw, 620px); transform: translateX(-50%); border: 1px solid #9b7700; border-radius: 4px; background: #fff4bd; box-shadow: 0 5px 14px rgba(0, 30, 80, .3); padding: 7px 10px; color: #5a4500; font-size: 11px; }
+
+.mac2006-window {
+  --mac2006-drag-x: 0px;
+  --mac2006-drag-y: 0px;
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  min-width: 280px;
+  min-height: 220px;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translate3d(var(--mac2006-drag-x), var(--mac2006-drag-y), 0);
+  border: 1px solid #6d6d6d;
+  border-radius: 7px 7px 5px 5px;
+  background: #d9d9d9;
+  box-shadow: 0 18px 48px rgba(0, 24, 65, .48), 0 3px 10px rgba(0, 0, 0, .28);
+  transition: box-shadow 160ms ease, opacity 160ms ease;
+}
+.mac2006-window.active { z-index: 24; box-shadow: 0 24px 62px rgba(0, 24, 65, .55), 0 4px 12px rgba(0, 0, 0, .32); }
+.mac2006-window.hidden { display: none; }
+.mac2006-window.zoomed { z-index: 32; inset: 31px 12px 82px; width: auto; height: auto; transform: none; }
+.mac2006-window-safari { top: 54px; left: 24px; width: min(72vw, 1000px); height: calc(100dvh - 142px); }
+.mac2006-window-aim { top: 84px; right: 24px; width: min(350px, 31vw); height: calc(100dvh - 172px); }
+
+.mac2006-titlebar {
+  position: relative;
+  display: grid;
+  min-height: 25px;
+  flex: none;
+  grid-template-columns: 70px minmax(0, 1fr) 70px;
+  align-items: center;
+  border-bottom: 1px solid #797979;
+  background: repeating-linear-gradient(0deg, #e8e8e8 0 1px, #d3d3d3 1px 2px, #e2e2e2 2px 3px);
+  color: #555;
+  cursor: grab;
+  font-size: 11px;
+  text-shadow: 0 1px 0 #fff;
+  touch-action: none;
+  user-select: none;
+}
+.mac2006-titlebar:active { cursor: grabbing; }
+.mac2006-window.active .mac2006-titlebar { color: #111; background: repeating-linear-gradient(0deg, #f3f3f3 0 1px, #cecece 1px 2px, #e8e8e8 2px 3px); }
+.mac2006-titlebar > strong { overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.mac2006-traffic-lights { display: flex; align-items: center; gap: 7px; padding-left: 8px; }
+.mac2006-traffic-lights button { position: relative; width: 13px; height: 13px; border: 1px solid #8e8e8e; border-radius: 50%; background: #b7b7b7; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .75); padding: 0; cursor: pointer; }
+.mac2006-window.active .mac2006-traffic-lights .close { border-color: #a33b31; background: radial-gradient(circle at 42% 30%, #ff8b7f, #ed5144 62%, #b72c24); }
+.mac2006-window.active .mac2006-traffic-lights .minimize { border-color: #9a7027; background: radial-gradient(circle at 42% 30%, #ffe17d, #f6b737 62%, #b87718); }
+.mac2006-window.active .mac2006-traffic-lights .zoom { border-color: #3f7b35; background: radial-gradient(circle at 42% 30%, #9be78e, #52b947 62%, #2f7f2a); }
+.mac2006-traffic-lights button:active { filter: brightness(.8); }
+
+.mac2006-safari-toolbar { display: grid; flex: none; grid-template-columns: auto minmax(180px, 1fr); align-items: center; gap: 10px; border-bottom: 1px solid #8c8c8c; background: linear-gradient(180deg, #ededed, #c8c8c8); padding: 6px 8px; }
+.mac2006-browser-actions { display: flex; gap: 4px; }
+.mac2006-browser-actions button,
+.mac2006-aqua-button { min-height: 24px; border: 1px solid #7a7a7a; border-radius: 5px; background: linear-gradient(180deg, #fff, #d6d6d6 53%, #bcbcbc); box-shadow: inset 0 1px 0 #fff; padding: 3px 8px; color: #222; cursor: pointer; font: 10px 'Lucida Grande', Helvetica, Arial, sans-serif; text-shadow: 0 1px 0 #fff; }
+.mac2006-browser-actions button:hover:not(:disabled), .mac2006-aqua-button:hover { background: linear-gradient(180deg, #fff, #e5f4ff 48%, #9bc9ed); }
+.mac2006-browser-actions button:active:not(:disabled), .mac2006-aqua-button:active { transform: translateY(1px); }
+.mac2006-browser-actions button:disabled { opacity: .45; cursor: default; }
+.mac2006-address { display: block; min-width: 0; }
+.mac2006-address input { width: 100%; min-width: 0; border: 1px solid #777; border-radius: 10px; background: linear-gradient(180deg, #d7d7d7, #fff 36%); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .22), 0 1px 0 #fff; padding: 3px 11px; color: #333; font: 11px 'Lucida Grande', Helvetica, Arial, sans-serif; }
+.mac2006-bookmarks { display: flex; min-height: 24px; flex: none; align-items: center; gap: 2px; overflow-x: auto; border-bottom: 1px solid #9b9b9b; background: linear-gradient(180deg, #f8f8f8, #d9d9d9); padding: 2px 8px; }
+.mac2006-bookmarks button { border: 0; border-radius: 4px; background: transparent; padding: 3px 10px; color: #174d86; cursor: pointer; font: 10px 'Lucida Grande', Helvetica, Arial, sans-serif; }
+.mac2006-bookmarks button:hover, .mac2006-bookmarks button[aria-current='page'] { background: rgba(92, 150, 205, .2); }
+.mac2006-safari-page { min-height: 0; flex: 1; overflow: auto; background: #fff; scrollbar-color: #9b9b9b #e9e9e9; }
+.mac2006-video { background: #090909; padding: 8px; }
+.mac2006-video :where(.relative.aspect-video, .aspect-video) { border-radius: 0 !important; }
+.mac2006-video-error { display: grid; min-height: 270px; aspect-ratio: 16 / 9; place-items: center; gap: 12px; padding: 24px; color: #fff; text-align: center; }
+.mac2006-video-error p { margin: 0; }
+.mac2006-now-playing { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; border-bottom: 1px solid #aaa; background: linear-gradient(180deg, #fff, #e8e8e8); padding: 7px 10px; font-size: 11px; }
+.mac2006-now-playing > span:first-of-type { min-width: 0; overflow: hidden; color: #174d86; text-overflow: ellipsis; white-space: nowrap; }
+.mac2006-now-playing > span:last-of-type { color: #555; font-variant-numeric: tabular-nums; }
+.mac2006-tabs { display: flex; gap: 2px; border-bottom: 1px solid #9d9d9d; background: #eee; padding: 8px 8px 0; }
+.mac2006-tabs button { position: relative; top: 1px; min-width: 82px; border: 1px solid #9d9d9d; border-radius: 5px 5px 0 0; background: linear-gradient(#f8f8f8, #cfcfcf); padding: 5px 12px; cursor: pointer; font: 11px 'Lucida Grande', Helvetica, Arial, sans-serif; }
+.mac2006-tabs button[aria-selected='true'] { z-index: 1; border-bottom-color: #fff; background: #fff; color: #174d86; font-weight: 700; }
+.mac2006-extra-panel { min-height: 112px; max-height: 230px; overflow: auto; border-bottom: 1px solid #aaa; background: #fff; padding: 9px; font-size: 11px; }
 .xp2006-queue-empty { display: grid; min-height: 78px; place-items: center; margin: 0; color: #555; text-align: center; }
-.xp2006-broadcast-chat { min-height: 640px; }
-.xp2006-broadcast-chat > .aim-window { height: 100%; }
-.xp2006-broadcast-chat-error { display: grid; height: 100%; min-height: 520px; place-items: center; border: 1px solid #003c74; background: #ece9d8; color: #555; }
-.xp2006-broadcast-shell > .xp2006-aac img { height: 18px; }
+.mac2006-safari-status { border-top: 1px solid #fff; background: linear-gradient(#e8e8e8, #c9c9c9); padding: 3px 9px; color: #555; font-size: 9px; }
 
-@media (max-width: 920px) {
-  .xp2006-broadcast-grid { grid-template-columns: 1fr; }
-  .xp2006-broadcast-chat { height: 72dvh; min-height: 520px; }
-  .xp2006-broadcast-extra { max-height: 320px; }
+.mac2006-aim-menu { display: flex; min-height: 23px; flex: none; align-items: center; gap: 16px; border-bottom: 1px solid #999; background: linear-gradient(#f5f5f5, #d3d3d3); padding: 2px 8px; color: #222; font-size: 10px; }
+.mac2006-aim-body { min-height: 0; flex: 1; overflow: hidden; background: #ececec; }
+.mac2006-aim-body .aim-chat-window-embedded { height: 100%; background: #ececec; }
+.mac2006-aim-body .aim-chat-room-heading { background: linear-gradient(#fff, #e3e3e3); }
+.mac2006-aim-body .aim-chat-log { border-color: #8d8d8d; border-radius: 2px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .22); }
+.mac2006-aim-body .aim-chat-entry { border-color: #8d8d8d; border-radius: 2px; }
+.mac2006-aim-body .aim-xp-button { border-color: #777; border-radius: 10px; background: linear-gradient(#fff, #d5d5d5); }
+.mac2006-aim-status { display: flex; min-height: 20px; flex: none; align-items: center; gap: 5px; border-top: 1px solid #999; background: linear-gradient(#e9e9e9, #c9c9c9); padding: 2px 8px; color: #555; font-size: 9px; }
+.mac2006-aim-status > span { width: 7px; height: 7px; border: 1px solid #3f7b35; border-radius: 50%; background: #52b947; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65); }
+.mac2006-chat-error { display: grid; height: 100%; min-height: 320px; place-items: center; color: #555; }
+
+.mac2006-dock { position: absolute; z-index: 70; bottom: 12px; left: 50%; display: flex; height: 65px; align-items: flex-end; gap: 8px; transform: translateX(-50%); border: 1px solid rgba(255, 255, 255, .72); border-radius: 15px 15px 7px 7px; background: linear-gradient(180deg, rgba(255, 255, 255, .78), rgba(185, 210, 226, .62) 54%, rgba(98, 135, 163, .72)); box-shadow: inset 0 1px 0 #fff, 0 8px 24px rgba(0, 26, 70, .52); padding: 5px 11px 7px; backdrop-filter: blur(9px); }
+.mac2006-dock > button { position: relative; display: grid; width: 49px; height: 52px; place-items: center; align-content: end; border: 0; background: transparent; padding: 0; cursor: pointer; transition: transform 180ms ease; }
+.mac2006-dock > button:hover, .mac2006-dock > button:focus-visible { transform: translateY(-8px) scale(1.12); }
+.mac2006-dock > button.active::after { position: absolute; bottom: -5px; width: 5px; height: 5px; border-radius: 50%; background: #153e6b; box-shadow: 0 1px 0 rgba(255, 255, 255, .65); content: ''; }
+.mac2006-dock small { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); border: 1px solid rgba(0, 0, 0, .55); border-radius: 4px; background: rgba(30, 30, 30, .88); padding: 2px 6px; color: #fff; font-size: 9px; opacity: 0; pointer-events: none; white-space: nowrap; }
+.mac2006-dock button:hover small, .mac2006-dock button:focus-visible small { opacity: 1; }
+.mac2006-dock-divider { width: 1px; height: 46px; margin: 0 2px; background: rgba(42, 72, 94, .6); box-shadow: 1px 0 0 rgba(255, 255, 255, .65); }
+.mac2006-safari-icon, .mac2006-aim-icon, .mac2006-ipod-icon { position: relative; display: grid; width: 43px; height: 43px; place-items: center; }
+.mac2006-safari-icon { border: 2px solid #e9edf1; border-radius: 50%; background: radial-gradient(circle at 45% 43%, #d9f6ff 0 13%, #3aace8 42%, #0758a5 70%, #d3e6f5 72% 78%, #55728b 80%); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .42), 0 2px 4px rgba(0, 0, 0, .4); }
+.mac2006-safari-icon::before { position: absolute; width: 4px; height: 31px; border-radius: 3px; background: linear-gradient(180deg, #e63d3d 0 49%, #fff 50%); box-shadow: 0 0 0 1px rgba(0, 0, 0, .3); content: ''; transform: rotate(36deg); }
+.mac2006-safari-icon i { width: 7px; height: 7px; border: 1px solid #555; border-radius: 50%; background: #fff; }
+.mac2006-aim-icon { border: 1px solid #446e9d; border-radius: 9px; background: linear-gradient(145deg, #fefefe, #8cc6ef); box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgba(0, 0, 0, .38); }
+.mac2006-aim-icon img { width: 31px; height: 31px; }
+.mac2006-ipod-icon { border: 1px solid #aaa; border-radius: 8px; background: linear-gradient(145deg, #fff, #d8d8dc); box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgba(0, 0, 0, .38); }
+.mac2006-ipod-icon::before { position: absolute; top: 6px; width: 29px; height: 16px; border: 2px solid #555; border-radius: 2px; background: linear-gradient(#8da6bc, #dce8ef); content: ''; }
+.mac2006-ipod-icon i { position: absolute; bottom: 4px; width: 15px; height: 15px; border: 1px solid #b8b8b8; border-radius: 50%; background: #f7f7f7; }
+
+@media (max-width: 900px) {
+  .xp2006-desktop.mac2006-desktop { min-height: 100dvh; overflow-y: auto; }
+  .mac2006-shell { display: grid; min-height: 100dvh; align-content: start; gap: 12px; overflow: visible; padding: 37px 8px 96px; }
+  .mac2006-menubar { position: fixed; gap: 11px; overflow: hidden; }
+  .mac2006-menubar span:not(.mac2006-menubar-time):nth-of-type(n+4) { display: none; }
+  .mac2006-warning { position: relative; top: auto; left: auto; width: 100%; transform: none; }
+  .mac2006-window, .mac2006-window.zoomed { position: relative; inset: auto; width: 100%; height: auto; min-height: 0; transform: none !important; }
+  .mac2006-titlebar { cursor: default; }
+  .mac2006-safari-page { max-height: none; overflow: visible; }
+  .mac2006-window-aim { height: 70dvh; min-height: 520px; }
+  .mac2006-dock { position: fixed; }
 }
 
 @media (max-width: 560px) {
-  .xp2006-broadcast-desktop { padding: 7px; }
-  .xp2006-broadcast-now { grid-template-columns: auto minmax(0, 1fr); }
-  .xp2006-broadcast-now > span:last-of-type { grid-column: 1 / -1; }
-  .xp2006-broadcast-extra { max-height: 360px; }
+  .mac2006-safari-toolbar { grid-template-columns: 1fr; gap: 5px; }
+  .mac2006-browser-actions { justify-content: space-between; }
+  .mac2006-browser-actions button { flex: 1; }
+  .mac2006-now-playing { grid-template-columns: auto minmax(0, 1fr); }
+  .mac2006-now-playing > span:last-of-type { grid-column: 1 / -1; }
+  .mac2006-extra-panel { max-height: 360px; }
+  .mac2006-menubar { gap: 9px; }
+  .mac2006-menubar > span:not(.mac2006-menubar-time) { display: none; }
 }
 
 /* Buddy IM and profile windows */
