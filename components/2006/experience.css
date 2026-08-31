@@ -122,6 +122,9 @@
 .xp2006-pod-menu button span { margin-left: auto; color: #7a8699; }
 .xp2006-pod-menu li.on button { background: linear-gradient(180deg, #7ea8dc, #3f6ea8 60%, #35608f); color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
 .xp2006-pod-menu li.on button span { color: #fff; }
+.xp2006-pod-menu li.disabled { background: linear-gradient(90deg, #fafafa, #f2f2f2); }
+.xp2006-pod-menu li.disabled button { color: #a5a7ac; cursor: default; text-shadow: 0 1px 0 #fff; }
+.xp2006-pod-menu li.disabled button span { color: #c5c7cb; }
 
 .xp2006-pod-note {
   border-top: 1px solid #dfe2ea;
@@ -160,6 +163,7 @@
 .xp2006-wheel .next { top: 50%; right: 8px; transform: translateY(-50%); font-size: 11px; }
 .xp2006-wheel .play { bottom: 7px; left: 50%; transform: translateX(-50%); font-size: 11px; }
 .xp2006-wheel .center { position: absolute; top: 50%; left: 50%; width: 58px; height: 58px; transform: translate(-50%, -50%); border: 1px solid #c2c2ca; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #fbfbfc, #e6e6ea 70%, #d4d4da); box-shadow: inset 0 1px 2px #fff, 0 1px 2px rgba(0, 0, 0, .15); cursor: pointer; }
+.xp2006-wheel > button:disabled { color: #c4c4ca; cursor: default; text-shadow: 0 1px 0 #fff; }
 .xp2006-wheel button:active { color: #555; }
 
 .xp2006-pod-caption {

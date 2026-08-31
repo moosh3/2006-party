@@ -501,31 +501,38 @@ function IpodHome({
   navigate: (screen: ExperienceScreen) => void;
   signOff: () => void;
 }) {
-  const move = (delta: number) => setSelection((selection + delta + MENU.length) % MENU.length);
-
   return (
     <>
       <div className="xp2006-ipod">
         <div className="xp2006-pod-screen">
           <div className="xp2006-pod-bar"><span>iPod</span><span className="xp2006-battery" /></div>
           <ul className="xp2006-pod-menu">
-            {MENU.map((item, index) => (
-              <li key={item.id} className={selection === index ? 'on' : ''}>
-                <button type="button" onPointerEnter={() => setSelection(index)} onFocus={() => setSelection(index)} onClick={() => navigate(item.id)}>
-                  {item.label}<span>›</span>
-                </button>
-              </li>
-            ))}
-            <li><button type="button" onClick={signOff}>Sign Off<span>›</span></button></li>
+            {MENU.map((item, index) => {
+              const enabled = item.id === 'show';
+              return (
+                <li key={item.id} className={`${enabled && selection === index ? 'on' : ''} ${enabled ? '' : 'disabled'}`}>
+                  <button
+                    type="button"
+                    disabled={!enabled}
+                    onPointerEnter={enabled ? () => setSelection(index) : undefined}
+                    onFocus={enabled ? () => setSelection(index) : undefined}
+                    onClick={enabled ? () => navigate(item.id) : undefined}
+                  >
+                    {item.label}<span>›</span>
+                  </button>
+                </li>
+              );
+            })}
+            <li className="disabled"><button type="button" disabled onClick={signOff}>Sign Off<span>›</span></button></li>
           </ul>
           <div className="xp2006-pod-note">signed on as <strong>{screenName}</strong></div>
         </div>
         <div className="xp2006-wheel">
           <button type="button" className="menu" onClick={() => setSelection(0)}>MENU</button>
-          <button type="button" className="prev" aria-label="previous menu item" onClick={() => move(-1)}>|◀◀</button>
-          <button type="button" className="next" aria-label="next menu item" onClick={() => move(1)}>▶▶|</button>
-          <button type="button" className="play" aria-label="open videos" onClick={() => navigate('videos')}>▶ ❚❚</button>
-          <button type="button" className="center" aria-label="select" onClick={() => navigate(MENU[selection].id)} />
+          <button type="button" className="prev" aria-label="previous menu item" disabled>|◀◀</button>
+          <button type="button" className="next" aria-label="next menu item" disabled>▶▶|</button>
+          <button type="button" className="play" aria-label="open videos" disabled>▶ ❚❚</button>
+          <button type="button" className="center" aria-label="select The Show" onClick={() => navigate('show')} />
         </div>
       </div>
       <div className="xp2006-pod-caption">SHOW MODE · ONLINE NOW</div>
