@@ -404,10 +404,11 @@
 .mac2006-window.active { z-index: 24; box-shadow: 0 24px 62px rgba(0, 24, 65, .55), 0 4px 12px rgba(0, 0, 0, .32); }
 .mac2006-window.hidden { display: none; }
 .mac2006-window.zoomed { z-index: 32; inset: 31px 12px 82px; width: auto; height: auto; transform: none; }
-.mac2006-window-safari { top: 54px; left: 24px; width: min(72vw, 1000px); height: calc(100dvh - 142px); }
+.mac2006-window-safari { top: 54px; left: 24px; width: min(72vw, 1000px); height: fit-content; max-height: calc(100dvh - 142px); }
 .mac2006-window-aim { top: 84px; left: max(24px, calc(100vw - min(350px, 31vw) - 24px)); width: min(350px, 31vw); height: calc(100dvh - 172px); }
 .mac2006-window-mail { top: 68px; left: 11vw; width: min(720px, 62vw); height: min(570px, calc(100dvh - 150px)); }
 .mac2006-window-textedit { top: 88px; left: 17vw; width: min(680px, 64vw); height: min(560px, calc(100dvh - 168px)); }
+.mac2006-window-safari.zoomed { bottom: auto; height: fit-content; max-height: calc(100dvh - 113px); }
 
 .mac2006-resize-handle {
   position: absolute;
@@ -464,7 +465,7 @@
 .mac2006-bookmarks { display: flex; min-height: 24px; flex: none; align-items: center; gap: 2px; overflow-x: auto; border-bottom: 1px solid #9b9b9b; background: linear-gradient(180deg, #f8f8f8, #d9d9d9); padding: 2px 8px; }
 .mac2006-bookmarks button { border: 0; border-radius: 4px; background: transparent; padding: 3px 10px; color: #174d86; cursor: pointer; font: 10px 'Lucida Grande', Helvetica, Arial, sans-serif; }
 .mac2006-bookmarks button:hover, .mac2006-bookmarks button[aria-current='page'] { background: rgba(92, 150, 205, .2); }
-.mac2006-safari-page { min-height: 0; flex: 1; overflow: auto; background: #fff; scrollbar-color: #9b9b9b #e9e9e9; }
+.mac2006-safari-page { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: auto; background: #fff; scrollbar-color: #9b9b9b #e9e9e9; }
 .mac2006-video { background: #090909; padding: 8px; }
 .mac2006-video :where(.relative.aspect-video, .aspect-video) { border-radius: 0 !important; }
 .mac2006-video-error { display: grid; min-height: 270px; aspect-ratio: 16 / 9; place-items: center; gap: 12px; padding: 24px; color: #fff; text-align: center; }
@@ -475,7 +476,8 @@
 .mac2006-tabs { display: flex; gap: 2px; border-bottom: 1px solid #9d9d9d; background: #eee; padding: 8px 8px 0; }
 .mac2006-tabs button { position: relative; top: 1px; min-width: 82px; border: 1px solid #9d9d9d; border-radius: 5px 5px 0 0; background: linear-gradient(#f8f8f8, #cfcfcf); padding: 5px 12px; cursor: pointer; font: 11px 'Lucida Grande', Helvetica, Arial, sans-serif; }
 .mac2006-tabs button[aria-selected='true'] { z-index: 1; border-bottom-color: #fff; background: #fff; color: #174d86; font-weight: 700; }
-.mac2006-extra-panel { min-height: 112px; max-height: 230px; overflow: auto; border-bottom: 1px solid #aaa; background: #fff; padding: 9px; font-size: 11px; }
+.mac2006-extra-panel { min-height: 112px; flex: 1 1 112px; overflow: auto; background: #fff; padding: 9px; font-size: 11px; }
+.mac2006-extra-panel > .text-center { display: grid; min-height: 100%; place-items: center; padding: 8px !important; }
 .xp2006-queue-empty { display: grid; min-height: 78px; place-items: center; margin: 0; color: #555; text-align: center; }
 .mac2006-aim-menu { display: flex; min-height: 23px; flex: none; align-items: center; gap: 16px; border-bottom: 1px solid #999; background: linear-gradient(#f5f5f5, #d3d3d3); padding: 2px 8px; color: #222; font-size: 10px; }
 .mac2006-aim-body { min-height: 0; flex: 1; overflow: hidden; background: #ececec; }
