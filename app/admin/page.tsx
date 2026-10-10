@@ -6,6 +6,7 @@ import StreamControl from '@/components/admin/StreamControl';
 import VideoPlayer from '@/components/VideoPlayer';
 import QueueManager from '@/components/admin/QueueManager';
 import VideoPlaylistSettings from '@/components/admin/VideoPlaylistSettings';
+import AudienceMoments from '@/components/admin/AudienceMoments';
 import { supabase } from '@/lib/supabase';
 import {
   CHANNEL_NAMES,
@@ -307,6 +308,7 @@ export default function AdminDashboard() {
 
           {/* Right Column - Playback Controls and Queue */}
           <div className="lg:col-span-1 space-y-6">
+            <AudienceMoments />
             <StreamControl showLibraryControls={false} showPlaybackControls={true} />
             <QueueManager />
           </div>

@@ -6,7 +6,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import PollsTab from '@/components/PollsTab';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
-import { ClippyAssistant, MailApp, TextEditApp, type ClippyMode } from '@/components/2006/MacInteractiveShowcase';
+import { ClippyAssistant, MailApp, TextEditApp, type ClippyMode, type ClippyMoment } from '@/components/2006/MacInteractiveShowcase';
+import type { AudienceMoment, AudienceMomentAction } from '@/lib/audience-moments';
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
@@ -166,6 +167,16 @@ function TransitionClock({ nextTransitionAt }: { nextTransitionAt?: string | nul
 
 type MacWindowName = 'safari' | 'aim' | 'mail' | 'textedit';
 type MacWindowSize = { width: number; height: number };
+
+const SEEN_MOMENT_KEY = '2006_party_seen_moment';
+
+function readSeenMoment() {
+  try { return sessionStorage.getItem(SEEN_MOMENT_KEY); } catch { return null; }
+}
+
+function writeSeenMoment(id: string) {
+  try { sessionStorage.setItem(SEEN_MOMENT_KEY, id); } catch { /* storage unavailable */ }
+}
 
 const MAC_WINDOW_MIN_SIZE: Record<MacWindowName, MacWindowSize> = {
   safari: { width: 520, height: 360 },
@@ -642,10 +653,11 @@ function BuddyModal({ buddy, screenName, type, close, showInfo }: {
 }
 
 export default function AimExperience({
-  viewer, streamData, streamError, tokenRefreshError, refreshStream, onSignOff,
+  viewer, streamData, audienceMoment = null, streamError, tokenRefreshError, refreshStream, onSignOff,
 }: {
   viewer: Viewer;
   streamData: ExperienceStreamData | null;
+  audienceMoment?: AudienceMoment | null;
   streamError: string | null;
   tokenRefreshError: string | null;
   refreshStream: () => void;
@@ -666,6 +678,11 @@ export default function AimExperience({
   const [essayPrompt, setEssayPrompt] = useState(0);
   const [essayDraft, setEssayDraft] = useState('');
   const [essaySaved, setEssaySaved] = useState(false);
+  const [clippyMoment, setClippyMoment] = useState<(ClippyMoment & { action: AudienceMomentAction }) | null>(null);
+  const [flashVote, setFlashVote] = useState(false);
+  const appliedMomentId = useRef<string | null>(null);
+  const momentTakeover = useRef(false);
+  const votePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const requested = sessionStorage.getItem('2006_party_initial_screen') as ExperienceScreen | null;
@@ -685,12 +702,15 @@ export default function AimExperience({
   useEffect(() => {
     if (screen !== 'show') return;
 
-    // Preview choreography. These timers can later be replaced by operator-controlled show cues.
+    // Preview choreography. Skipped once the operator has pushed a moment so
+    // the welcome nudge never talks over a live one.
     const clippyTimer = window.setTimeout(() => {
+      if (momentTakeover.current) return;
       setClippyMode('mail');
       setClippyVisible(true);
     }, 1_200);
     const mailTimer = window.setTimeout(() => {
+      if (momentTakeover.current) return;
       setMacWindows((windows) => ({ ...windows, mail: true }));
       setActiveMacWindow('mail');
     }, 4_200);
@@ -752,6 +772,56 @@ export default function AimExperience({
     setClippyMode('essay');
     setClippyVisible(true);
   };
+
+  // On phones the windows stack, so bring whatever just opened into view.
+  const revealWindow = (name: MacWindowName) => {
+    window.setTimeout(() => {
+      if (!window.matchMedia('(max-width: 900px)').matches) return;
+      document.querySelector(`.mac2006-window-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  };
+
+  const runMomentAction = (action: AudienceMomentAction) => {
+    if (action === 'vote') {
+      openMacWindow('safari');
+      setFlashVote(true);
+      window.setTimeout(() => {
+        votePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 60);
+      window.setTimeout(() => setFlashVote(false), 2_600);
+      return;
+    }
+    const target: MacWindowName | null = action === 'mail' ? 'mail' : action === 'essay' ? 'textedit' : action === 'chat' ? 'aim' : null;
+    if (!target) return;
+    openMacWindow(target);
+    revealWindow(target);
+  };
+
+  // Apply operator-pushed moments. A moment that arrives while the viewer is
+  // elsewhere (iPod, buddy list) waits until they open The Show.
+  useEffect(() => {
+    if (screen !== 'show' || !audienceMoment) return;
+    if (appliedMomentId.current === audienceMoment.id) return;
+    appliedMomentId.current = audienceMoment.id;
+
+    // Don't replay a moment after a reload; it was already seen this session.
+    if (readSeenMoment() === audienceMoment.id) return;
+    writeSeenMoment(audienceMoment.id);
+
+    if (audienceMoment.cleared) {
+      if (clippyMode === 'moment') setClippyVisible(false);
+      return;
+    }
+
+    momentTakeover.current = true;
+    setClippyMoment({ message: audienceMoment.message, actionLabel: audienceMoment.actionLabel, action: audienceMoment.action });
+    setClippyMode('moment');
+    setClippyVisible(true);
+    if (audienceMoment.autoOpen) runMomentAction(audienceMoment.action);
+    // Only re-run when a new moment arrives or the viewer opens The Show;
+    // runMomentAction and clippyMode are read at that moment on purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, audienceMoment]);
 
   const saveEssay = () => {
     setEssaySaved(true);
@@ -893,7 +963,7 @@ export default function AimExperience({
                 <div className="mac2006-tabs" role="tablist" aria-label="Show extras">
                   <button type="button" role="tab" aria-selected="true">Vote</button>
                 </div>
-                <div className="mac2006-extra-panel">
+                <div className={`mac2006-extra-panel ${flashVote ? 'mac2006-flash' : ''}`} ref={votePanelRef}>
                   <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} /></ErrorBoundary>
                 </div>
               </div>
@@ -957,6 +1027,11 @@ export default function AimExperience({
             {clippyVisible && (
               <ClippyAssistant
                 mode={clippyMode}
+                moment={clippyMoment}
+                onMomentAction={() => {
+                  if (clippyMoment) runMomentAction(clippyMoment.action);
+                  setClippyVisible(false);
+                }}
                 onOpenMail={openMail}
                 onOpenEssay={() => { openMacWindow('textedit'); setClippyVisible(false); }}
                 onDismiss={() => setClippyVisible(false)}

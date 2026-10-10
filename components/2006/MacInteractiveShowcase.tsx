@@ -1,6 +1,8 @@
 'use client';
 
-export type ClippyMode = 'mail' | 'essay' | 'saved';
+export type ClippyMode = 'mail' | 'essay' | 'saved' | 'moment';
+
+export type ClippyMoment = { message: string; actionLabel: string | null };
 
 export const ESSAY_PROMPTS = [
   'Write about a song that made 2006 feel bigger than your bedroom.',
@@ -89,13 +91,40 @@ export function TextEditApp({
 }
 
 export function ClippyAssistant({
-  mode, onOpenMail, onOpenEssay, onDismiss,
+  mode, moment, onOpenMail, onOpenEssay, onMomentAction, onDismiss,
 }: {
   mode: ClippyMode;
+  moment?: ClippyMoment | null;
   onOpenMail: () => void;
   onOpenEssay: () => void;
+  onMomentAction?: () => void;
   onDismiss: () => void;
 }) {
+  // Operator-pushed line. With no action it is just a message and an OK.
+  if (mode === 'moment') {
+    if (!moment) return null;
+    return (
+      <aside className="mac2006-clippy mac2006-clippy-moment" aria-label="Clippy assistant">
+        <div className="mac2006-clippy-bubble" role="status">
+          <button type="button" className="mac2006-clippy-close" aria-label="Dismiss Clippy" onClick={onDismiss} />
+          <p>{moment.message}</p>
+          <div>
+            {moment.actionLabel && onMomentAction ? (
+              <>
+                <button type="button" className="mac2006-aqua-button primary" onClick={onMomentAction}>{moment.actionLabel}</button>
+                <button type="button" className="mac2006-aqua-button" onClick={onDismiss}>Not Now</button>
+              </>
+            ) : (
+              <button type="button" className="mac2006-aqua-button primary" onClick={onDismiss}>OK</button>
+            )}
+          </div>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/2006/clippy.png" alt="Clippy, an animated paperclip assistant" />
+      </aside>
+    );
+  }
+
   const content = {
     mail: {
       message: 'It looks like you have an essay due. Would you like me to open your mail?',

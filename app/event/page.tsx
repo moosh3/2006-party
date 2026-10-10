@@ -7,6 +7,9 @@ import AimWindow from '@/components/aim/AimWindow';
 import { useLobbyPresence } from '@/components/lobby-lounge/useLobbyPresence';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 import { getViewerData } from '@/lib/viewer';
+import { supabase } from '@/lib/supabase';
+import { CHANNEL_NAMES, DATABASE_TABLES } from '@/lib/constants';
+import { isNewerAudienceMoment, parseAudienceMoment, type AudienceMoment } from '@/lib/audience-moments';
 
 type Viewer = {
   id: string;
@@ -37,16 +40,44 @@ export default function EventPage() {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [streamData, setStreamData] = useState<ExperienceStreamData | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [audienceMoment, setAudienceMoment] = useState<AudienceMoment | null>(null);
+
+  // Moments arrive from two places (the realtime row update and the 3s poll)
+  // in any order, so only ever move forward in time.
+  const receiveMoment = useCallback((value: unknown) => {
+    const incoming = parseAudienceMoment(value);
+    if (!incoming) return;
+    setAudienceMoment((current) => isNewerAudienceMoment(incoming, current) ? incoming : current);
+  }, []);
 
   const refreshStream = useCallback(async () => {
     try {
-      setStreamData(await fetchCurrentStream());
+      const data = await fetchCurrentStream();
+      setStreamData(data);
+      receiveMoment((data as { audienceMoment?: unknown }).audienceMoment);
       setStreamError(null);
     } catch (error) {
       console.error('Unable to refresh show feed:', error);
       setStreamError('The show feed is temporarily unavailable.');
     }
-  }, []);
+  }, [receiveMoment]);
+
+  // Fast path: the operator's update to current_stream lands here within a
+  // second. The poll above is the fallback for dropped sockets and late joins.
+  useEffect(() => {
+    const channel = supabase
+      .channel(CHANNEL_NAMES.AUDIENCE_MOMENTS)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: DATABASE_TABLES.CURRENT_STREAM, filter: 'id=eq.1' },
+        (payload) => receiveMoment((payload.new as { audience_moment?: unknown })?.audience_moment),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [receiveMoment]);
 
   useEffect(() => {
     const savedViewer = getViewerData();
@@ -95,6 +126,7 @@ export default function EventPage() {
     <AimExperience
       viewer={viewer}
       streamData={streamData}
+      audienceMoment={audienceMoment}
       streamError={streamError}
       tokenRefreshError={tokenRefreshError}
       refreshStream={refreshStream}

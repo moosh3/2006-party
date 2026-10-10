@@ -14,6 +14,7 @@ export const CHANNEL_NAMES = {
   ADMIN_HOLD_SCREEN_UPDATES: 'admin-hold-screen-updates',
   CHAT_ROOM: (room: string) => `chat:${room}`,
   LOBBY_PRESENCE: 'lobby-presence',
+  AUDIENCE_MOMENTS: 'audience-moments',
 } as const;
 
 export const PLAYBACK_ACTIONS = {

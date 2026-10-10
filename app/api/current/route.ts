@@ -12,6 +12,7 @@ import {
   parseYouTubePlaylistPlaybackId,
   type MediaSourceType,
 } from '@/lib/youtube';
+import { isAudienceMomentFresh, parseAudienceMoment } from '@/lib/audience-moments';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -204,6 +205,11 @@ export async function GET(request: NextRequest) {
     // Calculate expiry time (1 hour from now)
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
+    // Only hand out recent moments so a stale Clippy line never greets a
+    // viewer who joins long after it was sent.
+    const parsedMoment = parseAudienceMoment(data.audience_moment);
+    const audienceMoment = parsedMoment && isAudienceMomentFresh(parsedMoment) ? parsedMoment : null;
+
     return NextResponse.json({
       playbackId,
       title,
@@ -230,6 +236,7 @@ export async function GET(request: NextRequest) {
       captionUrl,
       captionLabel,
       captionLanguage,
+      audienceMoment,
     }, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
