@@ -1,0 +1,63 @@
+/* Inline audience invitations only; never a floating window or player overlay. */
+.show2006-audience-cue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--game-rule, oklch(0.72 0.014 85));
+  background: var(--game-paper, oklch(0.965 0.012 85));
+  color: var(--game-ink, oklch(0.2 0.006 285));
+  font: 12px/1.4 Tahoma, Arial, sans-serif;
+}
+
+.show2006-audience-cue .show2006-audience-cue-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.show2006-audience-cue :is(.show2006-audience-cue-action, .show2006-audience-cue-dismiss) {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--game-rule, oklch(0.72 0.014 85));
+  border-radius: 0;
+  padding: 6px 10px;
+  background: oklch(0.988 0.005 85);
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.show2006-audience-cue :is(.show2006-audience-cue-action, .show2006-audience-cue-dismiss):hover {
+  border-color: oklch(0.4 0.008 285);
+  background: oklch(0.94 0.035 127);
+}
+
+.show2006-audience-cue :is(.show2006-audience-cue-action, .show2006-audience-cue-dismiss):focus-visible {
+  outline: 3px solid oklch(0.43 0.16 315);
+  outline-offset: 2px;
+}
+
+.show2006-audience-cue .show2006-audience-cue-dismiss {
+  width: 44px;
+  padding: 0;
+  font-size: 20px;
+}
+
+@media (max-width: 480px) {
+  .show2006-audience-cue {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 2px 8px;
+    font-size: 13px;
+  }
+  .show2006-audience-cue .show2006-audience-cue-copy { grid-column: 1; }
+  .show2006-audience-cue .show2006-audience-cue-action { grid-column: 1; justify-self: start; }
+  .show2006-audience-cue .show2006-audience-cue-dismiss { grid-column: 2; grid-row: 1 / span 2; }
+}

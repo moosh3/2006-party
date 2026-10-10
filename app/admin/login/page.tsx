@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import '../operator.css';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-twitch-darker flex items-center justify-center p-4">
+    <div className="operator-desktop min-h-screen flex items-center justify-center p-4">
       <div className="twitch-card p-8 w-full max-w-md">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-twitch-text mb-2">Admin Login</h1>
@@ -51,6 +52,7 @@ export default function AdminLogin() {
             </label>
             <input
               type="password"
+              autoComplete="current-password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -62,7 +64,7 @@ export default function AdminLogin() {
           </div>
 
           {error && (
-            <div className="bg-error/10 border border-error text-error px-4 py-3 rounded text-sm">
+            <div role="alert" className="bg-error/10 border border-error text-error px-4 py-3 rounded text-sm">
               {error}
             </div>
           )}
@@ -86,4 +88,3 @@ export default function AdminLogin() {
     </div>
   );
 }
-

@@ -1,7 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { MUX_SOURCE_TYPE } from '@/lib/youtube';
+import { useState, useEffect, useRef } from 'react';
+import type { ProgramStream } from '@/lib/program-stream';
+import { MUX_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
+
+function mediaSourceLabel(sourceType?: string) {
+  if (!sourceType || sourceType === MUX_SOURCE_TYPE) return 'Mux';
+  if (sourceType === YOUTUBE_VIDEO_SOURCE_TYPE) return 'YouTube Video';
+  if (sourceType === YOUTUBE_PLAYLIST_SOURCE_TYPE) return 'YouTube Playlist';
+  return 'Unknown source';
+}
+
+function timedDuration(value: unknown): number | null {
+  // PostgreSQL numeric values can cross the API boundary as decimal strings.
+  // Reject blanks, arbitrary coercions and non-finite values rather than
+  // disabling valid fractional videos or accepting malformed queue timers.
+  if (typeof value !== 'number' && (typeof value !== 'string' || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim()))) return null;
+  const duration = Number(value);
+  return Number.isFinite(duration) && duration > 0 ? duration : null;
+}
+
+function formatDuration(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Number((seconds % 60).toFixed(3));
+  return `${minutes + (remainder === 60 ? 1 : 0)}m ${remainder === 60 ? 0 : remainder}s`;
+}
 
 interface QueueItem {
   id: string;
@@ -13,7 +36,7 @@ interface QueueItem {
     playback_id: string;
     label: string;
     kind: string;
-    duration_seconds?: number;
+    duration_seconds?: number | string | null;
     source_type?: string;
   };
 }
@@ -23,11 +46,11 @@ interface MediaItem {
   playback_id: string;
   label: string;
   kind: string;
-  duration_seconds?: number;
+  duration_seconds?: number | string | null;
   source_type?: string;
 }
 
-export default function QueueManager() {
+export default function QueueManager({ program, onStreamRefresh }: { program?: ProgramStream | null; onStreamRefresh?: () => void }) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [muxItems, setMuxItems] = useState<MediaItem[]>([]);
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
@@ -35,6 +58,13 @@ export default function QueueManager() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [holdScreenEnabled, setHoldScreenEnabled] = useState(false);
   const [holdScreenMuxItemId, setHoldScreenMuxItemId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [destination, setDestination] = useState('1');
+  const [undo, setUndo] = useState<{ before: QueueItem[]; after: string[] } | null>(null);
+  const selectionAnchor = useRef<string | null>(null);
+  const orderBusy = useRef(false);
+  const queueRequest = useRef(0);
+  const nextCommand = useRef<{ commandId: string; expectedSessionId?: string } | null>(null);
 
   useEffect(() => {
     loadQueue();
@@ -45,6 +75,8 @@ export default function QueueManager() {
     // Refresh periodically
     const interval = setInterval(() => {
       loadQueue();
+      loadMuxItems();
+      loadAutoAdvanceStatus();
       loadHoldScreenStatus();
     }, 5000);
 
@@ -52,11 +84,17 @@ export default function QueueManager() {
   }, []);
 
   async function loadQueue() {
+    if (orderBusy.current) return;
+    const request = ++queueRequest.current;
     try {
       const response = await fetch('/api/admin/queue');
       if (response.ok) {
         const data = await response.json();
-        setQueue(data.queue || []);
+        if (request !== queueRequest.current || orderBusy.current) return;
+        const nextQueue: QueueItem[] = data.queue || [];
+        setQueue(nextQueue);
+        setSelectedIds(ids => ids.filter(id => nextQueue.some(item => item.id === id)));
+        setUndo(previous => previous && previous.after.join(',') === nextQueue.map(item => item.id).join(',') ? previous : null);
       }
     } catch (error) {
       console.error('Failed to load queue:', error);
@@ -156,56 +194,74 @@ export default function QueueManager() {
     }
   }
 
-  async function handleMoveUp(index: number) {
-    if (index === 0) return;
+  const selected = queue.filter(item => selectedIds.includes(item.id));
+  const moveButton = 'min-h-[44px] px-3 py-2 rounded border border-twitch-border bg-[oklch(0.93_0.015_250)] text-twitch-text text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
 
-    const newQueue = [...queue];
-    [newQueue[index - 1], newQueue[index]] = [newQueue[index], newQueue[index - 1]];
-
-    // Update positions
-    const items = newQueue.map((item, idx) => ({
-      id: item.id,
-      position: idx + 1,
-    }));
-
-    await updateQueueOrder(items);
+  function selectCue(id: string, range: boolean) {
+    if (loading) return;
+    const anchor = queue.findIndex(item => item.id === selectionAnchor.current);
+    const index = queue.findIndex(item => item.id === id);
+    if (range && anchor >= 0) {
+      const rangeIds = queue.slice(Math.min(anchor, index), Math.max(anchor, index) + 1).map(item => item.id);
+      setSelectedIds(ids => Array.from(new Set([...ids, ...rangeIds])));
+    } else {
+      setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+      selectionAnchor.current = id;
+    }
   }
 
-  async function handleMoveDown(index: number) {
-    if (index === queue.length - 1) return;
-
-    const newQueue = [...queue];
-    [newQueue[index], newQueue[index + 1]] = [newQueue[index + 1], newQueue[index]];
-
-    // Update positions
-    const items = newQueue.map((item, idx) => ({
-      id: item.id,
-      position: idx + 1,
-    }));
-
-    await updateQueueOrder(items);
+  async function moveSelection(direction: 'up' | 'down' | 'top' | 'bottom' | 'position') {
+    if (!selected.length || loading) return;
+    let next = [...queue];
+    if (direction === 'up') {
+      for (let i = 1; i < next.length; i++) {
+        if (selectedIds.includes(next[i].id) && !selectedIds.includes(next[i - 1].id)) {
+          [next[i - 1], next[i]] = [next[i], next[i - 1]];
+        }
+      }
+    } else if (direction === 'down') {
+      for (let i = next.length - 2; i >= 0; i--) {
+        if (selectedIds.includes(next[i].id) && !selectedIds.includes(next[i + 1].id)) {
+          [next[i + 1], next[i]] = [next[i], next[i + 1]];
+        }
+      }
+    } else {
+      const rest = queue.filter(item => !selectedIds.includes(item.id));
+      const position = direction === 'top' ? 1 : direction === 'bottom' ? rest.length + 1 : Number(destination);
+      if (!Number.isInteger(position) || position < 1 || position > rest.length + 1) {
+        setMessage({ type: 'error', text: `Choose a position from 1 to ${rest.length + 1}.` });
+        return;
+      }
+      next = [...rest.slice(0, position - 1), ...selected, ...rest.slice(position - 1)];
+    }
+    await updateQueueOrder(next);
   }
 
-  async function updateQueueOrder(items: { id: string; position: number }[]) {
+  async function updateQueueOrder(next: QueueItem[], isUndo = false) {
+    if (orderBusy.current || next.every((item, index) => item.id === queue[index]?.id)) return;
+    orderBusy.current = true;
+    ++queueRequest.current; // Ignore polling responses started before this edit.
     setLoading(true);
     setMessage(null);
-
     try {
       const response = await fetch('/api/admin/queue', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items: next.map((item, index) => ({ id: item.id, position: index + 1 })) }),
       });
-
       if (response.ok) {
-        await loadQueue();
+        setUndo(isUndo ? null : { before: queue, after: next.map(item => item.id) });
+        setQueue(next.map((item, index) => ({ ...item, position: index + 1 })));
+        setMessage({ type: 'success', text: isUndo ? 'Move undone.' : 'Queue order saved.' });
       } else {
         const data = await response.json();
-        setMessage({ type: 'error', text: data.error || 'Failed to reorder queue' });
+        setMessage({ type: 'error', text: data.error || 'Could not save the move. Refreshing the queue.' });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Network error occurred' });
+      setMessage({ type: 'error', text: 'Could not confirm the move. Refreshing the queue; check the order before retrying.' });
     } finally {
+      orderBusy.current = false;
+      await loadQueue();
       setLoading(false);
     }
   }
@@ -218,16 +274,17 @@ export default function QueueManager() {
       const response = await fetch('/api/admin/queue/auto-advance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !autoAdvanceEnabled }),
+        body: JSON.stringify({ enabled: !autoAdvanceEnabled, commandId: crypto.randomUUID() }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
         setAutoAdvanceEnabled(data.auto_advance_enabled);
-        setMessage({ 
-          type: 'success', 
-          text: `Auto-advance ${data.auto_advance_enabled ? 'enabled' : 'disabled'}` 
+        onStreamRefresh?.();
+        setMessage({
+          type: 'success',
+          text: `Auto-advance ${data.auto_advance_enabled ? 'enabled' : 'disabled'}`
         });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to toggle auto-advance' });
@@ -254,19 +311,28 @@ export default function QueueManager() {
     setMessage(null);
 
     try {
+      if (!nextCommand.current) nextCommand.current = {
+        commandId: crypto.randomUUID(),
+        expectedSessionId: program?.playoutMode === 'manual' ? program.playbackSessionId : undefined,
+      };
       const response = await fetch('/api/admin/queue/next', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextCommand.current),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ 
-          type: 'success', 
-          text: `Now playing: ${data.advanced_to.title}` 
+        nextCommand.current = null;
+        onStreamRefresh?.();
+        setMessage({
+          type: 'success',
+          text: `Now playing: ${data.advanced_to.title}`
         });
         await loadQueue();
       } else {
+        if (response.status < 500) nextCommand.current = null;
         setMessage({ type: 'error', text: data.error || 'Failed to advance to next video' });
       }
     } catch (error) {
@@ -281,9 +347,10 @@ export default function QueueManager() {
     return queue.some(item => item.mux_item_id === muxItemId);
   };
 
-  const queueableMuxItems = muxItems.filter(
-    (item) => (item.source_type || MUX_SOURCE_TYPE) === MUX_SOURCE_TYPE
-  );
+  const queueableItems = muxItems.filter((item) => {
+    const sourceType = item.source_type || MUX_SOURCE_TYPE;
+    return (sourceType === MUX_SOURCE_TYPE || sourceType === YOUTUBE_VIDEO_SOURCE_TYPE) && item.kind !== 'live';
+  });
 
   async function handleSetHoldScreen(muxItemId: string, label: string) {
     setLoading(true);
@@ -293,9 +360,9 @@ export default function QueueManager() {
       const response = await fetch('/api/admin/hold-screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           action: 'set_item',
-          muxItemId 
+          muxItemId
         }),
       });
 
@@ -329,7 +396,7 @@ export default function QueueManager() {
       const response = await fetch('/api/admin/hold-screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           action: holdScreenEnabled ? 'disable' : 'enable'
         }),
       });
@@ -338,9 +405,9 @@ export default function QueueManager() {
 
       if (response.ok) {
         setHoldScreenEnabled(data.hold_screen_enabled);
-        setMessage({ 
-          type: 'success', 
-          text: `Hold screen ${data.hold_screen_enabled ? 'enabled' : 'disabled'}` 
+        setMessage({
+          type: 'success',
+          text: `Hold screen ${data.hold_screen_enabled ? 'enabled' : 'disabled'}`
         });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to toggle hold screen' });
@@ -369,27 +436,95 @@ export default function QueueManager() {
         </h3>
 
         {message && (
-          <div className={`rounded p-3 mb-3 text-sm ${
-            message.type === 'success' 
-              ? 'bg-success/10 border border-success text-success' 
+          <div role="status" aria-live="polite" className={`rounded p-3 mb-3 text-sm ${
+            message.type === 'success'
+              ? 'bg-[oklch(0.95_0.025_150)] border border-[oklch(0.7_0.08_150)] text-[oklch(0.35_0.08_150)]'
               : 'bg-error/10 border border-error text-error'
           }`}>
             {message.text}
           </div>
         )}
 
+        {/* Manual Next Button */}
+        <button
+          onClick={handleNextVideo}
+          disabled={loading || queue.length === 0}
+          className="w-full mb-4 bg-[oklch(0.42_0.1_150)] hover:bg-[oklch(0.36_0.1_150)] disabled:bg-twitch-gray disabled:cursor-not-allowed text-[oklch(0.98_0.008_150)] py-3 px-4 rounded font-medium text-sm transition-colors min-h-[44px]"
+        >
+          {queue.length > 0 ? '▶ Play Next in Queue' : 'Queue is Empty'}
+        </button>
+
+        {/* Select and arrange independently of playback. */}
+        <section className="mb-5" aria-label="Arrange queue" aria-busy={loading}>
+          <h4 className="font-semibold text-twitch-text">Upcoming cues</h4>
+          <p className="text-sm text-twitch-text-alt mt-1 mb-3">Click a cue to select it. Select several to move them together. Shift-click selects a range.</p>
+          <div className="border border-twitch-border rounded overflow-hidden">
+            <div className="p-3 bg-[oklch(0.97_0.008_250)] border-b border-twitch-border space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-twitch-text mr-auto" role="status">{selected.length} selected</span>
+                <button className={moveButton} disabled={loading || !queue.length} onClick={() => setSelectedIds(queue.map(item => item.id))}>Select all</button>
+                <button className={moveButton} disabled={loading || !selected.length} onClick={() => setSelectedIds([])}>Clear</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('up')}>↑ Up</button>
+                <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('down')}>↓ Down</button>
+                <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('top')}>Move to top</button>
+                <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('bottom')}>Move to end</button>
+                <button className={moveButton} disabled={loading || !undo} onClick={() => undo && updateQueueOrder(undo.before, true)}>Undo move</button>
+              </div>
+              <form className="flex flex-wrap items-center gap-2" onSubmit={event => { event.preventDefault(); void moveSelection('position'); }}>
+                <label className="text-sm text-twitch-text flex items-center gap-2">Move selection to position
+                  <input type="number" min="1" max={queue.length - selected.length + 1} step="1" value={destination} onChange={event => setDestination(event.target.value)} disabled={loading || !selected.length} className="twitch-input w-20 min-h-[44px] px-2" />
+                </label>
+                <button className={moveButton} disabled={loading || !selected.length} type="submit">Move</button>
+              </form>
+              <p className="text-xs text-twitch-text-alt">Top of the queue plays next. Moving cues does not start playback.</p>
+            </div>
+            <ol className="max-h-[60vh] overflow-y-auto divide-y divide-twitch-border" aria-label="Upcoming videos">
+              {queue.map((item, index) => {
+                const muxItem = Array.isArray(item.mux_items) ? item.mux_items[0] : item.mux_items;
+                const duration = timedDuration(muxItem?.duration_seconds);
+                const isSelected = selectedIds.includes(item.id);
+                return (
+                  <li key={item.id} className={`flex items-center gap-2 p-2 ${isSelected ? 'bg-[oklch(0.9_0.045_250)]' : 'bg-[oklch(0.97_0.008_250)]'}`}>
+                    <button type="button" aria-pressed={isSelected} aria-label={`Select cue ${index + 1}: ${muxItem?.label || 'Unknown'}`} disabled={loading}
+                      onClick={event => selectCue(item.id, event.shiftKey)}
+                      className="flex flex-1 items-center gap-3 text-left min-w-0 min-h-[60px] p-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                      <span aria-hidden="true" className="text-lg text-twitch-text">{isSelected ? '☑' : '☐'}</span>
+                      <span className="text-sm tabular-nums text-twitch-text-alt w-6 shrink-0">{index + 1}</span>
+                      <span className="min-w-0">
+                        {index === 0 && <span className="block text-xs font-bold text-twitch-purple">UP NEXT</span>}
+                        <span className="block font-medium text-sm text-twitch-text break-words">{muxItem?.label || 'Unknown'}</span>
+                        <span className="block text-xs text-twitch-text-alt mt-1">{mediaSourceLabel(muxItem?.source_type)}{duration !== null ? ` · ${formatDuration(duration)}` : ''}</span>
+                      </span>
+                    </button>
+                    <button type="button" className={`${moveButton} shrink-0`} aria-label={`Remove ${muxItem?.label || 'video'} from queue`} disabled={loading} onClick={() => handleRemoveFromQueue(item.id, muxItem?.label || 'video')}>Remove</button>
+                  </li>
+                );
+              })}
+            </ol>
+            {!queue.length && <p className="p-5 text-sm text-twitch-text-alt">No upcoming cues. Add videos from the library below.</p>}
+          </div>
+        </section>
+
+        <details className="mb-4">
+          <summary className="min-h-[44px] cursor-pointer text-sm font-semibold text-twitch-text py-3">Automation &amp; hold screen settings</summary>
         {/* Auto-advance Toggle */}
         <div className="bg-twitch-darker border border-twitch-border rounded-lg p-3 mb-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-twitch-text">Auto-advance</p>
               <p className="text-xs text-twitch-text-alt">
-                Automatically play next video when current one ends
+                Server-timed videos; automatically switches to hold when the queue ends
               </p>
             </div>
             <button
               onClick={handleToggleAutoAdvance}
               disabled={loading}
+              type="button"
+              role="switch"
+              aria-label="Automatic queue advancement"
+              aria-checked={autoAdvanceEnabled}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 autoAdvanceEnabled ? 'bg-twitch-purple' : 'bg-twitch-gray'
               }`}
@@ -401,6 +536,12 @@ export default function QueueManager() {
               />
             </button>
           </div>
+          {program && (
+            <p className="text-xs text-twitch-text-alt mt-2" role="status">
+              {program.automationError || `Automation: ${program.automationStatus || 'checking'}`}
+              {program.nextTransitionAt && ` · next transition ${new Date(program.nextTransitionAt).toLocaleTimeString()}`}
+            </p>
+          )}
         </div>
 
         {/* Hold Screen Toggle */}
@@ -414,7 +555,7 @@ export default function QueueManager() {
             </div>
             <button
               onClick={handleToggleHoldScreen}
-              disabled={loading || !holdScreenMuxItemId}
+              disabled={loading || (!holdScreenMuxItemId && !holdScreenEnabled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 holdScreenEnabled ? 'bg-success' : 'bg-twitch-gray'
               } ${!holdScreenMuxItemId ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -451,8 +592,6 @@ export default function QueueManager() {
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {muxItems.map((item) => {
-                const isMux = (item.source_type || MUX_SOURCE_TYPE) === MUX_SOURCE_TYPE;
-
                 return (
                   <div key={item.id} className="bg-twitch-dark border border-twitch-border rounded p-3">
                     <div className="flex flex-col gap-3">
@@ -462,7 +601,7 @@ export default function QueueManager() {
                             {item.label}
                           </p>
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-twitch-purple/20 text-twitch-purple">
-                            {isMux ? 'Mux' : 'YouTube'}
+                            {mediaSourceLabel(item.source_type)}
                           </span>
                         </div>
                         <p className="text-xs text-twitch-text-alt font-mono truncate">
@@ -488,110 +627,22 @@ export default function QueueManager() {
           )}
         </div>
 
-        {/* Manual Next Button */}
-        <button
-          onClick={handleNextVideo}
-          disabled={loading || queue.length === 0}
-          className="w-full mb-4 bg-success hover:bg-green-600 disabled:bg-twitch-gray disabled:cursor-not-allowed text-white py-3 px-4 rounded font-medium text-sm transition-colors min-h-[44px]"
-        >
-          {queue.length > 0 ? '▶ Play Next in Queue' : 'Queue is Empty'}
-        </button>
-
-        {/* Current Queue */}
-        <div className="space-y-2 mb-4">
-          <p className="text-xs font-semibold text-twitch-text-alt uppercase tracking-wider">
-            Current Queue
-          </p>
-          {queue.length === 0 ? (
-            <div className="text-center py-6 text-twitch-text-alt text-sm">
-              <p>No videos in queue</p>
-              <p className="text-xs mt-1">Add videos from your library below</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {queue.map((item, index) => {
-                const muxItem = Array.isArray(item.mux_items) 
-                  ? item.mux_items[0] 
-                  : item.mux_items;
-                
-                return (
-                  <div key={item.id} className="bg-twitch-hover border border-twitch-border rounded p-3">
-                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                      {/* Content - full width on mobile */}
-                      <div className="flex-1 min-w-0 order-2 sm:order-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-twitch-purple bg-twitch-purple/20 px-2 py-1 rounded">
-                            #{index + 1}
-                          </span>
-                          <p className="font-medium text-sm text-twitch-text truncate">
-                            {muxItem?.label || 'Unknown'}
-                          </p>
-                        </div>
-                        <p className="text-xs text-twitch-text-alt font-mono truncate">
-                          {muxItem?.playback_id || ''}
-                        </p>
-                        {muxItem?.duration_seconds && (
-                          <p className="text-xs text-twitch-text-alt mt-1">
-                            {Math.floor(muxItem.duration_seconds / 60)}m {muxItem.duration_seconds % 60}s
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Controls - horizontal on mobile, vertical on desktop */}
-                      <div className="flex sm:flex-col gap-2 order-1 sm:order-1 justify-between sm:justify-start">
-                        <div className="flex gap-2 sm:flex-col">
-                          <button
-                            onClick={() => handleMoveUp(index)}
-                            disabled={loading || index === 0}
-                            className="text-twitch-text hover:text-twitch-purple disabled:text-twitch-text-alt disabled:cursor-not-allowed p-2 min-h-[44px] min-w-[44px] flex items-center justify-center bg-twitch-dark rounded sm:bg-transparent"
-                            title="Move up"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleMoveDown(index)}
-                            disabled={loading || index === queue.length - 1}
-                            className="text-twitch-text hover:text-twitch-purple disabled:text-twitch-text-alt disabled:cursor-not-allowed p-2 min-h-[44px] min-w-[44px] flex items-center justify-center bg-twitch-dark rounded sm:bg-transparent"
-                            title="Move down"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveFromQueue(item.id, muxItem?.label || 'video')}
-                          disabled={loading}
-                          className="text-error hover:text-red-600 disabled:text-twitch-text-alt disabled:cursor-not-allowed p-2 min-h-[44px] min-w-[44px] flex items-center justify-center bg-twitch-dark rounded sm:bg-transparent"
-                          title="Remove from queue"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        </details>
 
         {/* Add to Queue from Library */}
         <div>
           <p className="text-xs font-semibold text-twitch-text-alt uppercase tracking-wider mb-2">
             Add from Library
           </p>
-          {queueableMuxItems.length === 0 ? (
+          {queueableItems.length === 0 ? (
             <p className="text-sm text-twitch-text-alt text-center py-4">
-              No Mux videos in library. Add videos from the main controls.
+              No Mux or individual YouTube videos in library. Add a video from the main controls; playlists cannot enter the timed queue.
             </p>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {queueableMuxItems.map((item) => (
+              {queueableItems.map((item) => {
+                const duration = timedDuration(item.duration_seconds);
+                return (
                 <div key={item.id} className="bg-twitch-darker border border-twitch-border rounded p-3">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
@@ -602,22 +653,24 @@ export default function QueueManager() {
                         <p className="text-xs text-twitch-text-alt font-mono truncate">
                           {item.playback_id}
                         </p>
-                        {item.duration_seconds && (
+                        <p className="text-xs text-twitch-text-alt mt-1">{mediaSourceLabel(item.source_type)}</p>
+                        {duration !== null && (
                           <p className="text-xs text-twitch-text-alt mt-1">
-                            {Math.floor(item.duration_seconds / 60)}m {item.duration_seconds % 60}s
+                            {formatDuration(duration)}
                           </p>
                         )}
+                        {duration === null && <p className="text-xs text-yellow-500 mt-1">An exact positive duration is required for the timed queue.</p>}
                       </div>
                       <button
                         onClick={() => handleAddToQueue(item.id, item.label)}
-                        disabled={loading || isInQueue(item.id)}
+                        disabled={loading || isInQueue(item.id) || duration === null}
                         className={`w-full sm:w-auto px-4 py-2 rounded text-sm font-medium transition-colors min-h-[44px] ${
-                          isInQueue(item.id)
+                          isInQueue(item.id) || duration === null
                             ? 'bg-twitch-hover text-twitch-text-alt cursor-not-allowed'
                             : 'bg-twitch-purple hover:bg-purple-600 text-white'
                         }`}
                       >
-                        {isInQueue(item.id) ? 'In Queue' : 'Add to Queue'}
+                        {isInQueue(item.id) ? 'In Queue' : duration === null ? 'Needs Duration' : 'Add to Queue'}
                       </button>
                     </div>
                     <button
@@ -633,7 +686,8 @@ export default function QueueManager() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

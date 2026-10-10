@@ -1,0 +1,80 @@
+/* First-party show art + tiny personal-homepage moments, not a new app shell. */
+.show2006-buddy-strip { --cast-sprite-height: 48px; display: flex; flex: none; align-items: center; justify-content: center; gap: 12px; min-width: 0; padding: 0 12px 2px; border-bottom: 1px solid #b8b4a4; background: #f7f4e8; color: #28241f; font: 12px Tahoma, Arial, sans-serif; }
+.show2006-cast-intro { flex: 0 0 120px; }
+.show2006-buddy-strip small { display: block; margin-top: 2px; color: #686153; font-size: 10px; font-weight: normal; }
+/* Transparent canvas can extend outside the 64px button. Six pixels above
+   the row preserve Lip's overhead lasso, measured across every source frame. */
+.show2006-cast-roster { position: relative; flex: 1 1 624px; max-width: 672px; min-width: 0; padding-top: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.show2006-cast-slots { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(104px, 1fr); }
+.show2006-buddy-strip button { display: grid; width: 100%; min-width: 44px; min-height: 44px; place-items: center; border: 1px solid transparent; border-radius: 0; background: none; padding: 0 2px; color: inherit; font: inherit; cursor: pointer; }
+.show2006-buddy-strip button:hover { border-color: #56503f; background: #e9ff9e; }
+.show2006-buddy-strip button:focus-visible { outline: 3px solid #a12a70; outline-offset: -2px; }
+.show2006-buddy-strip .show2006-sprite-button { position: relative; height: 64px; padding: 0; }
+.show2006-buddy-strip .show2006-name-button { min-height: 24px; font-size: 11px; overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
+.show2006-sprite-button[aria-disabled='true'] { cursor: default; }
+.show2006-sprite-button img { display: block; width: auto; height: var(--cast-sprite-height); max-width: 39px; object-fit: contain; image-rendering: pixelated; }
+.show2006-buddy-strip picture { display: block; }
+.show2006-cast-slot[data-running='true'] picture { visibility: hidden; }
+.show2006-run-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.show2006-run-stage .show2006-running-sprite { display: block; width: calc(var(--cast-sprite-height) * var(--cast-run-scale)); height: auto; max-width: none; aspect-ratio: 1; image-rendering: pixelated; }
+.show2006-run-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; padding: 0; white-space: nowrap; }
+.show2006-art-credit { display: block; margin-top: 3px; color: #554936; font-size: 10px; font-weight: normal; text-decoration: underline; }
+.show2006-buddy-strip .show2006-motion { display: inline-flex; flex: 0 0 auto; width: auto; justify-content: center; min-width: auto; min-height: 44px; padding: 4px 8px; color: #554936; font-size: 11px; text-decoration: underline; }
+.show2006-links { display: flex; flex-wrap: wrap; gap: 8px 20px; border-top: 1px dotted #817763; padding: 12px 18px; background: #f7f4e8; color: #34302a; font: 12px Tahoma, Arial, sans-serif; }
+.show2006-links a { text-decoration: underline; text-underline-offset: 3px; }
+.show2006-links a:hover { color: #6a235a; }
+.show2006-buddy-about { display: block !important; padding: 8px 0; }
+.show2006-buddy-about p { margin: 6px 0 0; font: 15px/1.5 'Times New Roman', serif; }
+.xp2006-info-body > div > span { min-width: 0; overflow-wrap: anywhere; }
+.mac2006-aim-menu button { border: 0; background: transparent; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.mac2006-aim-menu button:hover { text-decoration: underline; }
+.show2006-save-error { margin: 0; padding: 10px 12px; background: #fff0cd; color: #632f1a; font: 13px/1.5 Tahoma, Arial, sans-serif; }
+.mac2006-mail-app button:disabled { cursor: default; opacity: .5; }
+.xp2006-popwin { max-height: calc((100dvh - 24px) / var(--xp2006-zoom)); overflow-y: auto; }
+.xp2006-popwin .xp2006-im-log { max-height: calc(38dvh / var(--xp2006-zoom)); }
+.xp2006-overlay :is(button, textarea):focus-visible { outline: 3px solid #d44691; outline-offset: 2px; }
+.xp2006-im-tools > span { padding: 1px 5px; word-spacing: 5px; }
+
+@media (min-width: 901px) {
+  .xp2006-desktop.mac2006-desktop { background: #32352f url('/2006/bg.jpg') center / cover fixed; }
+  .xp2006-desktop.mac2006-desktop::before, .xp2006-desktop.mac2006-desktop::after { display: none; }
+}
+
+@media (max-width: 900px) {
+  .mac2006-desktop {
+    --mobile-paper: oklch(0.97 0.015 90);
+    --mobile-chrome: oklch(0.92 0.027 90);
+    --mobile-ink: oklch(0.27 0.015 70);
+    --mobile-accent: oklch(0.41 0.06 325);
+    --mobile-rule: oklch(0.72 0.035 90);
+  }
+  .mobile2006-heading strong img { display: block; width: 76px; height: auto; margin: 6px auto 2px; }
+  .mobile2006-heading strong span { font: 8px/1.4 Tahoma, Arial, sans-serif; letter-spacing: .1em; }
+  .mobile2006-header nav button[aria-pressed='true'] { border-bottom-color: #be3681; background: #d8f78c; }
+  .show2006-desktop-buddies { display: none; }
+  :is(.mobile2006-watch, .mobile2006-extras) h2 { font: bold 28px/1.1 Georgia, 'Times New Roman', serif; letter-spacing: -.03em; }
+  :is(.mobile2006-watch, .mobile2006-extras) > p { font: 17px/1.5 Georgia, 'Times New Roman', serif; }
+  :is(.mobile2006-watch, .mobile2006-extras) > .show2006-buddy-strip { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin: 12px 0; padding: 2px 0; border-block: 1px solid var(--mobile-rule); gap: 0 8px; background: none; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-cast-intro { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-width: 0; text-align: left; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-cast-intro small { display: none; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-buddy-strip[data-motion-off='true'] .show2006-cast-intro small { display: block; flex-basis: 100%; margin: 0; font: 10px/16px Tahoma, Arial, sans-serif; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-cast-roster { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-buddy-strip button { min-width: 44px; padding: 2px; border: 1px solid transparent; background: transparent; color: inherit; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-buddy-strip .show2006-name-button { min-height: 44px; padding-inline: 0; font-size: clamp(10px, 3vw, 12px); }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-buddy-strip .show2006-sprite-button { height: 64px; padding: 0; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-run-status { min-height: 0; margin: 0; padding: 0; font-size: 11px; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-run-status[data-error='true'] { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; font: 11px/1.5 Tahoma, Arial, sans-serif; }
+  :is(.mobile2006-watch, .mobile2006-extras) .show2006-buddy-strip .show2006-motion { grid-column: 2; grid-row: 1; min-height: 44px; padding: 4px 8px; font-size: 12px; }
+  .show2006-art-credit { display: inline-flex; align-items: center; min-height: 44px; margin-top: 0; font-size: 10px; }
+  :is(.mobile2006-watch, .mobile2006-extras) > .show2006-links { margin-top: 20px; padding: 0; border: 0; background: none; font-size: 14px; }
+  .show2006-links a { display: inline-flex; align-items: center; min-height: 44px; }
+  .xp2006-overlay { padding: 10px; }
+  .xp2006-popwin button { min-height: 44px; }
+  .xp2006-popwin .xp2006-window-buttons > button { min-width: 44px; }
+  .xp2006-popwin textarea { font-size: 16px; }
+  .xp2006-popwin :is(.xp2006-info-body, .xp2006-profile-card, .xp2006-away-card) { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show2006-buddy-strip .show2006-motion { display: none; }
+}

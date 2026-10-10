@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPollResults } from '@/lib/polls';
+import { gameViewer } from '@/lib/game-server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -7,8 +10,7 @@ export async function GET(
 ) {
   try {
     const { pollId } = params;
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') || undefined;
+    const userId = (await gameViewer())?.id;
 
     if (!pollId) {
       return NextResponse.json(
@@ -35,4 +37,3 @@ export async function GET(
     );
   }
 }
-

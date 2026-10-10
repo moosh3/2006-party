@@ -1,0 +1,51 @@
+/* One player and one set of game/chat state, reflowed for touch screens. */
+.mobile2006-header, .mobile2006-watch, .mobile2006-extras { display: none; }
+
+@media (max-width: 900px) {
+  .mac2006-desktop {
+    --mobile-paper: oklch(0.975 0.008 250);
+    --mobile-chrome: oklch(0.92 0.02 250);
+    --mobile-ink: oklch(0.3 0.06 250);
+    --mobile-accent: oklch(0.45 0.12 250);
+    --mobile-rule: oklch(0.78 0.025 250);
+  }
+  .xp2006-desktop.mac2006-desktop:has(.mac2006-shell) { padding: 0; background: var(--mobile-paper); overflow: clip; }
+  .mac2006-desktop::before, .mac2006-desktop::after { display: none; }
+  .mac2006-shell { display: block; padding: 0 0 max(20px, env(safe-area-inset-bottom)); overflow: visible; }
+  .mac2006-menubar, .mac2006-dock, .mac2006-clippy { display: none; }
+  .mac2006-shell .mac2006-window { box-shadow: none; }
+  .mobile2006-header { display: block; position: sticky; top: 0; z-index: 60; padding-top: env(safe-area-inset-top); background: var(--mobile-chrome); color: var(--mobile-ink); border-bottom: 1px solid var(--mobile-rule); }
+  .mobile2006-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left)); }
+  .mobile2006-heading strong { font-size: 20px; white-space: nowrap; }
+  .mobile2006-heading strong span { display: block; font-size: 9px; letter-spacing: 0.15em; text-align: center; }
+  .mobile2006-header button { min-height: 48px; padding: 8px; font: 13px Tahoma, Arial, sans-serif; color: var(--mobile-ink); }
+  .mobile2006-header nav { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr; }
+  .mobile2006-header nav button { border-top: 1px solid var(--mobile-rule); border-bottom: 3px solid transparent; }
+  .mobile2006-header nav button[aria-pressed='true'] { border-bottom-color: var(--mobile-accent); background: var(--mobile-paper); font-weight: bold; }
+  .mac2006-window-safari, .mac2006-window-safari.zoomed, .mac2006-window-safari.hidden { display: flex; width: 100% !important; height: auto !important; max-height: none; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .mac2006-window-safari > .mac2006-titlebar, .mac2006-safari-toolbar, .mac2006-bookmarks, .mac2006-tabs { display: none; }
+  .mac2006-video { padding: 0; }
+  .mac2006-video-error { min-height: 0; padding: 16px; font-size: 14px; }
+  .mac2006-now-playing { padding: 10px 14px; font-size: 13px; }
+  .mac2006-extra-panel { min-height: 0; }
+  .mac2006-shell:not([data-mobile-panel='game']) .mac2006-extra-panel { display: none; }
+  .mac2006-shell .mac2006-window-aim { display: none; }
+  .mac2006-shell[data-mobile-panel='chat'] .mac2006-window-aim { display: flex; width: 100% !important; height: max(360px, calc(100dvh - 180px - 56.25vw)) !important; min-height: 0; border: 0; border-radius: 0; margin: 0; box-shadow: none; }
+  .mac2006-window-aim .mac2006-titlebar, .mac2006-aim-menu { display: none; }
+  .mac2006-aim-body :is(input, textarea) { font-size: 16px; }
+  .mac2006-aim-body button { min-height: 44px; }
+  .mac2006-shell:not([data-mobile-panel='extras']) :is(.mac2006-window-mail, .mac2006-window-textedit) { display: none; }
+  .mac2006-shell[data-mobile-panel='watch'] .mobile2006-watch,
+  .mac2006-shell[data-mobile-panel='extras'] .mobile2006-extras { display: block; padding: 24px 18px; color: var(--mobile-ink); overflow-wrap: anywhere; }
+  :is(.mobile2006-watch, .mobile2006-extras) h2 { font-size: 21px; margin: 8px 0 12px; }
+  :is(.mobile2006-watch, .mobile2006-extras) p { font-size: 16px; line-height: 1.6; max-width: 65ch; margin-bottom: 20px; }
+  :is(.mobile2006-watch, .mobile2006-extras) > div { display: flex; flex-wrap: wrap; gap: 10px; }
+  :is(.mobile2006-watch, .mobile2006-extras) button { min-height: 48px; padding: 10px 16px; font: 14px Tahoma, Arial, sans-serif; background: var(--mobile-chrome); border: 1px solid var(--mobile-rule); border-radius: 4px; }
+  .mobile2006-watch button:first-child { background: var(--mobile-accent); color: var(--mobile-paper); }
+  .mac2006-window-mail, .mac2006-window-textedit { scroll-margin-top: 100px; width: 100% !important; margin: 0; box-shadow: none; }
+  .mac2006-warning { margin: 0; border-radius: 0; font-size: 14px; }
+  .mac2006-shell .game-board { padding: 20px 16px; }
+  .mac2006-shell .game-heading { flex-wrap: wrap; gap: 8px; }
+  .mac2006-shell .game-score { margin-left: auto; }
+  .game-popup { max-height: calc(100dvh - 24px); }
+}

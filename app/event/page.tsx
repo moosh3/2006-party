@@ -1,104 +1,38 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AimExperience, { type ExperienceStreamData } from '@/components/2006/AimExperience';
-import AimWindow from '@/components/aim/AimWindow';
+import AimExperience from '@/components/2006/AimExperience';
+import MacAudienceGate from '@/components/2006/MacAudienceGate';
 import { useLobbyPresence } from '@/components/lobby-lounge/useLobbyPresence';
-import { useTokenRefresh } from '@/hooks/useTokenRefresh';
-import { getViewerData } from '@/lib/viewer';
+import { useProgramStream } from '@/hooks/useProgramStream';
+import { useAudienceIdentity } from '@/hooks/useAudienceIdentity';
+import { useAudienceDoors } from '@/hooks/useAudienceDoors';
+import type { ViewerData } from '@/lib/viewer';
 
-type Viewer = {
-  id: string;
-  displayName: string;
-  avatar: string;
-};
-
-function isStreamData(value: unknown): value is ExperienceStreamData {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Record<string, unknown>;
-  return typeof candidate.playbackId === 'string'
-    && typeof candidate.token === 'string'
-    && typeof candidate.expiresAt === 'string'
-    && typeof candidate.title === 'string'
-    && typeof candidate.kind === 'string';
-}
-
-async function fetchCurrentStream() {
-  const response = await fetch('/api/current', { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Show feed returned ${response.status}`);
-  const data: unknown = await response.json();
-  if (!isStreamData(data)) throw new Error('Show feed response is incomplete');
-  return data;
+// Closing doors unmounts playback. Reopening must fetch a fresh show snapshot,
+// never briefly replay the source remembered from before the closure.
+function AdmittedEvent({ viewer, onSignOff }: { viewer: ViewerData; onSignOff: () => void }) {
+  const { stream: streamData, error: streamError, refresh: refreshStream } = useProgramStream();
+  useLobbyPresence({ userId: viewer.id, displayName: viewer.displayName, avatar: viewer.avatar });
+  return <AimExperience viewer={viewer} streamData={streamData} streamError={streamError}
+    tokenRefreshError={null} refreshStream={refreshStream} onSignOff={onSignOff} />;
 }
 
 export default function EventPage() {
   const router = useRouter();
-  const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [streamData, setStreamData] = useState<ExperienceStreamData | null>(null);
-  const [streamError, setStreamError] = useState<string | null>(null);
-
-  const refreshStream = useCallback(async () => {
-    try {
-      setStreamData(await fetchCurrentStream());
-      setStreamError(null);
-    } catch (error) {
-      console.error('Unable to refresh show feed:', error);
-      setStreamError('The show feed is temporarily unavailable.');
-    }
-  }, []);
+  const { viewer, error: identityError, retry: retryIdentity } = useAudienceIdentity();
+  const { doors, error: doorsError, refresh: refreshDoors } = useAudienceDoors(Boolean(viewer));
+  const admitted = Boolean(viewer && doors?.doorsOpen);
 
   useEffect(() => {
-    const savedViewer = getViewerData();
-    if (!savedViewer) {
-      router.replace('/login');
-      return;
-    }
+    if (!admitted) document.title = viewer && doors ? 'Show starts soon · 2006' : 'Connecting · 2006';
+  }, [admitted, viewer, doors]);
 
-    setViewer(savedViewer);
-    refreshStream();
+  if (!viewer || !doors) return <MacAudienceGate mode="connecting" connectionError={identityError || doorsError}
+    onRetry={viewer ? () => void refreshDoors() : retryIdentity} onSignOff={() => router.replace('/login')} />;
+  if (!admitted) return <MacAudienceGate mode="waiting" screenName={viewer.displayName} connectionError={doorsError}
+    onRetry={() => void refreshDoors()} onSignOff={() => router.replace('/login')} />;
 
-    const interval = window.setInterval(refreshStream, 3000);
-    const resume = () => { if (document.visibilityState === 'visible') refreshStream(); };
-    document.addEventListener('visibilitychange', resume);
-    window.addEventListener('pageshow', resume);
-
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', resume);
-      window.removeEventListener('pageshow', resume);
-    };
-  }, [refreshStream, router]);
-
-  const tokenRefreshError = useTokenRefresh(streamData, (next) => {
-    setStreamData((previous) => previous ? { ...previous, ...next } : next);
-  });
-
-  const presenceSelf = viewer ? {
-    userId: viewer.id,
-    displayName: viewer.displayName,
-    avatar: viewer.avatar,
-  } : null;
-  useLobbyPresence(presenceSelf);
-
-  if (!viewer) {
-    return (
-      <div className="aim-desktop show-loading-screen">
-        <AimWindow title="2006 — Connecting" status="Please wait">
-          <div className="show-loading-message">Signing on…</div>
-        </AimWindow>
-      </div>
-    );
-  }
-
-  return (
-    <AimExperience
-      viewer={viewer}
-      streamData={streamData}
-      streamError={streamError}
-      tokenRefreshError={tokenRefreshError}
-      refreshStream={refreshStream}
-      onSignOff={() => router.replace('/login')}
-    />
-  );
+  return <AdmittedEvent key={viewer.id} viewer={viewer} onSignOff={() => router.replace('/login')} />;
 }

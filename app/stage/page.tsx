@@ -1,42 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useProgramStream } from '@/hooks/useProgramStream';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import VideoPlayer from '@/components/VideoPlayer';
 import { getNextRunOfShowCue, getRunOfShowCue } from '@/lib/run-of-show';
 import './stage.css';
-
-type StageStream = {
-  playbackId: string;
-  token: string;
-  expiresAt: string;
-  title: string;
-  kind: string;
-  isHoldScreen?: boolean;
-  playoutMode?: 'manual' | 'schedule' | string;
-  playbackState?: 'playing' | 'paused' | string;
-  playbackPosition?: number;
-  playbackUpdatedAt?: string;
-  playbackElapsedMs?: number;
-  activeSlotId?: string | null;
-  scheduleStatus?: string | null;
-  nextTransitionAt?: string | null;
-  sourceType?: string;
-  youtubePlaylistId?: string | null;
-  sourceUrl?: string | null;
-  captionUrl?: string | null;
-  captionLabel?: string | null;
-  captionLanguage?: string | null;
-};
-
-function isStageStream(value: unknown): value is StageStream {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Record<string, unknown>;
-  return typeof candidate.playbackId === 'string'
-    && typeof candidate.token === 'string'
-    && typeof candidate.title === 'string'
-    && typeof candidate.kind === 'string';
-}
 
 function formatRemaining(nextTransitionAt: string | null | undefined, now: number) {
   if (!nextTransitionAt) return 'MANUAL';
@@ -50,34 +19,17 @@ function formatRemaining(nextTransitionAt: string | null | undefined, now: numbe
 }
 
 export default function StagePage() {
-  const [stream, setStream] = useState<StageStream | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { stream, error, refresh } = useProgramStream();
   const [now, setNow] = useState(() => Date.now());
-
-  const refresh = useCallback(async () => {
-    try {
-      const response = await fetch('/api/current', { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Stage feed returned ${response.status}`);
-      const data: unknown = await response.json();
-      if (!isStageStream(data)) throw new Error('Stage feed response is incomplete');
-      setStream(data);
-      setError(null);
-    } catch (refreshError) {
-      console.error('Unable to refresh stage feed:', refreshError);
-      setError('PROGRAM FEED OFFLINE');
-    }
-  }, []);
+  const programRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     document.title = 'Stage Display · 2006';
-    refresh();
-    const refreshInterval = window.setInterval(refresh, 3000);
     const clockInterval = window.setInterval(() => setNow(Date.now()), 250);
     return () => {
-      window.clearInterval(refreshInterval);
       window.clearInterval(clockInterval);
     };
-  }, [refresh]);
+  }, []);
 
   const currentCue = useMemo(() => getRunOfShowCue(stream?.activeSlotId), [stream?.activeSlotId]);
   const nextCue = useMemo(() => getNextRunOfShowCue(stream?.activeSlotId), [stream?.activeSlotId]);
@@ -86,7 +38,8 @@ export default function StagePage() {
 
   async function enterFullscreen() {
     try {
-      await document.documentElement.requestFullscreen();
+      // Fullscreen only the program, not the operator's cue footer.
+      await programRef.current?.requestFullscreen();
     } catch {
       // Browser or display policy can refuse fullscreen; the route still works.
     }
@@ -103,12 +56,21 @@ export default function StagePage() {
 
   return (
     <main className="stage-display">
-      <button type="button" className="stage-fullscreen" onClick={enterFullscreen}>Fullscreen</button>
+      <button type="button" className="stage-fullscreen" onClick={enterFullscreen}
+        title="Video only. Press Escape to leave fullscreen.">Fullscreen</button>
 
-      <section className="stage-program" aria-label="Synchronized program video">
+      <section ref={programRef} className="stage-program" aria-label="Synchronized program video">
         <ErrorBoundary fallback={<div className="stage-empty">PROGRAM VIDEO ERROR</div>}>
           <VideoPlayer
-            key={`${stream.sourceType || 'mux'}:${stream.playbackId}:${stream.activeSlotId || 'manual'}:${stream.isHoldScreen ? 'hold' : 'show'}`}
+            key={stream.playbackSessionId}
+            playbackSessionId={stream.playbackSessionId}
+            playbackRevision={stream.playbackRevision}
+            serverNow={stream.serverNow}
+            playbackPositionSeconds={stream.playbackPositionSeconds}
+            playbackDurationSeconds={stream.playbackDurationSeconds}
+            snapshotReceivedAt={stream.snapshotReceivedAt}
+            snapshotRoundTripMs={stream.snapshotRoundTripMs}
+            onStreamRefresh={refresh}
             playbackId={stream.playbackId}
             token={stream.token}
             title={stream.title}
@@ -153,4 +115,3 @@ export default function StagePage() {
     </main>
   );
 }
-

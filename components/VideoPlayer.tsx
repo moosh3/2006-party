@@ -3,18 +3,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import type MuxPlayerElement from '@mux/mux-player';
+import YouTubeVideoPlayer from '@/components/YouTubeVideoPlayer';
+import { loadYouTubeIframeApi, type YouTubePlayer } from '@/lib/youtube-iframe';
 import { supabase } from '@/lib/supabase';
 import { useRealtimeHealth, type RealtimeHealthStatus } from '@/hooks/useRealtimeHealth';
 import {
   CHANNEL_NAMES,
   PLAYBACK_ACTIONS,
   DATABASE_TABLES,
-  SYNC_THRESHOLDS,
 } from '@/lib/constants';
+import {
+  getPlaybackCorrection,
+  applySynchronousPlaybackCorrection,
+  isPlaybackSnapshot,
+  makePlaybackAnchor,
+  projectPlaybackPosition,
+  snapshotIsNewer,
+  type PlaybackAnchor,
+} from '@/lib/playback-sync';
 import {
   MUX_SOURCE_TYPE,
   YOUTUBE_PLAYLIST_SOURCE_TYPE,
+  YOUTUBE_VIDEO_SOURCE_TYPE,
   parseYouTubePlaylistPlaybackId,
+  parseYouTubeVideoPlaybackId,
   type MediaSourceType,
 } from '@/lib/youtube';
 
@@ -31,6 +43,13 @@ interface VideoPlayerProps {
   playbackPosition?: number;
   playbackUpdatedAt?: string;
   playbackElapsedMs?: number;
+  playbackSessionId?: string;
+  playbackRevision?: number;
+  serverNow?: string;
+  playbackPositionSeconds?: number;
+  playbackDurationSeconds?: number | null;
+  snapshotReceivedAt?: number;
+  snapshotRoundTripMs?: number;
   activeSlotId?: string | null;
   sourceType?: MediaSourceType | string;
   youtubePlaylistId?: string | null;
@@ -39,106 +58,25 @@ interface VideoPlayerProps {
   captionLabel?: string | null;
   captionLanguage?: string | null;
   onPlaybackError?: () => void;
-}
-
-type PlaybackStateResponse = {
-  playback_state?: string;
-  playback_position?: number | string;
-  playback_updated_at?: string;
-  playback_elapsed_ms?: number | string;
-};
-
-type YouTubePlayerEvent = {
-  target: YouTubePlayer;
-  data?: number;
-};
-
-type YouTubePlayer = {
-  destroy: () => void;
-  loadPlaylist: (options: {
-    listType: 'playlist';
-    list: string;
-    index?: number;
-    startSeconds?: number;
-  }) => void;
-  playVideo: () => void;
-  pauseVideo: () => void;
-  mute: () => void;
-  unMute: () => void;
-  setVolume: (volume: number) => void;
-  setLoop?: (loopPlaylists: boolean) => void;
-  getPlaylist?: () => string[];
-  getPlaylistIndex?: () => number;
-  playVideoAt?: (index: number) => void;
-};
-
-type YouTubeApi = {
-  Player: new (
-    element: HTMLElement,
-    options: {
-      width: string;
-      height: string;
-      playerVars: Record<string, string | number>;
-      events: {
-        onReady: (event: YouTubePlayerEvent) => void;
-        onStateChange: (event: YouTubePlayerEvent) => void;
-        onError: () => void;
-      };
-    }
-  ) => YouTubePlayer;
-  PlayerState: {
-    ENDED: number;
-    PLAYING: number;
-    PAUSED: number;
-  };
-};
-
-declare global {
-  interface Window {
-    YT?: YouTubeApi;
-    onYouTubeIframeAPIReady?: () => void;
-    __youtubeIframeApiReady?: Promise<YouTubeApi>;
-  }
-}
-
-function loadYouTubeIframeApi() {
-  if (window.YT?.Player) {
-    return Promise.resolve(window.YT);
-  }
-
-  if (!window.__youtubeIframeApiReady) {
-    window.__youtubeIframeApiReady = new Promise((resolve) => {
-      const previousCallback = window.onYouTubeIframeAPIReady;
-
-      window.onYouTubeIframeAPIReady = () => {
-        previousCallback?.();
-        resolve(window.YT as YouTubeApi);
-      };
-
-      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-        const script = document.createElement('script');
-        script.src = 'https://www.youtube.com/iframe_api';
-        script.async = true;
-        document.head.appendChild(script);
-      }
-    });
-  }
-
-  return window.__youtubeIframeApiReady as Promise<YouTubeApi>;
+  onStreamRefresh?: () => void;
+  onReconnectReady?: (reconnect: (() => void) | null) => void;
 }
 
 const SIDELOADED_CAPTION_TRACK_ID = 'after-party-sideloaded-captions';
 const REALTIME_NOTICE_DELAY_MS = 15000;
 const PLAYBACK_SYNC_REQUEST_TIMEOUT_MS = 10000;
+const MANUAL_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function YouTubePlaylistPlayer({
   playlistId,
   title,
   viewerLocked,
+  onReconnectReady,
 }: {
   playlistId: string;
   title: string;
   viewerLocked: boolean;
+  onReconnectReady?: (reconnect: (() => void) | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
@@ -289,6 +227,21 @@ function YouTubePlaylistPlayer({
     }
   }, [muted]);
 
+  const reconnectPlaylist = useCallback(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    mutedRef.current = false;
+    setMuted(false);
+    setNeedsUnmute(false);
+    player.unMute();
+    player.playVideo();
+  }, []);
+
+  useEffect(() => {
+    onReconnectReady?.(reconnectPlaylist);
+    return () => onReconnectReady?.(null);
+  }, [onReconnectReady, reconnectPlaylist]);
+
   const toggleFullscreen = async () => {
     if (!containerRef.current) return;
 
@@ -337,12 +290,7 @@ function YouTubePlaylistPlayer({
       {needsUnmute && (
         <button
           type="button"
-          onClick={() => {
-            setMuted(false);
-            setNeedsUnmute(false);
-            playerRef.current?.unMute();
-            playerRef.current?.playVideo();
-          }}
+          onClick={reconnectPlaylist}
           className="absolute bottom-16 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full bg-pink-300 px-5 py-3 text-sm font-bold text-black shadow-lg animate-pulse"
         >
           🔊 TAP TO UNMUTE
@@ -407,6 +355,13 @@ export default function VideoPlayer({
   playbackPosition = 0,
   playbackUpdatedAt,
   playbackElapsedMs = 0,
+  playbackSessionId,
+  playbackRevision = 0,
+  serverNow,
+  playbackPositionSeconds,
+  playbackDurationSeconds = null,
+  snapshotReceivedAt,
+  snapshotRoundTripMs = 0,
   activeSlotId = null,
   sourceType = MUX_SOURCE_TYPE,
   youtubePlaylistId = null,
@@ -414,39 +369,74 @@ export default function VideoPlayer({
   captionLabel = null,
   captionLanguage = null,
   onPlaybackError,
+  onStreamRefresh,
+  onReconnectReady,
 }: VideoPlayerProps) {
+  const canBroadcastAdminControls = isAdmin && allowAdminBroadcast;
+  const viewerLocked = !canBroadcastAdminControls;
   const playerRef = useRef<MuxPlayerElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [needsUnmute, setNeedsUnmute] = useState(false);
-
-  const canBroadcastAdminControls = isAdmin && allowAdminBroadcast;
-  const viewerLocked = !canBroadcastAdminControls;
+  // A phone can stop before metadata or while seeking, before safePlay ever
+  // runs. Keep a tap-to-start path available even in those startup states.
+  const [needsUnmute, setNeedsUnmute] = useState(viewerLocked && (isHoldScreen || playbackState === 'playing'));
+  const [needsStart, setNeedsStart] = useState(viewerLocked && (isHoldScreen || playbackState === 'playing'));
   const realtimeHealth = useRealtimeHealth();
   const [visibleRealtimeHealth, setVisibleRealtimeHealth] = useState<RealtimeHealthStatus>('healthy');
 
   const isSyncingRef = useRef(false);
   const realtimeUnhealthySinceRef = useRef<number | null>(null);
-  const lastRealtimeUpdateRef = useRef<number>(Date.now());
   const syncRequestInFlightRef = useRef(false);
+  const syncControllerRef = useRef<AbortController | null>(null);
+  const syncRequestSequenceRef = useRef(0);
   const adminUpdateDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const syncDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const syncErrorCountRef = useRef<number>(0);
   const errorRetryRef = useRef(0);
-  const playbackStateRef = useRef(playbackState);
+  const errorRetryTimerRef = useRef<number | null>(null);
   const sideloadedCaptionTrackRef = useRef<TextTrack | null>(null);
-  const endedSlotRef = useRef<string | null>(null);
-  const manualEndedPlaybackRef = useRef<string | null>(null);
-  const lastSyncedStateRef = useRef<{
-    playbackId: string;
-    state: string;
-    position: number;
-    updatedAt: string;
-  } | null>(null);
+  const endedRequestRef = useRef(false);
+  const endedCompletedRef = useRef(false);
+  const endedRetryTimerRef = useRef<number | null>(null);
+  const endedControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const forceNextSyncRef = useRef(true);
+  const anchorRef = useRef<PlaybackAnchor | null>(null);
+  const initialStartTimeRef = useRef<number | null>(null);
+  const callbacksRef = useRef({ onPlaybackError, onStreamRefresh });
 
   useEffect(() => {
-    playbackStateRef.current = playbackState;
-  }, [playbackState]);
+    callbacksRef.current = { onPlaybackError, onStreamRefresh };
+  }, [onPlaybackError, onStreamRefresh]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      syncRequestSequenceRef.current += 1;
+      syncControllerRef.current?.abort();
+      syncRequestInFlightRef.current = false;
+      endedControllerRef.current?.abort();
+      if (endedRetryTimerRef.current !== null) window.clearTimeout(endedRetryTimerRef.current);
+      if (errorRetryTimerRef.current !== null) window.clearTimeout(errorRetryTimerRef.current);
+      if (adminUpdateDebounceRef.current) clearTimeout(adminUpdateDebounceRef.current);
+    };
+  }, []);
+
+  const refreshStream = useCallback(() => {
+    const callbacks = callbacksRef.current;
+    (callbacks.onStreamRefresh || callbacks.onPlaybackError)?.();
+  }, []);
+
+  if (initialStartTimeRef.current === null && kind !== 'live') {
+    const base = playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000);
+    const elapsed = playbackState === 'playing' && snapshotReceivedAt !== undefined
+      ? Math.max(0, performance.now() - snapshotReceivedAt) / 1000 + snapshotRoundTripMs / 2000
+      : 0;
+    const position = Math.max(0, base + elapsed);
+    initialStartTimeRef.current = playbackDurationSeconds && playbackDurationSeconds > 0
+      ? isHoldScreen ? position % playbackDurationSeconds : Math.min(position, Math.max(0, playbackDurationSeconds - 0.05))
+      : position;
+  }
 
   useEffect(() => {
     if (realtimeHealth === 'healthy') {
@@ -471,142 +461,124 @@ export default function VideoPlayer({
   // Chrome mobile rejects unmuted play() without a user gesture. Fall back to
   // muted playback (viewers see video immediately) and surface an unmute pill.
   const safePlay = useCallback(async (video: MuxPlayerElement): Promise<boolean> => {
+    const playbackWasStopped = () => {
+      if (mountedRef.current && (isHoldScreen || anchorRef.current?.playbackState === 'playing')) return false;
+      if (!video.paused) video.pause();
+      if (mountedRef.current) {
+        setNeedsStart(false);
+        setNeedsUnmute(false);
+      }
+      return true;
+    };
+    if (playbackWasStopped()) return false;
+    const playWithDeadline = async () => {
+      let timeout: number | undefined;
+      try {
+        await Promise.race([
+          video.play(),
+          new Promise<never>((_, reject) => {
+            timeout = window.setTimeout(() => reject(new DOMException('Playback did not start', 'TimeoutError')), 5000);
+          }),
+        ]);
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
     try {
-      await video.play();
+      await playWithDeadline();
+      if (playbackWasStopped()) return false;
+      if (mountedRef.current) {
+        setNeedsStart(false);
+        setNeedsUnmute(video.muted);
+      }
       return true;
     } catch (err) {
+      if (playbackWasStopped()) return false;
       if ((err as DOMException)?.name !== 'NotAllowedError') {
-        console.error('Failed to play video:', err);
+        if ((err as DOMException)?.name !== 'AbortError') console.error('Failed to play video:', err);
+        if (mountedRef.current && (err as DOMException)?.name !== 'AbortError') {
+          setNeedsUnmute(true);
+          setNeedsStart(true);
+        }
         return false;
       }
 
       try {
         video.muted = true;
-        await video.play();
-        setNeedsUnmute(true);
+        await playWithDeadline();
+        if (playbackWasStopped()) return false;
+        if (mountedRef.current) {
+          setNeedsUnmute(true);
+          setNeedsStart(false);
+        }
         return true;
       } catch (mutedErr) {
+        if (playbackWasStopped()) return false;
         console.error('Muted autoplay also blocked:', mutedErr);
-        setNeedsUnmute(true);
+        if (mountedRef.current) {
+          setNeedsUnmute(true);
+          setNeedsStart(true);
+        }
         return false;
       }
     }
-  }, []);
+  }, [isHoldScreen]);
 
-  const applyPlaybackState = useCallback(
-    async (
-      state: string,
-      position: number | string,
-      updatedAt: string,
-      elapsedMs: number | string = 0
-    ) => {
-      const video = playerRef.current;
-      if (!video || isSyncingRef.current) return;
+  const applyPlaybackState = useCallback(async (force = false) => {
+    const video = playerRef.current;
+    const anchor = anchorRef.current;
+    if (!viewerLocked || sourceType !== MUX_SOURCE_TYPE || !video || !anchor) return;
+    if (force) forceNextSyncRef.current = true;
+    // A new pause must cancel an older pending play() immediately.
+    if (anchor.playbackState === 'paused' && !isHoldScreen && !video.paused) video.pause();
+    if (isSyncingRef.current) return;
 
-      const numericPosition = typeof position === 'string' ? parseFloat(position) : position;
-      const numericElapsedMs = typeof elapsedMs === 'string' ? parseFloat(elapsedMs) : elapsedMs;
+    const seeking = Boolean(video.media?.seeking);
+    const correction = getPlaybackCorrection({
+      currentTime: video.currentTime, readyState: video.readyState, paused: video.paused,
+      ended: video.ended, duration: video.duration, seeking,
+    }, anchor, performance.now(), {
+      hold: isHoldScreen,
+      live: kind === 'live',
+      force: forceNextSyncRef.current,
+    });
+    // A pre-metadata attempt is not success. Keep the force flag until media
+    // can actually seek, then repeat against its real currentTime every tick.
+    if (video.readyState < 1 || seeking) return;
 
-      if (Number.isNaN(numericPosition)) {
-        console.warn('Skipping sync due to invalid playback position:', position);
-        return;
-      }
-
-      const lastSynced = lastSyncedStateRef.current;
-      if (
-        lastSynced &&
-        lastSynced.playbackId === playbackId &&
-        lastSynced.state === state &&
-        Math.abs(lastSynced.position - numericPosition) < 0.5 &&
-        lastSynced.updatedAt === updatedAt
-      ) {
-        return;
-      }
-
-      const performSync = async () => {
-        isSyncingRef.current = true;
+    isSyncingRef.current = true;
+    try {
+      if (correction.seekTo !== null) {
         setIsSyncing(true);
-
-        try {
-          const latencySeconds = SYNC_THRESHOLDS.LATENCY_ESTIMATE_MS / 1000;
-          let targetPosition = numericPosition;
-
-          if (state === 'playing') {
-            if (!Number.isNaN(numericElapsedMs) && numericElapsedMs > 0) {
-              targetPosition = numericPosition + numericElapsedMs / 1000 + latencySeconds;
-            } else {
-              const updateTimestamp = new Date(updatedAt).getTime();
-              const elapsed = Number.isNaN(updateTimestamp) ? 0 : (Date.now() - updateTimestamp) / 1000;
-              targetPosition = numericPosition + elapsed + latencySeconds;
-            }
-          }
-
-          const timeDiff = Math.abs(video.currentTime - targetPosition);
-          const syncThreshold =
-            state === 'playing'
-              ? SYNC_THRESHOLDS.SYNC_THRESHOLD_PLAYING
-              : SYNC_THRESHOLDS.SYNC_THRESHOLD_PAUSED;
-
-          if (timeDiff > syncThreshold) {
-            video.currentTime = Math.max(0, targetPosition);
-          }
-
-          let played = true;
-          if (state === 'playing' && video.paused) {
-            played = await safePlay(video);
-          } else if (state === 'paused' && !video.paused) {
-            video.pause();
-          }
-
-          // Don't record a failed play attempt as synced, or the dedup guard
-          // above would swallow every retry from the poll loop.
-          if (played) {
-            lastSyncedStateRef.current = {
-              playbackId,
-              state,
-              position: numericPosition,
-              updatedAt,
-            };
-          }
-          syncErrorCountRef.current = 0;
-        } catch (err) {
-          console.error('Error syncing playback:', err);
-          syncErrorCountRef.current += 1;
-
-          if (syncErrorCountRef.current === 5) {
-            console.warn('Repeated playback sync errors; keeping current playback alive while retrying.');
-          }
-        } finally {
-          isSyncingRef.current = false;
-          setIsSyncing(false);
-        }
-      };
-
-      const stateChanged = lastSynced && lastSynced.state !== state;
-      const videoChanged = lastSynced && lastSynced.playbackId !== playbackId;
-
-      if (stateChanged || videoChanged) {
-        await performSync();
-      } else {
-        if (syncDebounceRef.current) {
-          clearTimeout(syncDebounceRef.current);
-        }
-        syncDebounceRef.current = setTimeout(performSync, 200);
       }
-    },
-    [playbackId, safePlay]
-  );
+      const shouldPlay = applySynchronousPlaybackCorrection(video, correction);
+      forceNextSyncRef.current = false;
+      if (shouldPlay) await safePlay(video);
+      syncErrorCountRef.current = 0;
+    } catch (err) {
+      forceNextSyncRef.current = true;
+      syncErrorCountRef.current += 1;
+      console.error('Playback correction will be retried:', err);
+    } finally {
+      isSyncingRef.current = false;
+      if (mountedRef.current) setIsSyncing(false);
+    }
+  }, [viewerLocked, sourceType, isHoldScreen, kind, safePlay]);
 
   const loadAndSyncPlaybackState = useCallback(async () => {
-    if (syncRequestInFlightRef.current) return;
+    if (syncRequestInFlightRef.current || sourceType !== MUX_SOURCE_TYPE || !mountedRef.current) return;
 
     syncRequestInFlightRef.current = true;
     const controller = new AbortController();
+    syncControllerRef.current = controller;
+    const sequence = ++syncRequestSequenceRef.current;
+    const startedAt = performance.now();
     const timeout = window.setTimeout(() => {
       controller.abort();
     }, PLAYBACK_SYNC_REQUEST_TIMEOUT_MS);
 
     try {
-      const response = await fetch('/api/admin/playback-control', {
+      const response = await fetch('/api/current', {
         cache: 'no-store',
         signal: controller.signal,
       });
@@ -614,20 +586,22 @@ export default function VideoPlayer({
         throw new Error(`Playback state request failed with ${response.status}`);
       }
 
-      const data = (await response.json()) as PlaybackStateResponse;
-      if (
-        data.playback_state &&
-        data.playback_position !== undefined &&
-        data.playback_updated_at
-      ) {
-        await applyPlaybackState(
-          data.playback_state,
-          data.playback_position,
-          data.playback_updated_at,
-          data.playback_elapsed_ms || 0
-        );
+      const data: unknown = await response.json();
+      if (!mountedRef.current || sequence !== syncRequestSequenceRef.current) return;
+      if (!isPlaybackSnapshot(data)) throw new Error('Incomplete playback clock response');
+      if (data.playbackId !== playbackId || (data.sourceType || MUX_SOURCE_TYPE) !== sourceType
+        || (playbackSessionId && data.playbackSessionId !== playbackSessionId)) {
+        // Never apply the next cue's position to the old mounted video.
+        refreshStream();
+        return;
       }
+      if (!snapshotIsNewer(data, anchorRef.current)) return;
+      const receivedAt = performance.now();
+      const changed = data.playbackRevision !== anchorRef.current?.playbackRevision;
+      anchorRef.current = makePlaybackAnchor(data, receivedAt, receivedAt - startedAt);
+      await applyPlaybackState(changed);
     } catch (err) {
+      if ((err as DOMException)?.name === 'AbortError') return;
       console.error('Failed to load playback state:', err);
       syncErrorCountRef.current += 1;
 
@@ -636,45 +610,39 @@ export default function VideoPlayer({
       }
     } finally {
       window.clearTimeout(timeout);
-      syncRequestInFlightRef.current = false;
+      if (sequence === syncRequestSequenceRef.current) syncRequestInFlightRef.current = false;
+      if (syncControllerRef.current === controller) syncControllerRef.current = null;
     }
-  }, [applyPlaybackState]);
+  }, [applyPlaybackState, playbackId, playbackSessionId, sourceType, refreshStream]);
 
   useEffect(() => {
     setError(null);
     errorRetryRef.current = 0;
   }, [playbackId, sourceType]);
 
-  // Covers the autoPlay-attribute path (no rejection callback) and hold
-  // screens, where the sync loop may never issue a play() of its own.
+  // Seek before starting, and retry when HLS metadata/buffering catches up.
   useEffect(() => {
     const video = playerRef.current;
     if (sourceType !== MUX_SOURCE_TYPE || !video || !viewerLocked) return;
 
-    const tryStart = () => {
-      if (
-        video.paused &&
-        (isHoldScreen || playbackStateRef.current === 'playing') &&
-        !isSyncingRef.current
-      ) {
-        void safePlay(video);
-      }
-    };
-
-    video.addEventListener('canplay', tryStart);
-    const timer = window.setTimeout(tryStart, 1500);
+    const syncReady = () => { void applyPlaybackState(true); };
+    const syncProgress = () => { void applyPlaybackState(); };
+    video.addEventListener('loadedmetadata', syncReady);
+    video.addEventListener('canplay', syncProgress);
+    video.addEventListener('playing', syncProgress);
+    video.addEventListener('seeked', syncProgress);
+    const timer = window.setInterval(syncProgress, 500);
+    syncReady();
 
     return () => {
-      video.removeEventListener('canplay', tryStart);
-      window.clearTimeout(timer);
+      video.removeEventListener('loadedmetadata', syncReady);
+      video.removeEventListener('canplay', syncProgress);
+      video.removeEventListener('playing', syncProgress);
+      video.removeEventListener('seeked', syncProgress);
+      window.clearInterval(timer);
+      video.playbackRate = 1;
     };
-  }, [sourceType, viewerLocked, isHoldScreen, playbackId, safePlay]);
-
-  useEffect(() => {
-    endedSlotRef.current = null;
-    manualEndedPlaybackRef.current = null;
-    lastSyncedStateRef.current = null;
-  }, [playbackId, activeSlotId]);
+  }, [sourceType, viewerLocked, playbackId, applyPlaybackState]);
 
   // Side-load the caption file (public/assets/captions/*) as a text track on
   // the underlying media element, for assets with no embedded subtitles. The
@@ -823,21 +791,30 @@ export default function VideoPlayer({
   }, [playbackId, isHoldScreen, kind, sourceType]);
 
   useEffect(() => {
-    if (canBroadcastAdminControls || !playerRef.current) return;
-
-    const updatedAt = playbackUpdatedAt || new Date().toISOString();
-    applyPlaybackState(playbackState, playbackPosition, updatedAt, playbackElapsedMs);
+    if (canBroadcastAdminControls || sourceType !== MUX_SOURCE_TYPE) return;
+    const snapshot = {
+      playbackId,
+      sourceType,
+      playbackSessionId: playbackSessionId || `legacy:${playbackId}:${activeSlotId || 'manual'}`,
+      playbackRevision,
+      serverNow: serverNow || playbackUpdatedAt || '1970-01-01T00:00:00.000Z',
+      playbackState,
+      playbackPositionSeconds: playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000),
+      playbackDurationSeconds,
+    };
+    if (!isPlaybackSnapshot(snapshot) || !snapshotIsNewer(snapshot, anchorRef.current)) return;
+    const changed = snapshot.playbackRevision !== anchorRef.current?.playbackRevision;
+    anchorRef.current = makePlaybackAnchor(snapshot, snapshotReceivedAt ?? performance.now(), snapshotRoundTripMs);
+    void applyPlaybackState(changed);
   }, [
-    canBroadcastAdminControls,
-    playbackState,
-    playbackPosition,
-    playbackUpdatedAt,
-    playbackElapsedMs,
-    applyPlaybackState,
+    canBroadcastAdminControls, sourceType, playbackId, playbackSessionId, activeSlotId,
+    playbackRevision, serverNow, playbackState, playbackPositionSeconds, playbackPosition,
+    playbackUpdatedAt, playbackElapsedMs, playbackDurationSeconds, snapshotReceivedAt,
+    snapshotRoundTripMs, applyPlaybackState,
   ]);
 
   useEffect(() => {
-    if (canBroadcastAdminControls || !playerRef.current) return;
+    if (canBroadcastAdminControls || sourceType !== MUX_SOURCE_TYPE || !playerRef.current) return;
 
     loadAndSyncPlaybackState();
 
@@ -851,61 +828,28 @@ export default function VideoPlayer({
           table: DATABASE_TABLES.CURRENT_STREAM,
           filter: 'id=eq.1',
         },
-        (payload) => {
-          lastRealtimeUpdateRef.current = Date.now();
-
-          const newState = payload.new as any;
-          const oldState = payload.old as any;
-          const playbackChanged =
-            newState.playback_state !== oldState.playback_state ||
-            Number(newState.playback_position || 0) !== Number(oldState.playback_position || 0) ||
-            newState.playback_updated_at !== oldState.playback_updated_at ||
-            newState.playback_id !== oldState.playback_id ||
-            newState.playout_mode !== oldState.playout_mode ||
-            newState.schedule_early_ended_slot !== oldState.schedule_early_ended_slot ||
-            newState.last_command_id !== oldState.last_command_id;
-
-          if (!playbackChanged) return;
-
-          if (newState.playout_mode === 'schedule' || newState.schedule_early_ended_slot) {
-            loadAndSyncPlaybackState();
-            return;
-          }
-
-          if (newState.playback_state && newState.playback_position !== undefined) {
-            applyPlaybackState(
-              newState.playback_state,
-              newState.playback_position,
-              newState.playback_updated_at,
-              newState.playback_elapsed_ms || 0
-            );
-          }
-        }
+        // Realtime is a wake-up signal, not a playback clock. Its raw row
+        // may already be superseded and cannot resolve schedule/hold cues.
+        () => { void loadAndSyncPlaybackState(); }
       )
       .subscribe((status) => {
-        console.log('Playback sync subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          lastRealtimeUpdateRef.current = Date.now();
-        }
+        if (status === 'SUBSCRIBED') void loadAndSyncPlaybackState();
       });
 
     const syncInterval = setInterval(
       loadAndSyncPlaybackState,
-      realtimeHealth === 'healthy' ? 30000 : 5000
+      realtimeHealth === 'healthy' ? 10000 : 5000
     );
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(syncInterval);
-      if (syncDebounceRef.current) {
-        clearTimeout(syncDebounceRef.current);
-      }
     };
   }, [
     canBroadcastAdminControls,
+    sourceType,
     playbackId,
     realtimeHealth,
-    applyPlaybackState,
     loadAndSyncPlaybackState,
   ]);
 
@@ -914,7 +858,9 @@ export default function VideoPlayer({
 
     const handleResume = () => {
       if (document.visibilityState === 'visible' && !isSyncingRef.current) {
-        loadAndSyncPlaybackState();
+        void applyPlaybackState(true);
+        void loadAndSyncPlaybackState();
+        refreshStream();
       }
     };
 
@@ -924,16 +870,19 @@ export default function VideoPlayer({
       document.removeEventListener('visibilitychange', handleResume);
       window.removeEventListener('pageshow', handleResume);
     };
-  }, [canBroadcastAdminControls, loadAndSyncPlaybackState]);
+  }, [canBroadcastAdminControls, applyPlaybackState, loadAndSyncPlaybackState, refreshStream]);
 
   const sendAdminPlaybackCommand = async (action: string, position?: number) => {
     if (!canBroadcastAdminControls) return;
 
     try {
+      const commandId = crypto.randomUUID();
+      const expectedSessionId = playoutMode === 'manual' && playbackSessionId && MANUAL_SESSION_ID_PATTERN.test(playbackSessionId)
+        ? playbackSessionId : undefined;
       const response = await fetch('/api/admin/playback-control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, position }),
+        body: JSON.stringify({ action, position, commandId, expectedSessionId }),
       });
 
       if (response.status === 409) {
@@ -967,24 +916,53 @@ export default function VideoPlayer({
     await sendAdminPlaybackCommand(PLAYBACK_ACTIONS.PAUSE, playerRef.current.currentTime);
   };
 
-  const handleUnmute = () => {
+  const handleUnmute = useCallback(() => {
     const video = playerRef.current;
-    if (!video) return;
+    if (!mountedRef.current || !video) return;
 
-    // Must stay synchronous — awaiting anything first loses the tap's
-    // user-activation window and Chrome re-blocks the play() call.
-    video.muted = false;
-    if (video.paused) {
-      // Only dismiss the pill once playback actually starts; if play() is
-      // rejected the viewer still has a way back in.
-      video
-        .play()
-        .then(() => setNeedsUnmute(false))
-        .catch((err) => console.error('Unmute play failed:', err));
+    // The latest server sample is projected synchronously before the tap's
+    // play(), preserving browser user activation while joining the live cue.
+    const anchor = anchorRef.current;
+    forceNextSyncRef.current = true;
+    if (anchor && kind !== 'live' && video.readyState >= 1 && !video.media?.seeking) {
+      const target = projectPlaybackPosition(anchor, performance.now(), {
+        hold: isHoldScreen,
+        duration: Number.isFinite(video.duration) ? video.duration : playbackDurationSeconds,
+      });
+      try {
+        if (Math.abs(video.currentTime - target) > 0.15) video.currentTime = target;
+      } catch (reason) {
+        // Metadata does not guarantee native HLS is seekable yet. Still make
+        // the tap's play request; the existing sync loop retries the seek.
+        console.warn('Reconnect seek will be retried:', reason);
+      }
+    }
+    if (isHoldScreen || anchor?.playbackState === 'playing') {
+      video.muted = false;
+      setNeedsUnmute(true);
+      setNeedsStart(true);
+      // Run synchronously inside the click, before any fetch/await. Calling
+      // play again also retries stalled media reporting paused=false.
+      void safePlay(video);
     } else {
       setNeedsUnmute(false);
+      setNeedsStart(false);
     }
-  };
+    void loadAndSyncPlaybackState();
+  }, [kind, isHoldScreen, playbackDurationSeconds, safePlay, loadAndSyncPlaybackState]);
+
+  useEffect(() => {
+    if (sourceType !== MUX_SOURCE_TYPE || !viewerLocked) return;
+    onReconnectReady?.(handleUnmute);
+    return () => onReconnectReady?.(null);
+  }, [sourceType, viewerLocked, handleUnmute, onReconnectReady]);
+
+  useEffect(() => {
+    if (!isHoldScreen && playbackState === 'paused') {
+      setNeedsUnmute(false);
+      setNeedsStart(false);
+    }
+  }, [isHoldScreen, playbackState]);
 
   const handlePlayerError = (evt: Event) => {
     console.error('Mux player error:', (evt as CustomEvent).detail);
@@ -993,8 +971,9 @@ export default function VideoPlayer({
       errorRetryRef.current = 1;
       // Likely an expired signed token — ask the parent for a fresh one (the
       // tokens prop is reactive, so playback recovers without a remount).
-      onPlaybackError?.();
-      window.setTimeout(() => {
+      callbacksRef.current.onPlaybackError?.();
+      errorRetryTimerRef.current = window.setTimeout(() => {
+        errorRetryTimerRef.current = null;
         if (errorRetryRef.current === 1) errorRetryRef.current = 0;
       }, 30000);
       return;
@@ -1005,41 +984,50 @@ export default function VideoPlayer({
 
   const correctViewerControlAttempt = () => {
     if (canBroadcastAdminControls || isSyncingRef.current || playerRef.current?.ended) return;
-    window.setTimeout(loadAndSyncPlaybackState, 100);
+    void applyPlaybackState(true);
   };
 
   const handleEnded = async () => {
-    if (playoutMode === 'schedule' && activeSlotId && !isHoldScreen) {
-      if (endedSlotRef.current === activeSlotId) return;
-      endedSlotRef.current = activeSlotId;
-
+    if (isHoldScreen || kind === 'live' || endedRequestRef.current || endedCompletedRef.current) return;
+    if (playoutMode === 'schedule' && !activeSlotId) return;
+    if (playoutMode !== 'schedule' && playoutMode !== 'manual') return;
+    endedRequestRef.current = true;
+    const endpoint = playoutMode === 'schedule' ? '/api/playout/slot-ended' : '/api/playout/manual-ended';
+    const notify = async (attempt: number) => {
+      const controller = new AbortController();
+      endedControllerRef.current = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 6000);
+      let retry = false;
       try {
-        await fetch('/api/playout/slot-ended', {
-          method: 'POST',
+        const response = await fetch(endpoint, {
+          method: 'POST', signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slotId: activeSlotId, playbackId }),
+          body: JSON.stringify({ slotId: activeSlotId, playbackId, playbackSessionId }),
         });
+        if (!response.ok) throw new Error(`Ended notification returned ${response.status}`);
+        // A 202 is a timing hint rejected as early, not an accepted advance.
+        retry = response.status === 202;
+        endedCompletedRef.current = !retry;
       } catch (err) {
-        console.error('Failed to notify scheduled slot ended:', err);
+        if (mountedRef.current) console.warn('Ended notification will be retried:', err);
+        retry = true;
       } finally {
-        await loadAndSyncPlaybackState();
+        window.clearTimeout(timeout);
+        if (endedControllerRef.current === controller) endedControllerRef.current = null;
+        if (!mountedRef.current) return;
+        refreshStream();
+        void loadAndSyncPlaybackState();
+        if (retry && attempt < 3) {
+          endedRetryTimerRef.current = window.setTimeout(() => {
+            endedRetryTimerRef.current = null;
+            void notify(attempt + 1);
+          }, 1000 * 2 ** attempt);
+        } else {
+          endedRequestRef.current = false;
+        }
       }
-    } else if (playoutMode === 'manual' && !isHoldScreen) {
-      if (manualEndedPlaybackRef.current === playbackId) return;
-      manualEndedPlaybackRef.current = playbackId;
-
-      try {
-        await fetch('/api/playout/manual-ended', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playbackId }),
-        });
-      } catch (err) {
-        console.error('Failed to notify manual video ended:', err);
-      } finally {
-        await loadAndSyncPlaybackState();
-      }
-    }
+    };
+    await notify(0);
   };
 
   if (sourceType === MUX_SOURCE_TYPE && playbackId === 'demo-playback-id') {
@@ -1048,7 +1036,7 @@ export default function VideoPlayer({
         className="relative aspect-video overflow-hidden bg-black"
         style={{ display: 'grid', placeItems: 'center' }}
         role="img"
-        aria-label="2006 program feed preview"
+        aria-label="Waiting for the 2006 program"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -1068,7 +1056,7 @@ export default function VideoPlayer({
             textAlign: 'center',
           }}
         >
-          Program feed preview — add Mux credentials and media IDs for playback
+          Waiting for the show. The host will start the program here.
         </div>
       </div>
     );
@@ -1108,6 +1096,36 @@ export default function VideoPlayer({
         playlistId={playlistId}
         title={title}
         viewerLocked={viewerLocked}
+        onReconnectReady={onReconnectReady}
+      />
+    );
+  }
+
+  if (sourceType === YOUTUBE_VIDEO_SOURCE_TYPE) {
+    const videoId = parseYouTubeVideoPlaybackId(playbackId);
+    if (!videoId) {
+      return <div className="aspect-video flex items-center justify-center bg-black p-6 text-white" role="alert">Invalid YouTube video source.</div>;
+    }
+    return (
+      <YouTubeVideoPlayer
+        key={`${playbackSessionId || activeSlotId || 'manual'}:${videoId}`}
+        videoId={videoId}
+        title={title}
+        snapshot={{
+          playbackId, sourceType,
+          playbackSessionId: playbackSessionId || `legacy:${playbackId}:${activeSlotId || 'manual'}`,
+          playbackRevision,
+          serverNow: serverNow || playbackUpdatedAt || '1970-01-01T00:00:00.000Z',
+          playbackState,
+          playbackPositionSeconds: playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000),
+          playbackDurationSeconds,
+        }}
+        snapshotReceivedAt={snapshotReceivedAt}
+        snapshotRoundTripMs={snapshotRoundTripMs}
+        captionLanguage={captionLanguage}
+        isHoldScreen={isHoldScreen}
+        onStreamRefresh={refreshStream}
+        onReconnectReady={onReconnectReady}
       />
     );
   }
@@ -1152,7 +1170,7 @@ export default function VideoPlayer({
         tokens={{ playback: token !== 'placeholder-token' && token !== 'unsigned' ? token : undefined }}
         streamType={kind === 'live' ? 'live' : undefined}
         defaultStreamType={kind === 'live' ? 'live' : 'on-demand'}
-        startTime={Math.max(0, playbackPosition || 0)}
+        startTime={kind === 'live' ? undefined : initialStartTimeRef.current ?? undefined}
         metadata={{
           video_title: title,
         }}
@@ -1165,11 +1183,14 @@ export default function VideoPlayer({
         playsInline
         onPlay={canBroadcastAdminControls ? handlePlay : undefined}
         onPause={canBroadcastAdminControls ? handlePause : correctViewerControlAttempt}
-        onSeeked={canBroadcastAdminControls ? handleSeek : correctViewerControlAttempt}
+        // Guest seek completion already has a non-forced sync listener.
+        // Forcing another seek here chases the moving clock on slow connections.
+        onSeeked={canBroadcastAdminControls ? handleSeek : undefined}
         onEnded={handleEnded}
         onError={handlePlayerError}
         loop={isHoldScreen}
-        autoPlay={isHoldScreen || playbackState === 'playing'}
+        // Viewer autoplay is controlled only after the authoritative seek.
+        autoPlay={canBroadcastAdminControls && (isHoldScreen || playbackState === 'playing')}
       />
 
       {needsUnmute && (
@@ -1178,7 +1199,7 @@ export default function VideoPlayer({
           onClick={handleUnmute}
           className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 flex items-center gap-2 rounded-full bg-pink-300 px-5 py-3 text-sm font-bold text-black shadow-lg animate-pulse"
         >
-          🔊 TAP TO UNMUTE
+          {needsStart ? 'JOIN LIVE SHOW' : '🔊 TAP TO UNMUTE'}
         </button>
       )}
 

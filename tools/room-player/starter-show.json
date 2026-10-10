@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "title": "2006 — room show",
+  "mediaDirectory": "",
+  "hold": { "file": "" },
+  "captions": true,
+  "sounds": [
+    { "id": "life-is-a-highway", "label": "LIFE IS A HIGHWAY", "file": "", "startSeconds": 0, "durationSeconds": 3, "volume": 1 }
+  ],
+  "cues": [
+    { "id": "intro-supercut", "label": "2006 super cut", "kind": "live", "file": "", "notes": "Opening montage into the VJ introduction", "endAction": "hold" },
+    { "id": "welcome", "label": "Welcome", "kind": "live", "file": "", "notes": "Welcome the room and remind the audience to vote", "endAction": "hold" },
+    { "id": "ad-spots-1", "label": "Ad spots", "kind": "live", "file": "", "notes": "Caption and reset for the next live segment", "endAction": "hold" },
+    { "id": "game-of-2006", "label": "The game of being a kid in 2006", "kind": "live", "file": "", "notes": "Explain the rules and begin the CD-burning task", "endAction": "hold" },
+    { "id": "videos-10-9", "label": "Countdown videos #10 and #9", "kind": "live", "file": "", "notes": "Reset for the Clippy check-in", "endAction": "hold" },
+    { "id": "clippy-check-in", "label": "Does anyone need any help?", "kind": "live", "file": "", "notes": "Check audience tasks and introduce Clippy", "endAction": "hold" },
+    { "id": "video-8-ads", "label": "Video #8 and ads", "kind": "live", "file": "", "notes": "Move to the family computer for live AIM", "endAction": "hold" },
+    { "id": "live-aim", "label": "Live AIM message check", "kind": "live", "file": "", "notes": "Answer audience messages; watch the visible computer clock", "endAction": "hold" },
+    { "id": "videos-7-6", "label": "Countdown videos #7 and #6", "kind": "live", "file": "", "notes": "Reset for People We Know", "endAction": "hold" },
+    { "id": "people-we-know", "label": "People We Know", "kind": "live", "file": "", "notes": "Share stories with supporting images on screen", "endAction": "hold" },
+    { "id": "ads-video-4", "label": "Ads and video #4", "kind": "live", "file": "", "notes": "Prepare the remote correspondent feed", "endAction": "hold" },
+    { "id": "remote-correspondent", "label": "Remote correspondent", "kind": "live", "file": "", "notes": "Follow the correspondent feed outside the room", "endAction": "hold" },
+    { "id": "ads-video-5", "label": "Ads and video #5", "kind": "live", "file": "", "notes": "Reset for the keep-going sequence", "endAction": "hold" },
+    { "id": "keep-going", "label": "And we gotta just keep going", "kind": "live", "file": "", "notes": "Move through the live sequence into the Nerf beat", "endAction": "hold" },
+    { "id": "video-3", "label": "Video #3", "kind": "live", "file": "", "notes": "Prepare the quick comeback", "endAction": "hold" },
+    { "id": "awkward-comeback", "label": "Awkward quick comeback", "kind": "live", "file": "", "notes": "Clippy checks the audience tasks", "endAction": "hold" },
+    { "id": "video-2", "label": "Video #2", "kind": "live", "file": "", "notes": "Set for the full-group performance", "endAction": "hold" },
+    { "id": "when-you-were-young", "label": "When You Were Young", "kind": "live", "file": "", "notes": "Full-group performance into the winning video", "endAction": "hold" },
+    { "id": "winning-video", "label": "Winning video", "kind": "live", "file": "", "notes": "Play the complete #1 video", "endAction": "hold" },
+    { "id": "wrap", "label": "Wrap it up", "kind": "live", "file": "", "notes": "Final VJ monologue and handoff into karaoke", "endAction": "hold" }
+  ]
+}

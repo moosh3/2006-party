@@ -1,0 +1,154 @@
+/* Audience game only. Operator controls retain their existing shared styles. */
+.game-board {
+  --game-paper: oklch(0.965 0.012 85);
+  --game-ink: oklch(0.2 0.006 285);
+  --game-rule: oklch(0.72 0.014 85);
+  --game-lime: oklch(0.91 0.18 127);
+  --game-pink: oklch(0.81 0.13 340);
+  color: var(--game-ink);
+}
+
+.game-board .game-heading {
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  background: var(--game-ink);
+  color: var(--game-paper);
+}
+
+.game-board .game-heading-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.game-board .game-wordmark {
+  display: block;
+  width: 112px;
+  height: auto;
+  max-height: 48px;
+  flex: none;
+  object-fit: contain;
+}
+
+.game-board .game-heading h2 {
+  margin: 5px 0 0;
+  color: var(--game-paper);
+  font: 700 22px/1.2 Georgia, 'Times New Roman', serif;
+}
+
+.game-board .game-heading .game-eyebrow { color: var(--game-lime); }
+.game-board .game-score strong { color: var(--game-pink); font-size: 25px; }
+.game-board .game-score span { color: var(--game-paper); }
+.game-board .game-eyebrow { color: oklch(0.4 0.014 85); }
+
+.game-board button {
+  border-color: oklch(0.4 0.008 285);
+  border-radius: 0;
+  background: oklch(0.988 0.005 85);
+  color: var(--game-ink);
+}
+
+.game-board button:hover:not(:disabled) { background: oklch(0.94 0.035 127); }
+.game-board button:focus-visible { outline-color: oklch(0.43 0.16 315); }
+.game-board :is(input, textarea, [role='tabpanel']):focus-visible { outline-color: oklch(0.43 0.16 315); }
+
+.game-board .game-tabs {
+  gap: 6px;
+  margin-bottom: 0;
+  border-bottom: 2px solid var(--game-ink);
+}
+
+.game-board .game-tabs button {
+  min-height: 42px;
+  border-bottom: 0;
+  padding: 9px 14px;
+}
+
+.game-board .game-tabs button[aria-selected='true'],
+.game-board .game-tabs button[aria-selected='true']:hover:not(:disabled) {
+  border-color: var(--game-ink);
+  background: var(--game-ink);
+  color: var(--game-lime);
+}
+
+.game-board .game-category-intro {
+  padding: 20px 0 18px;
+}
+
+.game-board .game-category-intro h3 {
+  display: inline;
+  padding: 1px 5px;
+  margin: 0;
+  background: var(--game-lime);
+  color: var(--game-ink);
+  font: 700 23px/1.3 Georgia, 'Times New Roman', serif;
+}
+
+.game-board .game-category-intro-trivia h3 { background: var(--game-pink); }
+.game-board .game-category-intro-superlative h3 { background: oklch(0.91 0.055 340); }
+.game-board .game-category-intro p { max-width: 65ch; margin: 10px 0 0; font-size: 13px; line-height: 1.6; }
+
+.game-board .game-question { border-top: 1px solid var(--game-rule); padding: 22px 0; }
+.game-board .game-question h3 { color: var(--game-ink); font: 700 21px/1.35 Georgia, 'Times New Roman', serif; }
+.game-board .game-options { gap: 8px; }
+.game-board .game-options button { background: oklch(0.988 0.005 85); padding: 12px; }
+.game-board .game-options button[aria-pressed='true'] { border-color: var(--game-ink); background: oklch(0.94 0.05 127); padding: 11px; }
+.game-board .game-count { color: oklch(0.4 0.012 85); }
+.game-board .game-bar { background: oklch(0.57 0.13 127); height: 4px; }
+.game-board .game-question-superlative .game-bar { background: oklch(0.58 0.15 340); }
+.game-board .game-help, .game-board .game-empty { color: oklch(0.4 0.014 85); }
+
+.game-board :is(input, textarea) {
+  border-color: oklch(0.48 0.012 85);
+  border-radius: 0;
+  background: oklch(0.988 0.005 85);
+  color: var(--game-ink);
+}
+
+.game-board .game-join {
+  border-block: 1px solid var(--game-rule);
+  background: transparent;
+  padding: 14px 0 18px;
+  margin-bottom: 18px;
+}
+
+.game-board .game-join > button { justify-self: start; background: var(--game-lime); font-weight: bold; }
+.game-board .game-suggest { background: transparent; border-top: 2px solid var(--game-ink); padding: 20px 0 0; }
+.game-board .game-suggest h3 { font: 700 21px/1.3 Georgia, 'Times New Roman', serif; }
+.game-board .game-suggest > button { justify-self: start; background: oklch(0.91 0.055 340); }
+.game-board .game-notice { color: oklch(0.35 0.07 127); }
+.game-board .game-error { color: oklch(0.4 0.14 25); background: oklch(0.945 0.025 25); }
+.game-board .game-finals { border-color: var(--game-ink); background: oklch(0.94 0.05 127); }
+.game-board .game-finals h3 { font-family: Georgia, 'Times New Roman', serif; }
+
+.game-board .game-popup {
+  border-color: var(--game-ink);
+  border-radius: 0;
+  background: var(--game-paper);
+  color: var(--game-ink);
+}
+
+.game-board .game-popup-title { background: var(--game-ink); color: var(--game-pink); }
+.game-board .game-popup-title > strong { font: 700 20px/1.3 Georgia, 'Times New Roman', serif; }
+.game-board .game-popup-title > button { background: var(--game-paper); }
+
+@media (max-width: 650px) {
+  .game-board .game-heading { flex-wrap: wrap; align-items: center; padding: 14px 12px; gap: 8px 12px; }
+  .game-board .game-heading-identity { flex-basis: 100%; gap: 12px; }
+  .game-board .game-heading-identity > div { min-width: 0; }
+  .game-board .game-wordmark { width: 84px; max-height: 38px; }
+  .game-board .game-heading h2 { font-size: 19px; }
+  .game-board .game-score { display: flex; flex-basis: 100%; align-items: baseline; gap: 6px; margin-left: 0; text-align: left; }
+  .game-board .game-score strong { display: inline; font-size: 18px; line-height: 1.2; }
+  .game-board .game-score span { min-width: 0; }
+  .game-board .game-tabs { gap: 4px; }
+  .game-board .game-tabs button { padding: 9px 10px; min-height: 44px; }
+  .game-board .game-category-intro h3 { font-size: 22px; }
+  .game-board .game-category-intro p { font-size: 14px; }
+  .game-board .game-question h3 { font-size: 20px; }
+  .game-board .game-popup-title { gap: 8px; }
+  .game-board .game-popup-title > button { min-width: 44px; min-height: 44px; }
+}

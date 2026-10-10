@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { audienceViewer } from '@/lib/audience-sign-on';
+import { sameOrigin } from '@/lib/game-server';
 import {
   MESSAGE_REACTIONS,
   isMessageReaction,
@@ -9,6 +11,9 @@ import {
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+const privateHeaders = { 'Cache-Control': 'private, no-store' };
+const json = (body: object, status = 200) =>
+  NextResponse.json(body, { status, headers: privateHeaders });
 
 type ReactionRow = {
   user_id: string;
@@ -41,28 +46,37 @@ function summarizeReactions(rows: ReactionRow[], viewerId: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messageId, userId, userName, reaction } = await request.json();
+    try {
+      sameOrigin(request);
+    } catch {
+      return json({ error: 'Invalid request origin' }, 403);
+    }
+    // Use the same cookie-backed identity as Mac sign-on and chat send. A
+    // submitted label must not let a viewer add or remove another user's vote.
+    const viewer = await audienceViewer();
+    if (!viewer || viewer.blocked) {
+      return json({ error: 'Sign on to participate, or contact the host if participation is unavailable.' }, 403);
+    }
+    const userId = viewer.id;
+    const userName = viewer.name;
+    let input: unknown;
+    try {
+      input = await request.json();
+    } catch {
+      return json({ error: 'messageId is required' }, 400);
+    }
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return json({ error: 'messageId is required' }, 400);
+    }
+    const { messageId, reaction } = input as { messageId?: unknown; reaction?: unknown };
     const numericMessageId = Number(messageId);
 
     if (!Number.isInteger(numericMessageId) || numericMessageId <= 0) {
-      return NextResponse.json(
-        { error: 'messageId is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!userId || typeof userId !== 'string') {
-      return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 401 }
-      );
+      return json({ error: 'messageId is required' }, 400);
     }
 
     if (!isMessageReaction(reaction)) {
-      return NextResponse.json(
-        { error: 'Invalid reaction' },
-        { status: 400 }
-      );
+      return json({ error: 'Invalid reaction' }, 400);
     }
 
     const { data: message, error: messageError } = await supabaseAdmin
@@ -72,17 +86,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (messageError || !message || message.deleted_at) {
-      return NextResponse.json(
-        { error: 'Message not found' },
-        { status: 404 }
-      );
+      return json({ error: 'Message not found' }, 404);
     }
 
     if (message.kind !== 'user') {
-      return NextResponse.json(
-        { error: 'Only chat messages can be reacted to' },
-        { status: 400 }
-      );
+      return json({ error: 'Only chat messages can be reacted to' }, 400);
     }
 
     const { data: existingReaction, error: existingError } = await supabaseAdmin
@@ -94,10 +102,7 @@ export async function POST(request: NextRequest) {
 
     if (existingError) {
       console.error('Failed to load existing reaction:', existingError);
-      return NextResponse.json(
-        { error: 'Reactions are not set up yet' },
-        { status: 500 }
-      );
+      return json({ error: 'Reactions are not set up yet' }, 500);
     }
 
     if (existingReaction?.reaction === reaction) {
@@ -109,10 +114,7 @@ export async function POST(request: NextRequest) {
 
       if (deleteError) {
         console.error('Failed to delete reaction:', deleteError);
-        return NextResponse.json(
-          { error: 'Failed to remove reaction' },
-          { status: 500 }
-        );
+        return json({ error: 'Failed to remove reaction' }, 500);
       }
     } else {
       const { error: upsertError } = await supabaseAdmin
@@ -121,9 +123,7 @@ export async function POST(request: NextRequest) {
           {
             message_id: numericMessageId,
             user_id: userId,
-            user_name: typeof userName === 'string' && userName.trim()
-              ? userName.trim().slice(0, 80)
-              : 'Guest',
+            user_name: userName,
             reaction,
           },
           { onConflict: 'message_id,user_id' }
@@ -131,10 +131,7 @@ export async function POST(request: NextRequest) {
 
       if (upsertError) {
         console.error('Failed to save reaction:', upsertError);
-        return NextResponse.json(
-          { error: 'Failed to save reaction' },
-          { status: 500 }
-        );
+        return json({ error: 'Failed to save reaction' }, 500);
       }
     }
 
@@ -145,22 +142,16 @@ export async function POST(request: NextRequest) {
 
     if (rowsError) {
       console.error('Failed to load reaction summary:', rowsError);
-      return NextResponse.json(
-        { error: 'Reaction saved, but failed to refresh counts' },
-        { status: 500 }
-      );
+      return json({ error: 'Reaction saved, but failed to refresh counts' }, 500);
     }
 
-    return NextResponse.json({
+    return json({
       success: true,
       messageId: numericMessageId,
       ...summarizeReactions(rows || [], userId),
     });
   } catch (error) {
-    console.error('Error toggling reaction:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Chat reactions are temporarily unavailable');
+    return json({ error: 'Reactions are temporarily unavailable. Please try again.' }, 503);
   }
 }

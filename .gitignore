@@ -30,6 +30,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo
@@ -40,6 +41,7 @@ helm/after-party/values-production.yaml
 helm/**/values-production.yaml
 
 # large assets (optional - uncomment if needed)
+/.room-player/
 # public/assets/videos/*.mp4
 # public/assets/videos/*.webm
 # public/assets/**/*.psd

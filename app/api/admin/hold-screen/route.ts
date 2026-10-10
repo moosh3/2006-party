@@ -1,256 +1,91 @@
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSession } from '@/lib/session';
-import { MUX_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
 
-// GET - Fetch current hold screen configuration
-export async function GET(request: NextRequest) {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function GET(_request: NextRequest) {
   const session = await getSession();
-  
   if (!session || session.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
   }
-
   try {
-    const { data, error } = await supabaseAdmin
-      .from('current_stream')
-      .select(`
-        hold_screen_enabled,
-        hold_screen_mux_item_id,
-        mux_items:hold_screen_mux_item_id (
-          id,
-          playback_id,
-          label,
-          kind,
-          duration_seconds,
-          source_type,
-          youtube_playlist_id,
-          source_url
-        )
-      `)
-      .eq('id', 1)
-      .single();
-
-    if (error) {
+    const { data: snapshot, error } = await supabaseAdmin.rpc('get_playout_snapshot');
+    if (error || !snapshot?.stream) {
       console.error('Error fetching hold screen config:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch hold screen configuration' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to fetch hold screen configuration' }, { status: 500, headers: NO_STORE });
     }
-
+    const stream = snapshot.stream;
+    let muxItem = null;
+    if (stream.hold_screen_mux_item_id) {
+      const { data, error: itemError } = await supabaseAdmin.from('mux_items')
+        .select('id, playback_id, label, kind, duration_seconds, source_type, youtube_playlist_id, source_url')
+        .eq('id', stream.hold_screen_mux_item_id).maybeSingle();
+      if (itemError) {
+        console.error('Error fetching hold screen item:', itemError);
+        return NextResponse.json({ error: 'Failed to fetch hold screen item' }, { status: 500, headers: NO_STORE });
+      }
+      muxItem = data;
+    }
     return NextResponse.json({
-      hold_screen_enabled: data.hold_screen_enabled || false,
-      hold_screen_mux_item_id: data.hold_screen_mux_item_id || null,
-      mux_item: data.mux_items || null,
-    });
+      hold_screen_enabled: Boolean(stream.hold_screen_enabled),
+      hold_screen_mux_item_id: stream.hold_screen_mux_item_id || null,
+      mux_item: muxItem,
+    }, { headers: NO_STORE });
   } catch (error) {
     console.error('Error fetching hold screen config:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_STORE });
   }
 }
 
-// POST - Update hold screen configuration
 export async function POST(request: NextRequest) {
   const session = await getSession();
-  
   if (!session || session.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
   }
-
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: 'A valid JSON body is required' }, { status: 400, headers: NO_STORE });
+  }
+  const { action, muxItemId, commandId } = body || {};
+  if (!['enable', 'disable', 'set_item'].includes(action)) {
+    return NextResponse.json({ error: 'Invalid action. Must be enable, disable, or set_item' }, { status: 400, headers: NO_STORE });
+  }
+  if (action === 'set_item' && (typeof muxItemId !== 'string' || !UUID.test(muxItemId))) {
+    return NextResponse.json({ error: 'A muxItemId UUID is required for set_item' }, { status: 400, headers: NO_STORE });
+  }
+  if (commandId !== undefined && (typeof commandId !== 'string' || !commandId.trim() || commandId.length > 200)) {
+    return NextResponse.json({ error: 'Invalid commandId' }, { status: 400, headers: NO_STORE });
+  }
   try {
-    const { action, muxItemId } = await request.json();
-
-    if (!action || !['enable', 'disable', 'set_item'].includes(action)) {
-      return NextResponse.json(
-        { error: 'Invalid action. Must be enable, disable, or set_item' },
-        { status: 400 }
-      );
+    // Saving/resuming the exact elapsed program position occurs under one lock.
+    const { data, error } = await supabaseAdmin.rpc('toggle_hold', {
+      action,
+      mux_item_id: action === 'set_item' ? muxItemId : null,
+      admin_user_id: session.userId,
+      command_id: commandId || randomUUID(),
+    });
+    if (error) {
+      if (error.code === 'P0001' || error.code === '22023') {
+        return NextResponse.json({ error: error.message }, { status: error.message.includes('not found') ? 404 : 409, headers: NO_STORE });
+      }
+      console.error('Failed to update hold screen:', error);
+      return NextResponse.json({ error: 'Failed to update hold screen' }, { status: 500, headers: NO_STORE });
     }
-
-    // If setting a new item, validate it exists
-    if (action === 'set_item') {
-      if (!muxItemId) {
-        return NextResponse.json(
-          { error: 'muxItemId is required for set_item action' },
-          { status: 400 }
-        );
-      }
-
-      const { data: muxItem, error: muxError } = await supabaseAdmin
-        .from('mux_items')
-        .select('id, playback_id, label, source_type, youtube_playlist_id, source_url')
-        .eq('id', muxItemId)
-        .single();
-
-      if (muxError || !muxItem) {
-        return NextResponse.json(
-          { error: 'Media item not found' },
-          { status: 404 }
-        );
-      }
-
-      const sourceType = muxItem.source_type || MUX_SOURCE_TYPE;
-
-      if (sourceType !== MUX_SOURCE_TYPE && sourceType !== YOUTUBE_PLAYLIST_SOURCE_TYPE) {
-        return NextResponse.json(
-          { error: 'Unsupported media source type for hold screen' },
-          { status: 400 }
-        );
-      }
-
-      if (sourceType === YOUTUBE_PLAYLIST_SOURCE_TYPE && !muxItem.youtube_playlist_id) {
-        return NextResponse.json(
-          { error: 'YouTube playlist hold screen is missing its playlist ID' },
-          { status: 400 }
-        );
-      }
-
-      // Set the hold screen item (but don't enable it yet)
-      const { data, error } = await supabaseAdmin
-        .from('current_stream')
-        .update({
-          hold_screen_mux_item_id: muxItemId,
-        })
-        .eq('id', 1)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to set hold screen item:', error);
-        return NextResponse.json(
-          { error: 'Failed to set hold screen item' },
-          { status: 500 }
-        );
-      }
-
-      // Log admin action
-      await supabaseAdmin.from('admin_actions').insert({
-        action_type: 'hold_screen_set_item',
-        admin_user: session.userId,
-        details: {
-          mux_item_id: muxItemId,
-          label: muxItem.label,
-          playback_id: muxItem.playback_id,
-          source_type: sourceType,
-          youtube_playlist_id: muxItem.youtube_playlist_id,
-          source_url: muxItem.source_url,
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        hold_screen_mux_item_id: data.hold_screen_mux_item_id,
-        hold_screen_enabled: data.hold_screen_enabled,
-        message: `Hold screen set to "${muxItem.label}"`,
-      });
-    }
-
-    // Enable or disable hold screen
-    if (action === 'enable' || action === 'disable') {
-      const enabled = action === 'enable';
-
-      const { data: currentData, error: currentError } = await supabaseAdmin
-        .from('current_stream')
-        .select('playout_mode, playback_id, playback_position, playback_state, hold_screen_mux_item_id, hold_screen_resume_playback_id, hold_screen_resume_position, hold_screen_resume_state')
-        .eq('id', 1)
-        .single();
-
-      if (currentError) {
-        console.error('Failed to load current stream for hold screen toggle:', currentError);
-        return NextResponse.json(
-          { error: 'Failed to toggle hold screen' },
-          { status: 500 }
-        );
-      }
-
-      if ((currentData?.playout_mode || 'schedule') === 'schedule') {
-        return NextResponse.json(
-          { error: 'Schedule mode is active. Switch to manual mode before toggling the manual hold screen.' },
-          { status: 409 }
-        );
-      }
-
-      // If enabling, make sure we have a hold screen item set
-      if (enabled) {
-        if (!currentData?.hold_screen_mux_item_id) {
-          return NextResponse.json(
-            { error: 'No hold screen item configured. Set one first.' },
-            { status: 400 }
-          );
-        }
-      }
-
-      const updatePayload: any = {
-        hold_screen_enabled: enabled,
-      };
-
-      if (enabled) {
-        updatePayload.playback_state = 'paused';
-        updatePayload.playback_position = 0;
-        updatePayload.playback_updated_at = new Date().toISOString();
-        updatePayload.playback_elapsed_ms = 0;
-        updatePayload.hold_screen_resume_playback_id = currentData?.playback_id || null;
-        updatePayload.hold_screen_resume_position = currentData?.playback_position ?? 0;
-        updatePayload.hold_screen_resume_state = currentData?.playback_state || 'paused';
-      } else {
-        const resumePlaybackId = currentData?.hold_screen_resume_playback_id || currentData?.playback_id;
-        const resumePosition = currentData?.hold_screen_resume_position ?? 0;
-        const resumeState = currentData?.hold_screen_resume_state || 'playing';
-
-        updatePayload.playback_id = resumePlaybackId;
-        updatePayload.playback_position = resumePosition;
-        updatePayload.playback_state = resumeState;
-        updatePayload.playback_updated_at = new Date().toISOString();
-        updatePayload.playback_elapsed_ms = 0;
-        updatePayload.hold_screen_resume_playback_id = null;
-        updatePayload.hold_screen_resume_position = null;
-        updatePayload.hold_screen_resume_state = null;
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from('current_stream')
-        .update(updatePayload)
-        .eq('id', 1)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to toggle hold screen:', error);
-        return NextResponse.json(
-          { error: 'Failed to toggle hold screen' },
-          { status: 500 }
-        );
-      }
-
-      // Log admin action
-      await supabaseAdmin.from('admin_actions').insert({
-        action_type: enabled ? 'hold_screen_enable' : 'hold_screen_disable',
-        admin_user: session.userId,
-        details: {
-          hold_screen_enabled: enabled,
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        hold_screen_enabled: data.hold_screen_enabled,
-        message: `Hold screen ${enabled ? 'enabled' : 'disabled'}`,
-      });
-    }
-
-    return NextResponse.json(
-      { error: 'Invalid action' },
-      { status: 400 }
-    );
+    return NextResponse.json({
+      success: true,
+      duplicate: Boolean(data.duplicate),
+      hold_screen_mux_item_id: data.stream.hold_screen_mux_item_id,
+      hold_screen_enabled: Boolean(data.stream.hold_screen_enabled),
+      playback_session_id: data.stream.playback_session_id,
+      message: action === 'set_item' ? 'Hold screen item saved' : `Hold screen ${action === 'enable' ? 'enabled' : 'disabled'}`,
+    }, { headers: NO_STORE });
   } catch (error) {
     console.error('Error updating hold screen:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_STORE });
   }
 }

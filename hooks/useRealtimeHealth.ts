@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useId } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CHANNEL_NAMES, REALTIME_CONFIG } from '@/lib/constants';
 
@@ -18,7 +18,10 @@ interface UseRealtimeHealthOptions {
 
 export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
   const { onStatusChange, enabled = true } = options;
+  const monitorId = useId();
   const [status, setStatus] = useState<RealtimeHealthStatus>('healthy');
+  const onStatusChangeRef = useRef(onStatusChange);
+  const channelGenerationRef = useRef(0);
   const lastHeartbeatRef = useRef<number>(Date.now());
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,12 +32,16 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
   const channelJoinedRef = useRef<boolean>(false);
   const isUnmountedRef = useRef<boolean>(false);
 
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
+
   const updateStatus = useCallback((newStatus: RealtimeHealthStatus) => {
     if (isUnmountedRef.current || statusRef.current === newStatus) return;
     statusRef.current = newStatus;
     setStatus(newStatus);
-    onStatusChange?.(newStatus);
-  }, [onStatusChange]);
+    onStatusChangeRef.current?.(newStatus);
+  }, []);
 
   const calculateBackoffDelay = useCallback((attempt: number): number => {
     const exponentialDelay = Math.min(
@@ -46,11 +53,19 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
   }, []);
 
   const cleanupChannel = useCallback(() => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    const channel = channelRef.current;
+    // Unsubscribe may synchronously report CLOSED. Retire ownership first so
+    // deliberate cleanup cannot schedule another reconnect.
+    channelRef.current = null;
     channelJoinedRef.current = false;
+    if (channel) void supabase.removeChannel(channel);
+  }, []);
+
+  const cancelReconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current !== null) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
   }, []);
 
   const cleanup = useCallback(() => {
@@ -58,12 +73,9 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
     }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
+    cancelReconnect();
     cleanupChannel();
-  }, [cleanupChannel]);
+  }, [cancelReconnect, cleanupChannel]);
 
   const scheduleReconnect = useCallback(() => {
     if (isUnmountedRef.current || !enabled || reconnectTimeoutRef.current) return;
@@ -102,7 +114,10 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
 
     cleanupChannel();
 
-    const channel = supabase.channel(CHANNEL_NAMES.HEALTH_CHECK, {
+    // Supabase reuses channels with the same topic. Each monitor and retry
+    // needs its own channel so the admin preview cannot remove the sidebar's
+    // health subscription (or reuse a channel still being unsubscribed).
+    const channel = supabase.channel(`${CHANNEL_NAMES.HEALTH_CHECK}:${monitorId}:${++channelGenerationRef.current}`, {
       config: {
         presence: {
           key: REALTIME_CONFIG.PRESENCE_KEY_HEALTH
@@ -118,9 +133,10 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
 
         channelJoinedRef.current = true;
         lastHeartbeatRef.current = Date.now();
+        cancelReconnect();
+        reconnectAttemptRef.current = 0;
         if (statusRef.current !== 'healthy') {
           updateStatus('healthy');
-          reconnectAttemptRef.current = 0;
           console.log('Realtime connection recovered');
         }
       })
@@ -131,6 +147,7 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
         if (subscriptionStatus === 'SUBSCRIBED') {
           channelJoinedRef.current = true;
           lastHeartbeatRef.current = Date.now();
+          cancelReconnect();
           reconnectAttemptRef.current = 0;
           updateStatus('healthy');
           console.log('Realtime connection healthy');
@@ -142,12 +159,13 @@ export function useRealtimeHealth(options: UseRealtimeHealthOptions = {}) {
         }
       });
 
-  }, [enabled, cleanupChannel, updateStatus, markChannelInterrupted]);
+  }, [enabled, monitorId, cleanupChannel, cancelReconnect, updateStatus, markChannelInterrupted]);
 
   subscribeRef.current = subscribe;
 
   useEffect(() => {
     if (!enabled) {
+      isUnmountedRef.current = true;
       cleanup();
       return;
     }

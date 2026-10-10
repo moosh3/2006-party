@@ -1,0 +1,15 @@
+# 2006 show surface
+
+The reference is the production's own companion microsite at https://www.artisticaccessibility.com/2006/show, including its cast buddy list, countdown and confessions pages.
+
+Keep the broadcast central. Desktop starts with expanded Safari and AIM windows; floating/resize controls remain available. Mobile uses Watch / Vote & Trivia / Chat / Extras with one mounted player and one game/chat state.
+
+Period personality comes from the collage wallpaper, original colorful wordmark, static pixel-art cast portraits, AIM away messages and small desktop diversions. Do not replace this with a contemporary dashboard or add decorative motion over the show.
+
+Audience-game tokens live in `components/game/game-zine.css`: warm paper, near-black masthead, lime for TRL/selection and pink for trivia/awards. Scope them to `.game-board`, not administration. Use Georgia/Times for editorial headings and Tahoma for controls. Keep flat rows, native inputs, explicit feedback and 44px mobile targets.
+
+Show-specific treatment is in `components/2006/show-personality.css`; mobile structure stays in `mobile-show.css`. Cast profiles open in the existing AIM dialogue so viewers do not navigate away from playback. Cast portraits use the complete original animated GIFs and display a source credit; original PNGs are only for pause/reduced-motion mode. A shared pause control stops all portrait animations. Essay drafts are explicitly saved in this browser, separately for each local viewer identity.
+
+Tapping a cast sprite replays that person's complete, untouched running GIF once inside their slot, then returns to idle. Names separately open Buddy Info. One shared local runner coordinates desktop and both mobile strips; pause, reduced motion, hidden tabs, navigation and responsive/panel changes cancel it. No animation changes broadcast playback or audience-game state. Keep original frame timings and transparency, avoid invented running frames or cropping the source canvas. Each person's running character is calibrated to the visible height of their original 48px idle portrait, rather than its padded canvas; keep that scale across screens. The roster stays in one horizontally scrollable row with 104px minimum slots, instead of shrinking characters or wrapping into a tall header. Portrait buttons are 64px high with 6px overhead clearance, measured across every original running frame. Transparent canvas padding may overflow the button; visible artwork must not be clipped or cover names or playback. Mobile name targets remain 44px and source attribution stays accessible. Routine status is announced without reserving a visual row. Reserve the same height in idle and running states to avoid moving the player. Running-asset provenance and integrity checks live alongside the original show-art checks.
+
+Use personal, concise, slightly playful copy. Clearly label outgoing links and separate chat, trivia, cast awards and the main TRL vote. Preserve captions, keyboard focus and reduced-motion behavior.

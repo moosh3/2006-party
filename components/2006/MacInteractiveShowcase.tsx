@@ -13,17 +13,17 @@ export function MailApp({ onStartEssay }: { onStartEssay: () => void }) {
     <div className="mac2006-mail-app">
       <div className="mac2006-app-menu"><span>Mail</span><span>File</span><span>Edit</span><span>Message</span><span>Mailbox</span><span>Window</span><span>Help</span></div>
       <div className="mac2006-mail-toolbar" aria-label="Mail actions">
-        <button type="button"><span className="mail-action-icon get-mail" aria-hidden="true" />Get Mail</button>
-        <button type="button"><span className="mail-action-icon reply" aria-hidden="true" />Reply</button>
-        <button type="button"><span className="mail-action-icon delete" aria-hidden="true" />Delete</button>
+        <button type="button" disabled title="Your one assignment is already here"><span className="mail-action-icon get-mail" aria-hidden="true" />Get Mail</button>
+        <button type="button" onClick={onStartEssay}><span className="mail-action-icon reply" aria-hidden="true" />Reply</button>
+        <button type="button" disabled title="You can’t delete your homework"><span className="mail-action-icon delete" aria-hidden="true" />Delete</button>
       </div>
       <div className="mac2006-mail-layout">
         <nav className="mac2006-mailboxes" aria-label="Mailboxes">
           <strong>Mailboxes</strong>
           <button type="button" aria-current="page"><span className="mailbox-icon inbox" aria-hidden="true" />Inbox <em>1</em></button>
-          <button type="button"><span className="mailbox-icon drafts" aria-hidden="true" />Drafts</button>
-          <button type="button"><span className="mailbox-icon sent" aria-hidden="true" />Sent</button>
-          <button type="button"><span className="mailbox-icon trash" aria-hidden="true" />Trash</button>
+          <button type="button" onClick={onStartEssay}><span className="mailbox-icon drafts" aria-hidden="true" />Drafts</button>
+          <button type="button" disabled><span className="mailbox-icon sent" aria-hidden="true" />Sent</button>
+          <button type="button" disabled><span className="mailbox-icon trash" aria-hidden="true" />Trash</button>
         </nav>
         <div className="mac2006-mail-reader">
           <div className="mac2006-message-list" aria-label="Inbox messages">
@@ -52,13 +52,14 @@ export function MailApp({ onStartEssay }: { onStartEssay: () => void }) {
 }
 
 export function TextEditApp({
-  promptIndex, setPromptIndex, draft, setDraft, saved, onSave,
+  promptIndex, setPromptIndex, draft, setDraft, saved, saveError, onSave,
 }: {
   promptIndex: number;
   setPromptIndex: (index: number) => void;
   draft: string;
   setDraft: (draft: string) => void;
   saved: boolean;
+  saveError?: string | null;
   onSave: () => void;
 }) {
   const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
@@ -83,6 +84,7 @@ export function TextEditApp({
           <textarea value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Essay draft" placeholder="Start writing here…" />
         </div>
       </div>
+      {saveError && <p className="show2006-save-error" role="alert">{saveError}</p>}
       <div className="mac2006-app-status"><span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span><span>{saved ? 'Saved on this computer' : 'Not saved'}</span></div>
     </div>
   );
@@ -108,7 +110,7 @@ export function ClippyAssistant({
       onAction: onOpenEssay,
     },
     saved: {
-      message: 'Your draft is saved on this computer. I’ll remind you again before time is up.',
+      message: 'Your draft is saved in this browser. Homework crisis averted. Keep writing?',
       action: 'Keep Writing',
       onAction: onOpenEssay,
     },

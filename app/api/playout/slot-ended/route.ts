@@ -1,67 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { canMarkActiveSlotEnded, resolveShowtimePlayout } from '@/lib/showtime';
+import { resolveShowtimePlayout } from '@/lib/showtime';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// Browser notifications are hints only. The authored schedule and known asset
+// duration determine when to enter hold, not an anonymous viewer's ended event.
 export async function POST(request: NextRequest) {
   try {
     const { slotId, playbackId } = await request.json();
-
-    if (!slotId || !playbackId) {
+    if (typeof slotId !== 'string' || typeof playbackId !== 'string') {
       return NextResponse.json({ error: 'slotId and playbackId are required' }, { status: 400 });
     }
-
-    const { data: current, error: currentError } = await supabaseAdmin
-      .from('current_stream')
-      .select('playout_mode, schedule_early_ended_slot')
-      .eq('id', 1)
-      .single();
-
-    if (currentError) {
-      return NextResponse.json({ error: 'Failed to read playout state' }, { status: 500 });
-    }
-
-    if ((current.playout_mode || 'schedule') !== 'schedule') {
-      return NextResponse.json({ success: true, ignored: true, reason: 'manual-mode' });
-    }
-
-    const resolved = resolveShowtimePlayout(new Date(), current.schedule_early_ended_slot);
-
-    if (resolved.activeSlotId !== slotId || resolved.playbackId !== playbackId) {
-      return NextResponse.json(
-        { success: true, ignored: true, reason: 'not-active-slot' },
-        { status: 202 }
-      );
-    }
-
-    if (!canMarkActiveSlotEnded(slotId, playbackId)) {
-      return NextResponse.json(
-        { success: true, ignored: true, reason: 'too-early' },
-        { status: 202 }
-      );
-    }
-
-    const commandId = `slot-ended-${slotId}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const { error } = await supabaseAdmin
-      .from('current_stream')
-      .update({
-        schedule_early_ended_slot: slotId,
-        schedule_early_ended_at: new Date().toISOString(),
-        last_playback_command: 'schedule_slot_ended',
-        last_command_id: commandId,
-      })
-      .eq('id', 1);
-
-    if (error) {
-      console.error('Failed to mark scheduled slot ended:', error);
-      return NextResponse.json({ error: 'Failed to mark scheduled slot ended' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, commandId });
-  } catch (error) {
-    console.error('Error marking scheduled slot ended:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { data, error } = await supabaseAdmin.rpc('get_playout_snapshot');
+    if (error || !data?.stream) return NextResponse.json({ error: 'Program feed unavailable' }, { status: 503 });
+    if (data.stream.playout_mode !== 'schedule') return NextResponse.json({ success: true, ignored: true, reason: 'manual-mode' });
+    const resolved = resolveShowtimePlayout(new Date(data.server_now), data.stream.schedule_early_ended_slot, data.stream.schedule_early_ended_at);
+    return NextResponse.json({
+      success: true, ignored: true,
+      reason: resolved.activeSlotId !== slotId || resolved.playbackId !== playbackId ? 'not-active-slot' : 'server-clock-authoritative',
+      isHoldScreen: resolved.isHoldScreen,
+    }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch {
+    return NextResponse.json({ error: 'Invalid end notification' }, { status: 400 });
   }
 }

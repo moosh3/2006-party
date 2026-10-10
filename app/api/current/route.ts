@@ -1,248 +1,96 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { generatePlaybackToken } from '@/lib/mux';
-import { isDevelopment } from '@/lib/config';
-import {
-  getCaptionTrackForPlaybackId,
-  resolveShowtimePlayout,
-  type PlayoutMode,
-} from '@/lib/showtime';
-import {
-  MUX_SOURCE_TYPE,
-  parseYouTubePlaylistPlaybackId,
-  type MediaSourceType,
-} from '@/lib/youtube';
+import { getProgramPlaybackToken } from '@/lib/mux';
+import { getCaptionTrackForPlaybackId, resolveShowtimePlayout } from '@/lib/showtime';
+import { MUX_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE, parseYouTubePlaylistPlaybackId, parseYouTubeVideoPlaybackId } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+const headers = { 'Cache-Control': 'no-store, max-age=0', 'Vercel-CDN-Cache-Control': 'no-store' };
 
-function waitingRoomResponse() {
-  return NextResponse.json({
-    playbackId: 'demo-playback-id',
-    title: '2006 — waiting for the program',
-    kind: 'vod',
-    token: 'unsigned',
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    showPoster: false,
-    isHoldScreen: true,
-    playoutMode: 'manual',
-    playbackState: 'paused',
-    playbackPosition: 0,
-    playbackUpdatedAt: new Date().toISOString(),
-    playbackElapsedMs: 0,
-    scheduleStatus: 'Waiting for operator',
-    activeSlotId: null,
-    activeAssetKey: null,
-    nextTransitionAt: null,
-    eventSlug: '2006',
-    scheduleTitle: '2006 run of show',
-    sourceType: MUX_SOURCE_TYPE,
-    youtubePlaylistId: null,
-    sourceUrl: null,
-    captionFilename: null,
-    captionUrl: null,
-    captionLabel: null,
-    captionLanguage: null,
-  }, {
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-    },
-  });
-}
-
-export async function GET(request: NextRequest) {
-  // Verify viewer authentication (client-side localStorage-based)
-  // In a production system, you might want to verify viewer data server-side
-  // For now, we'll allow access if the request comes from a browser context
-  
+/** One database-clock snapshot is the only authority for the queue and time.
+ * Never substitute a development clip when the actual database fails. */
+export async function GET() {
   try {
-    // Get current stream from database (including poster mode and hold screen flags)
-    const { data, error } = await supabaseAdmin
-      .from('current_stream')
-      .select(`
-        *,
-        hold_screen_mux_item:hold_screen_mux_item_id (
-          id,
-          playback_id,
-          label,
-          kind,
-          source_type,
-          youtube_playlist_id,
-          source_url
-        )
-      `)
-      .eq('id', 1)
-      .single();
-
-    if (error || !data) {
-      // DEVELOPMENT MODE: Return mock data if database is not configured
-      // This allows the UI to be tested without full Supabase setup
-      if (isDevelopment() || error?.message?.includes('connect')) {
-        console.log('⚠️  Development mode: Returning mock stream data');
-        const mockToken = 'mock-token-for-development';
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-        
-        return NextResponse.json({
-          playbackId: 'demo-playback-id',
-          title: '2006 program feed preview',
-          kind: 'vod',
-          token: mockToken,
-          expiresAt,
-          showPoster: false,
-          isHoldScreen: false,
-          playoutMode: 'manual',
-          playbackState: 'playing',
-          playbackPosition: 0,
-          playbackUpdatedAt: new Date().toISOString(),
-          playbackElapsedMs: 0,
-          sourceType: MUX_SOURCE_TYPE,
-          youtubePlaylistId: null,
-          sourceUrl: null,
-          captionFilename: null,
-          captionUrl: null,
-          captionLabel: null,
-          captionLanguage: null,
-        }, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-          },
-        });
-      }
-      
-      // An operator may not have loaded the first cue yet. That is a valid
-      // pre-show state, so keep audience and stage displays online with the
-      // branded slate instead of treating it as a connection failure.
-      return waitingRoomResponse();
+    const { data: snapshot, error } = await supabaseAdmin.rpc('get_playout_snapshot');
+    if (error || !snapshot?.stream) {
+      console.error('Program snapshot unavailable:', error?.code || 'missing-state');
+      return NextResponse.json({ error: 'Program feed unavailable' }, { status: 503, headers });
     }
-
-    const playoutMode: PlayoutMode = data.playout_mode || 'schedule';
-    let playbackId = data.playback_id;
-    let title = data.title;
-    let kind = data.kind;
-    let isHoldScreen = Boolean(data.hold_screen_enabled && data.hold_screen_mux_item_id);
-    let playbackState = data.playback_state || 'playing';
-    let playbackPosition = data.playback_position || 0;
-    let playbackUpdatedAt = data.playback_updated_at || new Date().toISOString();
-    let playbackElapsedMs = data.playback_elapsed_ms || 0;
-    let scheduleStatus: string | null = null;
-    let activeSlotId: string | null = null;
-    let activeAssetKey: string | null = null;
-    let nextTransitionAt: string | null = null;
-    let eventSlug: string | null = null;
-    let scheduleTitle: string | null = null;
-    let captionFilename: string | null = null;
-    let captionUrl: string | null = null;
-    let captionLabel: string | null = null;
-    let captionLanguage: string | null = null;
-    let sourceType: MediaSourceType = data.source_type || MUX_SOURCE_TYPE;
-    let youtubePlaylistId: string | null =
-      data.youtube_playlist_id || parseYouTubePlaylistPlaybackId(playbackId);
-    let sourceUrl: string | null = data.source_url || null;
-
-    if (playoutMode === 'schedule') {
-      const resolved = resolveShowtimePlayout(
-        new Date(),
-        data.schedule_early_ended_slot,
-        data.schedule_early_ended_at
-      );
-      playbackId = resolved.playbackId;
-      title = resolved.title;
-      kind = resolved.kind;
-      isHoldScreen = resolved.isHoldScreen;
-      playbackState = resolved.playbackState;
-      playbackPosition = resolved.playbackPosition;
-      playbackUpdatedAt = resolved.playbackUpdatedAt;
-      playbackElapsedMs = resolved.playbackElapsedMs;
-      scheduleStatus = resolved.status;
-      activeSlotId = resolved.activeSlotId;
-      activeAssetKey = resolved.activeAssetKey;
-      nextTransitionAt = resolved.nextTransitionAt;
-      eventSlug = resolved.eventSlug;
-      scheduleTitle = resolved.scheduleTitle;
-      captionFilename = resolved.captionFilename;
-      captionUrl = resolved.captionUrl;
-      captionLabel = resolved.captionLabel;
-      captionLanguage = resolved.captionLanguage;
-      sourceType = resolved.sourceType;
-      youtubePlaylistId = resolved.youtubePlaylistId;
-      sourceUrl = resolved.sourceUrl;
-    } else {
-      if (isHoldScreen && data.hold_screen_mux_item) {
-        const holdScreenItem = Array.isArray(data.hold_screen_mux_item)
-          ? data.hold_screen_mux_item[0]
-          : data.hold_screen_mux_item;
-
-        if (holdScreenItem) {
-          playbackId = holdScreenItem.playback_id;
-          title = holdScreenItem.label;
-          kind = holdScreenItem.kind || 'vod';
-          sourceType = holdScreenItem.source_type || MUX_SOURCE_TYPE;
-          youtubePlaylistId =
-            holdScreenItem.youtube_playlist_id || parseYouTubePlaylistPlaybackId(holdScreenItem.playback_id);
-          sourceUrl = holdScreenItem.source_url || null;
-        } else {
-          isHoldScreen = false;
-        }
-      } else if (isHoldScreen) {
-        isHoldScreen = false;
-      }
-
-      if (sourceType === MUX_SOURCE_TYPE) {
-        const captions = getCaptionTrackForPlaybackId(playbackId);
-        captionFilename = captions.captionFilename;
-        captionUrl = captions.captionUrl;
-        captionLabel = captions.captionLabel;
-        captionLanguage = captions.captionLanguage;
+    const data = snapshot.stream;
+    const serverNow = snapshot.server_now;
+    const nowMs = Date.parse(serverNow);
+    if (!Number.isFinite(nowMs)) throw new Error('Invalid program clock');
+    const mode = data.playout_mode || 'manual';
+    const resolved = mode === 'schedule' ? resolveShowtimePlayout(
+      new Date(nowMs), data.schedule_early_ended_slot, data.schedule_early_ended_at,
+    ) : null;
+    let playbackId = resolved?.playbackId || data.playback_id;
+    let title = resolved?.title || data.title;
+    let kind = resolved?.kind || data.kind || 'vod';
+    const isHoldScreen = resolved ? resolved.isHoldScreen : Boolean(data.hold_screen_enabled);
+    let sourceType = resolved?.sourceType || data.source_type || MUX_SOURCE_TYPE;
+    let youtubePlaylistId = resolved?.youtubePlaylistId || data.youtube_playlist_id || null;
+    let sourceUrl = resolved?.sourceUrl || data.source_url || null;
+    let duration = resolved || snapshot.playback_duration_seconds == null ? null : Number(snapshot.playback_duration_seconds);
+    if (duration !== null && (!Number.isFinite(duration) || duration <= 0)) duration = null;
+    if (!resolved && isHoldScreen) {
+      if (data.hold_screen_mux_item_id) {
+        const { data: hold, error: holdError } = await supabaseAdmin.from('mux_items')
+          .select('playback_id,label,kind,source_type,youtube_playlist_id,source_url,duration_seconds')
+          .eq('id', data.hold_screen_mux_item_id).single();
+        if (holdError || !hold) throw new Error('Configured hold asset unavailable');
+        playbackId = hold.playback_id;
+        title = hold.label || '2006 — hold screen';
+        kind = hold.kind || 'vod';
+        sourceType = hold.source_type || MUX_SOURCE_TYPE;
+        youtubePlaylistId = hold.youtube_playlist_id;
+        sourceUrl = hold.source_url;
+        duration = hold.duration_seconds === null ? null : Number(hold.duration_seconds);
+      } else {
+        playbackId = 'demo-playback-id';
+        title = '2006 — waiting for the program';
+        kind = 'vod'; sourceType = MUX_SOURCE_TYPE;
+        youtubePlaylistId = null; sourceUrl = null; duration = null;
       }
     }
-
-    // Generate playback token (or use unsigned if credentials not configured)
-    const token = sourceType === MUX_SOURCE_TYPE
-      ? await generatePlaybackToken(playbackId)
-      : 'unsigned';
-
-    // Calculate expiry time (1 hour from now)
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-
+    const playbackState = isHoldScreen ? 'playing' : resolved?.playbackState || data.playback_state || 'paused';
+    const anchor = resolved?.playbackUpdatedAt || data.playback_updated_at;
+    const basePosition = Number(resolved?.playbackPosition ?? data.playback_position ?? 0);
+    // Scheduled resolver has already calculated the position at this instant.
+    const elapsed = resolved ? 0 : playbackState === 'playing'
+      ? Math.max(0, (nowMs - Date.parse(anchor)) / 1000) : 0;
+    let position = Math.max(0, basePosition + (Number.isFinite(elapsed) ? elapsed : 0));
+    if (duration && duration > 0 && kind !== 'live') position = isHoldScreen ? position % duration : Math.min(position, duration);
+    if (resolved) duration = null;
+    const captions = resolved || (sourceType === MUX_SOURCE_TYPE ? getCaptionTrackForPlaybackId(playbackId) : null);
+    const access = sourceType === MUX_SOURCE_TYPE ? await getProgramPlaybackToken(playbackId, duration)
+      : { token: 'unsigned', expiresAt: new Date(Date.now() + 3_600_000).toISOString() };
+    const sessionId = resolved
+      ? `schedule:${resolved.activeSlotId || resolved.status}:${playbackId}:${isHoldScreen ? 'hold' : 'show'}`
+      : data.playback_session_id;
     return NextResponse.json({
-      playbackId,
-      title,
-      kind,
-      token,
-      expiresAt,
-      showPoster: data.show_poster || false,
-      isHoldScreen: isHoldScreen || false,
-      sourceType,
-      youtubePlaylistId,
-      sourceUrl,
-      playoutMode,
-      playbackState,
-      playbackPosition,
-      playbackUpdatedAt,
-      playbackElapsedMs,
-      scheduleStatus,
-      activeSlotId,
-      activeAssetKey,
-      nextTransitionAt,
-      eventSlug,
-      scheduleTitle,
-      captionFilename,
-      captionUrl,
-      captionLabel,
-      captionLanguage,
-    }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching current stream:', error);
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+      playbackId, title, kind, ...access,
+      showPoster: Boolean(data.show_poster), isHoldScreen,
+      sourceType, youtubePlaylistId: youtubePlaylistId || parseYouTubePlaylistPlaybackId(playbackId), sourceUrl,
+      youtubeVideoId: sourceType === YOUTUBE_VIDEO_SOURCE_TYPE ? parseYouTubeVideoPlaybackId(playbackId) : null,
+      playoutMode: mode, playbackState,
+      autoAdvanceEnabled: data.auto_advance_enabled === true,
+      playbackPosition: resolved?.playbackPosition ?? Number(data.playback_position || 0),
+      playbackUpdatedAt: anchor, playbackElapsedMs: 0,
+      serverNow, playbackSessionId: sessionId, playbackRevision: Number(data.playback_revision || 0),
+      playbackPositionSeconds: position, playbackDurationSeconds: duration,
+      scheduleStatus: resolved?.status || null, activeSlotId: resolved?.activeSlotId || null,
+      activeAssetKey: resolved?.activeAssetKey || null,
+      nextTransitionAt: resolved?.nextTransitionAt || snapshot.next_transition_at || null,
+      eventSlug: resolved?.eventSlug || '2006', scheduleTitle: resolved?.scheduleTitle || null,
+      captionFilename: captions?.captionFilename || null, captionUrl: captions?.captionUrl || null,
+      captionLabel: captions?.captionLabel || null,
+      captionLanguage: sourceType === YOUTUBE_VIDEO_SOURCE_TYPE ? 'en' : captions?.captionLanguage || null,
+      automationStatus: snapshot.automation_status, automationError: snapshot.automation_error || null,
+    }, { headers });
+  } catch (reason) {
+    console.error('Program feed error:', reason instanceof Error ? reason.message : 'Unknown error');
+    return NextResponse.json({ error: 'Program feed unavailable' }, { status: 503, headers });
   }
 }

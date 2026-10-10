@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRealtimeHealth } from '@/hooks/useRealtimeHealth';
+import { useRealtimeHealth, type RealtimeHealthStatus } from '@/hooks/useRealtimeHealth';
 import {
   CHANNEL_NAMES,
   DATABASE_TABLES,
@@ -18,6 +18,7 @@ interface HoldScreenMuxItem {
 }
 
 type PlayoutMode = 'manual' | 'schedule';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function formatTransition(value?: string | null) {
   if (!value) return 'None scheduled';
@@ -29,21 +30,99 @@ function formatTransition(value?: string | null) {
   }).format(new Date(value));
 }
 
+// A websocket reconnect can be momentary while the server-status poll remains
+// healthy. Show a warning only after it persists; confirmed offline is immediate.
+export function useSustainedRealtimeHealth(health: RealtimeHealthStatus) {
+  const [displayedHealth, setDisplayedHealth] = useState<RealtimeHealthStatus>('healthy');
+  useEffect(() => {
+    if (health === displayedHealth) return;
+    if (health === 'offline') {
+      setDisplayedHealth(health);
+      return;
+    }
+    const timer = window.setTimeout(() => setDisplayedHealth(health), health === 'healthy' ? 3000 : 5000);
+    return () => window.clearTimeout(timer);
+  }, [health, displayedHealth]);
+  return displayedHealth;
+}
+
 export default function PlaybackControls() {
   const [playbackState, setPlaybackState] = useState<'playing' | 'paused'>('paused');
   const [playoutMode, setPlayoutMode] = useState<PlayoutMode>('schedule');
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
   const [scheduleStatus, setScheduleStatus] = useState<string | null>(null);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [nextTransitionAt, setNextTransitionAt] = useState<string | null>(null);
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
+  const [playbackSessionId, setPlaybackSessionId] = useState<string | null>(null);
+  const [stateUnavailable, setStateUnavailable] = useState(true);
+  const [hasCheckedState, setHasCheckedState] = useState(false);
+  const stateRequestSequenceRef = useRef(0);
+  const stateControllerRef = useRef<AbortController | null>(null);
+  const messageTimerRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
   // Hold screen state
   const [holdScreenEnabled, setHoldScreenEnabled] = useState(false);
   const [holdScreenMuxItem, setHoldScreenMuxItem] = useState<HoldScreenMuxItem | null>(null);
-  const realtimeHealth = useRealtimeHealth();
+  const realtimeHealth = useSustainedRealtimeHealth(useRealtimeHealth());
   const [dismissedHealthAlert, setDismissedHealthAlert] = useState(false);
+
+  const clearMessageTimer = useCallback(() => {
+    if (messageTimerRef.current !== null) window.clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = null;
+  }, []);
+
+  const loadState = useCallback(async () => {
+    const sequence = ++stateRequestSequenceRef.current;
+    stateControllerRef.current?.abort();
+    const controller = new AbortController();
+    stateControllerRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch('/api/admin/playback-control', { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error(`Playback status returned ${response.status}`);
+      const data = await response.json();
+      if (sequence !== stateRequestSequenceRef.current) return false;
+      if (!['playing', 'paused'].includes(data.playback_state) || !['manual', 'schedule'].includes(data.playout_mode)) {
+        throw new Error('Incomplete playback status');
+      }
+      const manualSessionId = data.playout_mode === 'manual'
+        && typeof data.playback_session_id === 'string' && UUID.test(data.playback_session_id)
+        ? data.playback_session_id : null;
+      if (data.playout_mode === 'manual' && !manualSessionId) throw new Error('Manual cue identity unavailable');
+      setPlaybackSessionId(manualSessionId);
+      setStateUnavailable(false);
+      setHasCheckedState(true);
+      setPlaybackState(data.playback_state);
+      setPlayoutMode(data.playout_mode);
+      setAutoAdvanceEnabled(data.auto_advance_enabled === true);
+      setScheduleStatus(data.schedule_status || null);
+      setActiveSlotId(data.active_slot_id || null);
+      setNextTransitionAt(data.next_transition_at || null);
+      setActiveTitle(data.title || null);
+      return true;
+    } catch (err) {
+      if (sequence !== stateRequestSequenceRef.current) return false;
+      // A failed read must never leave controls armed with an old cue UUID.
+      setPlaybackSessionId(null);
+      setStateUnavailable(true);
+      setHasCheckedState(true);
+      console.error('Failed to load playback state:', err);
+      return false;
+    } finally {
+      window.clearTimeout(timeout);
+      if (stateControllerRef.current === controller) stateControllerRef.current = null;
+    }
+  }, []);
+
+  const invalidateStateRead = useCallback(() => {
+    stateRequestSequenceRef.current += 1;
+    stateControllerRef.current?.abort();
+    stateControllerRef.current = null;
+    clearMessageTimer();
+  }, [clearMessageTimer]);
 
   useEffect(() => {
     if (realtimeHealth === 'healthy') {
@@ -52,24 +131,6 @@ export default function PlaybackControls() {
   }, [realtimeHealth]);
 
   useEffect(() => {
-    // Load current playback state
-    async function loadState() {
-      try {
-        const response = await fetch('/api/admin/playback-control');
-        if (response.ok) {
-          const data = await response.json();
-          setPlaybackState(data.playback_state);
-          setPlayoutMode(data.playout_mode || 'schedule');
-          setScheduleStatus(data.schedule_status || null);
-          setActiveSlotId(data.active_slot_id || null);
-          setNextTransitionAt(data.next_transition_at || null);
-          setActiveTitle(data.title || null);
-        }
-      } catch (err) {
-        console.error('Failed to load playback state:', err);
-      }
-    }
-    
     // Load hold screen status
     async function loadHoldScreenStatus() {
       try {
@@ -98,33 +159,38 @@ export default function PlaybackControls() {
           table: DATABASE_TABLES.CURRENT_STREAM,
           filter: 'id=eq.1',
         },
-        (payload) => {
-          const newState = payload.new as any;
-          if (newState.playback_state) {
-            setPlaybackState(newState.playback_state);
-          }
-          if (newState.playout_mode) {
-            setPlayoutMode(newState.playout_mode);
-          }
-          if (newState.hold_screen_enabled !== undefined) {
-            setHoldScreenEnabled(newState.hold_screen_enabled);
-          }
-          loadState();
+        () => {
+          void loadState();
+          void loadHoldScreenStatus();
         }
       )
       .subscribe();
+    const interval = window.setInterval(() => {
+      if (!stateControllerRef.current) void loadState();
+    }, 3000);
 
     return () => {
       supabase.removeChannel(channel);
+      window.clearInterval(interval);
+      stateRequestSequenceRef.current += 1;
+      stateControllerRef.current?.abort();
+      clearMessageTimer();
     };
-  }, []);
+  }, [loadState, clearMessageTimer]);
 
   async function handlePlaybackControl(action: 'play' | 'pause') {
     if (playoutMode === 'schedule') {
-      setMessage({ type: 'error', text: 'Schedule mode is active. Switch to manual mode before sending playback commands.' });
+      setMessage({ type: 'error', text: 'Schedule mode is active. Switch to queue mode before sending playback commands.' });
+      return;
+    }
+    if (!playbackSessionId || stateUnavailable) {
+      setMessage({ type: 'error', text: 'Current cue status is unavailable. Reconnect before sending a playback command.' });
+      void loadState();
       return;
     }
 
+    const expectedSessionId = playbackSessionId;
+    invalidateStateRead();
     setLoading(true);
     setMessage(null);
 
@@ -136,7 +202,7 @@ export default function PlaybackControls() {
       const response = await fetch('/api/admin/playback-control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, commandId: crypto.randomUUID(), expectedSessionId }),
       });
 
       const data = await response.json();
@@ -149,16 +215,23 @@ export default function PlaybackControls() {
         });
         
         // Clear message after 3 seconds
-        setTimeout(() => setMessage(null), 3000);
+        messageTimerRef.current = window.setTimeout(() => setMessage(null), 3000);
+        await loadState();
       } else {
         // Revert optimistic update on error
         setPlaybackState(previousState);
         setMessage({ type: 'error', text: data.error || 'Failed to control playback' });
+        if (response.status === 409) {
+          setPlaybackSessionId(null);
+          await loadState();
+        }
       }
     } catch (error) {
       // Revert optimistic update on error
       setPlaybackState(previousState);
       setMessage({ type: 'error', text: 'Network error occurred' });
+      setPlaybackSessionId(null);
+      await loadState();
     } finally {
       setLoading(false);
     }
@@ -166,10 +239,17 @@ export default function PlaybackControls() {
 
   async function handleRestart() {
     if (playoutMode === 'schedule') {
-      setMessage({ type: 'error', text: 'Schedule mode is active. Switch to manual mode before restarting playback.' });
+      setMessage({ type: 'error', text: 'Schedule mode is active. Switch to queue mode before restarting playback.' });
+      return;
+    }
+    if (!playbackSessionId || stateUnavailable) {
+      setMessage({ type: 'error', text: 'Current cue status is unavailable. Reconnect before restarting playback.' });
+      void loadState();
       return;
     }
 
+    const expectedSessionId = playbackSessionId;
+    invalidateStateRead();
     setLoading(true);
     setMessage(null);
 
@@ -181,7 +261,7 @@ export default function PlaybackControls() {
       const response = await fetch('/api/admin/playback-control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: PLAYBACK_ACTIONS.RESTART }),
+        body: JSON.stringify({ action: PLAYBACK_ACTIONS.RESTART, commandId: crypto.randomUUID(), expectedSessionId }),
       });
 
       const data = await response.json();
@@ -193,30 +273,20 @@ export default function PlaybackControls() {
           text: 'Restarted video for all viewers' 
         });
         
-        setTimeout(() => setMessage(null), 3000);
+        messageTimerRef.current = window.setTimeout(() => setMessage(null), 3000);
+        await loadState();
       } else {
         // Revert optimistic update on error
         setMessage({ type: 'error', text: data.error || 'Failed to restart' });
         // Reload actual state
-        const stateResponse = await fetch('/api/admin/playback-control');
-        if (stateResponse.ok) {
-          const stateData = await stateResponse.json();
-          setPlaybackState(stateData.playback_state);
-        }
+        setPlaybackSessionId(null);
+        await loadState();
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Network error occurred' });
       // Revert optimistic update on error
-      try {
-        const stateResponse = await fetch('/api/admin/playback-control');
-        if (stateResponse.ok) {
-          const stateData = await stateResponse.json();
-          setPlaybackState(stateData.playback_state);
-        }
-      } catch (e) {
-        // Fallback
-        setPlaybackState('paused');
-      }
+      setPlaybackSessionId(null);
+      await loadState();
     } finally {
       setLoading(false);
     }
@@ -224,7 +294,7 @@ export default function PlaybackControls() {
 
   async function handleToggleHoldScreen() {
     if (playoutMode === 'schedule') {
-      setMessage({ type: 'error', text: 'Schedule mode uses the YAML hold asset during gaps. Switch to manual mode for manual hold screen control.' });
+      setMessage({ type: 'error', text: 'Schedule mode uses the scheduled hold screen during gaps. Switch to queue mode for queue hold screen control.' });
       return;
     }
 
@@ -233,6 +303,8 @@ export default function PlaybackControls() {
       return;
     }
 
+    invalidateStateRead();
+    setPlaybackSessionId(null);
     setLoading(true);
     setMessage(null);
 
@@ -246,7 +318,7 @@ export default function PlaybackControls() {
       const response = await fetch('/api/admin/hold-screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, commandId: crypto.randomUUID() }),
       });
 
       const data = await response.json();
@@ -260,7 +332,7 @@ export default function PlaybackControls() {
             : 'Hold screen disabled - resumed normal playback'
         });
         
-        setTimeout(() => setMessage(null), 3000);
+        messageTimerRef.current = window.setTimeout(() => setMessage(null), 3000);
       } else {
         // Revert optimistic update on error
         setHoldScreenEnabled(previousState);
@@ -271,11 +343,14 @@ export default function PlaybackControls() {
       setHoldScreenEnabled(previousState);
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
+      await loadState();
       setLoading(false);
     }
   }
 
   async function handleModeChange(mode: PlayoutMode) {
+    invalidateStateRead();
+    setPlaybackSessionId(null);
     setLoading(true);
     setMessage(null);
 
@@ -283,7 +358,7 @@ export default function PlaybackControls() {
       const response = await fetch('/api/admin/playout-mode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode }),
+        body: JSON.stringify({ mode, commandId: crypto.randomUUID() }),
       });
       const data = await response.json();
 
@@ -295,25 +370,36 @@ export default function PlaybackControls() {
         setActiveTitle(data.schedule?.title || null);
         setMessage({
           type: 'success',
-          text: mode === 'schedule' ? 'Schedule mode is now active' : 'Manual mode is now active',
+          text: mode === 'schedule' ? 'Schedule mode is now active' : 'Queue mode is now active',
         });
-        setTimeout(() => setMessage(null), 3000);
+        messageTimerRef.current = window.setTimeout(() => setMessage(null), 3000);
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to change playout mode' });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
+      await loadState();
       setLoading(false);
     }
   }
 
   const scheduleLocked = playoutMode === 'schedule';
+  const playbackLocked = scheduleLocked || stateUnavailable || !playbackSessionId;
+  const showRealtimeAlert = realtimeHealth !== 'healthy' && !dismissedHealthAlert;
+  const statusTitle = stateUnavailable
+    ? hasCheckedState ? 'Current cue unavailable' : 'Checking current cue…'
+    : showRealtimeAlert
+      ? realtimeHealth === 'offline' ? 'Live updates unavailable' : 'Live updates reconnecting'
+      : 'Playback status current';
+  const statusDetail = stateUnavailable
+    ? 'Playback controls stay disabled until cue status reconnects.'
+    : 'Server status refreshes every 3 seconds.';
 
   return (
     <div className="twitch-card p-4 border-t-4 border-twitch-purple">
       <h3 className="text-lg font-semibold mb-3 text-twitch-text flex items-center gap-2">
-        <div className="w-2 h-2 bg-twitch-purple rounded-full animate-pulse"></div>
+        <div className="w-2 h-2 bg-twitch-purple rounded-full" aria-hidden="true"></div>
         Synchronized Playback Control
       </h3>
       
@@ -322,27 +408,27 @@ export default function PlaybackControls() {
           <strong>Watch Party Mode:</strong> All viewers watch together in real-time
         </p>
         <p className="text-xs text-twitch-text-alt">
-          ✓ Everyone sees the same moment<br/>
-          ✓ Automatically syncs every 10 seconds<br/>
+          ✓ Viewers join the current point in the program<br/>
+          ✓ Server-clock queue transitions and continuous sync recovery<br/>
           ✓ Viewers can only control volume
         </p>
       </div>
 
       <div className="bg-twitch-darker border border-twitch-border rounded-lg p-3 mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Playout Mode</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1 basis-40">
+            <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Show control</p>
             <p className="text-sm text-twitch-text">
-              <strong>{playoutMode}</strong>
+              <strong>{stateUnavailable ? 'Checking mode…' : scheduleLocked ? 'Schedule' : 'Queue'}</strong>
               {scheduleLocked && scheduleStatus ? ` · ${scheduleStatus}` : ''}
             </p>
             <p className="text-xs text-twitch-text-alt mt-1">
               {scheduleLocked
                 ? `${activeTitle || activeSlotId || 'Hold screen'} · next transition ${formatTransition(nextTransitionAt)}`
-                : 'Manual queue and playback controls are active'}
+                : stateUnavailable ? 'Waiting for current show status.' : autoAdvanceEnabled ? playbackState === 'paused' ? 'Auto-advance on. Resume playback to continue the queue.' : 'Auto-advance on: the next cue starts when this video ends.' : 'Auto-advance off: you choose when to play the next cue.'}
             </p>
           </div>
-          <div className="flex rounded-lg overflow-hidden border border-twitch-border">
+          <div className="flex shrink-0 rounded-lg overflow-hidden border border-twitch-border">
             <button
               type="button"
               onClick={() => handleModeChange('schedule')}
@@ -365,7 +451,7 @@ export default function PlaybackControls() {
                   : 'bg-twitch-hover text-twitch-text hover:bg-twitch-gray'
               }`}
             >
-              Manual
+              Queue
             </button>
           </div>
         </div>
@@ -381,31 +467,27 @@ export default function PlaybackControls() {
         </div>
       )}
 
-      {realtimeHealth !== 'healthy' && !dismissedHealthAlert && (
-        <div className={`rounded p-3 mb-3 text-sm flex items-start gap-3 ${
-          realtimeHealth === 'degraded'
-            ? 'bg-yellow-500/10 border border-yellow-500 text-yellow-300'
-            : 'bg-error/10 border border-error text-error'
-        }`}>
-          <span className="text-lg" aria-hidden="true">
-            {realtimeHealth === 'degraded' ? '⚠️' : '❌'}
-          </span>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">
-              {realtimeHealth === 'degraded' ? 'Realtime connection is degraded.' : 'Realtime connection lost.'}
-            </p>
-            <p className="text-xs mt-1 opacity-80">
-              Viewers might experience stalls or resyncs. Refresh the dashboard or check your network to restore sync.
-            </p>
-          </div>
+      <div role="status" aria-live="polite" className={`rounded border p-3 mb-3 min-h-[88px] text-sm flex items-start gap-3 ${
+        stateUnavailable && hasCheckedState || showRealtimeAlert
+          ? realtimeHealth === 'offline' && !stateUnavailable
+            ? 'bg-error/10 border-error text-error'
+            : 'bg-yellow-500/10 border-yellow-500 text-yellow-300'
+          : 'bg-twitch-hover/50 border-twitch-border text-twitch-text-alt'
+      }`}>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm">{statusTitle}</p>
+          <p className="text-xs mt-1">{statusDetail}</p>
+        </div>
+        {showRealtimeAlert && !stateUnavailable && (
           <button
+            type="button"
             onClick={() => setDismissedHealthAlert(true)}
-            className="text-xs font-semibold uppercase tracking-wide hover:underline"
+            className="text-xs font-semibold hover:underline min-h-[44px] shrink-0"
           >
             Dismiss
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="space-y-3">
         {/* Current State */}
@@ -451,9 +533,9 @@ export default function PlaybackControls() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button
             onClick={() => handlePlaybackControl('play')}
-            disabled={loading || scheduleLocked || playbackState === 'playing'}
+            disabled={loading || playbackLocked || playbackState === 'playing'}
             className={`py-3 px-4 rounded font-medium text-sm transition-all min-h-[44px] ${
-              scheduleLocked || playbackState === 'playing'
+              playbackLocked || playbackState === 'playing'
                 ? 'bg-twitch-gray text-twitch-text-alt cursor-not-allowed'
                 : 'bg-success hover:bg-green-600 text-white'
             }`}
@@ -468,9 +550,9 @@ export default function PlaybackControls() {
 
           <button
             onClick={() => handlePlaybackControl('pause')}
-            disabled={loading || scheduleLocked || playbackState === 'paused'}
+            disabled={loading || playbackLocked || playbackState === 'paused'}
             className={`py-3 px-4 rounded font-medium text-sm transition-all min-h-[44px] ${
-              scheduleLocked || playbackState === 'paused'
+              playbackLocked || playbackState === 'paused'
                 ? 'bg-twitch-gray text-twitch-text-alt cursor-not-allowed'
                 : 'bg-yellow-600 hover:bg-yellow-700 text-white'
             }`}
@@ -485,9 +567,9 @@ export default function PlaybackControls() {
 
           <button
             onClick={handleRestart}
-            disabled={loading || scheduleLocked}
+            disabled={loading || playbackLocked}
             className={`py-3 px-4 rounded font-medium text-sm transition-all min-h-[44px] ${
-              scheduleLocked
+              playbackLocked
                 ? 'bg-twitch-gray text-twitch-text-alt cursor-not-allowed'
                 : 'bg-twitch-purple hover:bg-purple-700 text-white'
             }`}
@@ -510,7 +592,7 @@ export default function PlaybackControls() {
                 ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
                 : 'bg-yellow-600 hover:bg-yellow-700 text-white border-2 border-yellow-500'
             }`}
-            title={scheduleLocked ? 'Switch to manual mode to control the hold screen' : !holdScreenMuxItem && !holdScreenEnabled ? 'Set a hold screen in the library first' : holdScreenEnabled ? 'Disable hold screen' : 'Enable hold screen'}
+            title={scheduleLocked ? 'Switch to queue mode to control the hold screen' : !holdScreenMuxItem && !holdScreenEnabled ? 'Set a hold screen in the library first' : holdScreenEnabled ? 'Disable hold screen' : 'Enable hold screen'}
           >
             <div className="flex items-center justify-center gap-2">
               <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -524,7 +606,7 @@ export default function PlaybackControls() {
         <div className="text-xs text-twitch-text-alt bg-twitch-darker p-3 rounded border border-twitch-border">
           <strong className="text-twitch-text">Tip:</strong>{' '}
           {scheduleLocked
-            ? 'Schedule mode follows showtime.yaml. Switch to manual only for a deliberate override.'
+            ? 'Schedule follows the show timetable. Switching to Queue puts you in control of playback.'
             : 'Use Play/Pause to control all viewers at once. Hit Restart to begin the video from the start for everyone. Use Hold Screen for a looping intermission video.'}
         </div>
       </div>

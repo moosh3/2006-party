@@ -1,15 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import PlaybackControls from './PlaybackControls';
-import { MUX_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
+import { MUX_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE } from '@/lib/youtube';
+
+type OperatorMessage = { type: 'success' | 'warning' | 'error'; text: string };
+
+function messageClass(type: OperatorMessage['type']) {
+  if (type === 'warning') return 'bg-amber-50 border border-amber-300 text-amber-900';
+  if (type === 'error') return 'bg-red-50 border border-red-300 text-red-800';
+  return 'bg-green-50 border border-green-300 text-green-800';
+}
+
+function formatDuration(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Number((seconds % 60).toFixed(3));
+  return `${minutes + (remainder === 60 ? 1 : 0)}m ${remainder === 60 ? 0 : remainder}s`;
+}
+
+function mediaSourceLabel(sourceType: string) {
+  if (sourceType === MUX_SOURCE_TYPE) return 'Mux';
+  if (sourceType === YOUTUBE_VIDEO_SOURCE_TYPE) return 'YouTube Video';
+  if (sourceType === YOUTUBE_PLAYLIST_SOURCE_TYPE) return 'YouTube Playlist';
+  return 'Unknown source';
+}
 
 interface MediaItem {
   id: string;
   playback_id: string;
   label: string;
   kind: string;
-  duration_seconds?: number;
+  duration_seconds?: number | string | null;
   source_type?: string;
   youtube_playlist_id?: string | null;
   source_url?: string | null;
@@ -62,10 +83,16 @@ export default function StreamControl({
   const [currentStream, setCurrentStream] = useState<CurrentStream | null>(null);
   const [customPlaybackId, setCustomPlaybackId] = useState('');
   const [customTitle, setCustomTitle] = useState('');
+  const [customDuration, setCustomDuration] = useState('');
   const [youtubePlaylistUrl, setYoutubePlaylistUrl] = useState('');
   const [youtubePlaylistTitle, setYoutubePlaylistTitle] = useState('');
+  const [youtubeVideoUrl, setYoutubeVideoUrl] = useState('');
+  const [youtubeVideoTitle, setYoutubeVideoTitle] = useState('');
+  const [youtubeVideoDuration, setYoutubeVideoDuration] = useState('');
+  const [youtubeVideoCheckResult, setYoutubeVideoCheckResult] = useState<OperatorMessage | null>(null);
+  const videoFormId = useId();
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [message, setMessage] = useState<OperatorMessage | null>(null);
   
   // Hold screen state
   const [holdScreenMuxItemId, setHoldScreenMuxItemId] = useState<string | null>(null);
@@ -158,7 +185,8 @@ export default function StreamControl({
     kind: string = 'vod',
     sourceType: string = MUX_SOURCE_TYPE,
     youtubePlaylistId?: string | null,
-    sourceUrl?: string | null
+    sourceUrl?: string | null,
+    completionWarning?: string
   ) {
     setLoading(true);
     setMessage(null);
@@ -174,29 +202,31 @@ export default function StreamControl({
           sourceType,
           youtubePlaylistId,
           sourceUrl,
+          commandId: crypto.randomUUID(),
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ type: 'success', text: `Stream updated to: ${title}` });
+        const warning = [completionWarning, data.warning].filter(Boolean).join(' ');
+        setMessage({ type: warning ? 'warning' : 'success', text: `Stream updated to: ${title}${warning ? `. ${warning}` : ''}` });
         setCurrentStream(data.stream);
         setCustomPlaybackId('');
         setCustomTitle('');
         setYoutubePlaylistUrl('');
         setYoutubePlaylistTitle('');
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to update stream' });
+        setMessage({ type: 'error', text: `${data.error || 'Failed to update stream'}${completionWarning ? `. ${completionWarning}` : ''}` });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Network error occurred' });
+      setMessage({ type: 'error', text: `Network error occurred${completionWarning ? `. ${completionWarning}` : ''}` });
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleAddMuxItem() {
+  async function handleAddMuxItem(makeCurrent = false) {
     if (!customPlaybackId || !customTitle) {
       setMessage({ type: 'error', text: 'Playback ID and title are required' });
       return;
@@ -212,15 +242,109 @@ export default function StreamControl({
           label: customTitle,
           kind: 'vod',
           sourceType: MUX_SOURCE_TYPE,
+          durationSeconds: customDuration ? Number(customDuration) : undefined,
         }),
       });
 
+      const data = await response.json();
       if (response.ok) {
         await loadMuxItems();
-        setMessage({ type: 'success', text: 'Mux item added successfully' });
+        setMessage({ type: data.warning ? 'warning' : 'success', text: data.warning || 'Mux item added successfully' });
+        if (makeCurrent) await handleSetStream(data.item.playback_id, data.item.label, data.item.kind, MUX_SOURCE_TYPE, null, null, data.warning);
       } else {
-        const data = await response.json();
         setMessage({ type: 'error', text: data.error || 'Failed to add item' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Network error occurred' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCheckYouTubeVideo() {
+    const sourceUrl = youtubeVideoUrl.trim();
+    if (!sourceUrl) return;
+    setLoading(true);
+    setYoutubeVideoCheckResult(null);
+    try {
+      const response = await fetch(`/api/admin/youtube-video?url=${encodeURIComponent(sourceUrl)}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) {
+        setYoutubeVideoCheckResult({ type: 'error', text: data.error || 'Could not check this YouTube video' });
+        return;
+      }
+      if (data.metadataVerified === false) {
+        setYoutubeVideoCheckResult({ type: 'warning', text: data.warning || 'YouTube verification is unavailable. Enter the exact full duration and preview captions and embedding before the show.' });
+        return;
+      }
+      if (typeof data.durationSeconds !== 'number' || !Number.isFinite(data.durationSeconds) || data.durationSeconds <= 0) {
+        setYoutubeVideoCheckResult({ type: 'error', text: 'YouTube did not return a valid duration. Enter the exact duration before adding this video.' });
+        return;
+      }
+      setYoutubeVideoDuration(String(data.durationSeconds));
+      if (typeof data.title === 'string') setYoutubeVideoTitle((previous) => previous.trim() ? previous : data.title.slice(0, 200));
+      const captions = data.captionsAvailable === true
+        ? 'YouTube reports captions available; the player will request them on.'
+        : 'Caption availability is unverified. Auto-generated captions may still work; confirm captions in the embedded player before the show.';
+      setYoutubeVideoCheckResult({
+        type: data.warning || data.captionsAvailable !== true ? 'warning' : 'success',
+        text: [`Duration verified: ${data.durationSeconds} seconds.`,
+          data.captionsAvailable === true || !data.warning ? captions : '', data.warning || ''].filter(Boolean).join(' '),
+      });
+    } catch (error) {
+      setYoutubeVideoCheckResult({ type: 'error', text: 'Network error while checking YouTube. Your draft has been kept.' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddYouTubeVideo(makeCurrent = false) {
+    const sourceUrl = youtubeVideoUrl.trim();
+    const durationSeconds = youtubeVideoDuration.trim() ? Number(youtubeVideoDuration) : undefined;
+    if (!sourceUrl) {
+      setMessage({ type: 'error', text: 'YouTube video URL or ID is required' });
+      return;
+    }
+    if (durationSeconds !== undefined && (!Number.isFinite(durationSeconds) || durationSeconds <= 0)) {
+      setMessage({ type: 'error', text: 'Enter the exact video duration as a positive number of seconds' });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/admin/mux-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceType: YOUTUBE_VIDEO_SOURCE_TYPE,
+          sourceUrl,
+          label: youtubeVideoTitle.trim() || undefined,
+          durationSeconds,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.item) {
+        setMessage({ type: 'error', text: data.error || 'Failed to add YouTube video' });
+        return;
+      }
+
+      await loadMuxItems();
+      setYoutubeVideoUrl('');
+      setYoutubeVideoTitle('');
+      setYoutubeVideoDuration('');
+      setYoutubeVideoCheckResult(null);
+      setMessage({ type: data.warning ? 'warning' : 'success', text: `YouTube video added: ${data.item.label}${data.warning ? `. ${data.warning}` : ''}` });
+      if (makeCurrent) {
+        await handleSetStream(
+          data.item.playback_id,
+          data.item.label,
+          data.item.kind,
+          YOUTUBE_VIDEO_SOURCE_TYPE,
+          null,
+          data.item.source_url,
+          data.warning
+        );
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Network error occurred' });
@@ -562,7 +686,7 @@ export default function StreamControl({
               <p className="text-xs text-twitch-text-alt uppercase tracking-wider mb-1">Currently Streaming</p>
               <p className="font-semibold text-lg text-twitch-text">{currentStream.title}</p>
               <p className="text-xs text-twitch-text-alt mt-2 font-mono">
-                {currentStream.playback_id} • {currentStream.kind} • {currentStream.source_type || MUX_SOURCE_TYPE}
+                {currentStream.playback_id} • {currentStream.kind} • {mediaSourceLabel(currentStream.source_type || MUX_SOURCE_TYPE)}
               </p>
               {currentStream.source_url && (
                 <p className="text-xs text-twitch-text-alt mt-1 break-all">
@@ -576,11 +700,7 @@ export default function StreamControl({
           )}
 
           {message && (
-            <div className={`rounded p-4 mb-4 ${
-              message.type === 'success' 
-                ? 'bg-success/10 border border-success text-success' 
-                : 'bg-error/10 border border-error text-error'
-            }`}>
+            <div role="status" className={`rounded p-4 mb-4 ${messageClass(message.type)}`}>
               {message.text}
             </div>
           )}
@@ -590,6 +710,7 @@ export default function StreamControl({
       {/* Library Controls Section */}
       {showLibraryControls && (
         <>
+          {message && <p role="status" className={`rounded p-3 text-sm ${messageClass(message.type)}`}>{message.text}</p>}
           <div>
             <h3 className="text-lg font-semibold mb-3 text-twitch-text">Select from Library</h3>
             {muxItems.length === 0 ? (
@@ -598,8 +719,7 @@ export default function StreamControl({
               <div className="space-y-2">
                 {muxItems.map(item => {
                   const sourceType = item.source_type || MUX_SOURCE_TYPE;
-                  const isMux = sourceType === MUX_SOURCE_TYPE;
-
+                  const duration = Number(item.duration_seconds);
                   return (
                     <div key={item.id} className={`twitch-card p-4 ${holdScreenMuxItemId === item.id ? 'border-l-4 border-yellow-500' : ''}`}>
                       <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
@@ -607,7 +727,7 @@ export default function StreamControl({
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <p className="font-medium text-twitch-text">{item.label}</p>
                             <span className="text-xs font-semibold px-2 py-1 rounded bg-twitch-purple/20 text-twitch-purple">
-                              {isMux ? 'Mux' : 'YouTube Playlist'}
+                              {mediaSourceLabel(sourceType)}
                             </span>
                             {holdScreenMuxItemId === item.id && (
                               <span className="text-xs font-semibold px-2 py-1 rounded bg-yellow-500/20 text-yellow-500 flex items-center gap-1">
@@ -622,9 +742,9 @@ export default function StreamControl({
                           {item.source_url && (
                             <p className="text-xs text-twitch-text-alt break-all mt-1">{item.source_url}</p>
                           )}
-                          {item.duration_seconds && (
+                          {Number.isFinite(duration) && duration > 0 && (
                             <p className="text-xs text-twitch-text-alt">
-                              Duration: {Math.floor(item.duration_seconds / 60)}m {item.duration_seconds % 60}s
+                              Duration: {formatDuration(duration)}
                             </p>
                           )}
                         </div>
@@ -705,9 +825,16 @@ export default function StreamControl({
                   disabled={loading}
                 />
               </div>
+              <label className="block text-sm font-medium text-twitch-text">
+                Exact video duration (seconds)
+                <input type="number" min="0.001" step="any" value={customDuration}
+                  onChange={(event) => setCustomDuration(event.target.value)}
+                  className="twitch-input w-full mt-2" placeholder="e.g., 212.48" disabled={loading} />
+                <span className="block text-xs text-twitch-text-alt mt-1">Fetched from Mux when connected. Otherwise enter the full duration for automatic queue playback.</span>
+              </label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
-                  onClick={handleAddMuxItem}
+                  onClick={() => handleAddMuxItem()}
                   disabled={loading || !customPlaybackId || !customTitle}
                   className="twitch-button-secondary disabled:bg-twitch-gray disabled:cursor-not-allowed min-h-[44px]"
                 >
@@ -716,7 +843,7 @@ export default function StreamControl({
                 <button
                   onClick={() => {
                     if (customPlaybackId && customTitle) {
-                      handleSetStream(customPlaybackId, customTitle);
+                      handleAddMuxItem(true);
                     }
                   }}
                   disabled={loading || !customPlaybackId || !customTitle}
@@ -728,8 +855,52 @@ export default function StreamControl({
             </div>
           </div>
 
+          <form className="twitch-card p-4" onSubmit={(event) => { event.preventDefault(); void handleAddYouTubeVideo(); }}>
+            <h3 className="text-lg font-semibold mb-2 text-twitch-text">Add YouTube Video</h3>
+            <p className="text-sm text-twitch-text-alt mb-4">
+              One video, in the same timed queue as Mux assets. Captions are requested on by default when the video has them.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label htmlFor={`${videoFormId}-url`} className="block text-sm font-medium text-twitch-text mb-2">Video URL or ID</label>
+                <input id={`${videoFormId}-url`} type="text" value={youtubeVideoUrl}
+                  onChange={(event) => { setYoutubeVideoUrl(event.target.value); setYoutubeVideoCheckResult(null); }}
+                  className="twitch-input w-full min-h-[44px]" placeholder="https://www.youtube.com/watch?v=..." required maxLength={2048} disabled={loading} />
+                <button type="button" onClick={() => void handleCheckYouTubeVideo()} disabled={loading || !youtubeVideoUrl.trim()}
+                  className="twitch-button-secondary mt-2 disabled:bg-twitch-gray disabled:cursor-not-allowed min-h-[44px]">Check Video</button>
+                <p className="text-xs text-twitch-text-alt mt-1">Read-only check: fills the title and duration, and reports captions and embedding availability. Does not add or start the video.</p>
+              </div>
+              {youtubeVideoCheckResult && <p role="status" className={`rounded p-3 text-sm ${messageClass(youtubeVideoCheckResult.type)}`}>{youtubeVideoCheckResult.text}</p>}
+              <div>
+                <label htmlFor={`${videoFormId}-title`} className="block text-sm font-medium text-twitch-text mb-2">Title / label (optional)</label>
+                <input id={`${videoFormId}-title`} type="text" value={youtubeVideoTitle}
+                  onChange={(event) => setYoutubeVideoTitle(event.target.value)}
+                  className="twitch-input w-full min-h-[44px]" placeholder="e.g., TRL winner" maxLength={200} disabled={loading} />
+              </div>
+              <div>
+                <label htmlFor={`${videoFormId}-duration`} className="block text-sm font-medium text-twitch-text mb-2">Exact video duration (seconds)</label>
+                <input id={`${videoFormId}-duration`} type="number" min="0.001" step="any" value={youtubeVideoDuration}
+                  onChange={(event) => setYoutubeVideoDuration(event.target.value)} aria-describedby={`${videoFormId}-duration-help`}
+                  className="twitch-input w-full min-h-[44px]" placeholder="e.g., 213.5" disabled={loading} />
+                <p id={`${videoFormId}-duration-help`} className="text-xs text-twitch-text-alt mt-1">
+                  Fetched from YouTube when connected. Otherwise enter the full duration; the server uses it to advance the queue.
+                </p>
+              </div>
+              <p className="text-xs text-twitch-text-alt">
+                Preview each video before the show. Missing captions, ads, regional restrictions, and embedding restrictions can make YouTube less predictable than Mux.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button type="submit" disabled={loading || !youtubeVideoUrl.trim()}
+                  className="twitch-button-secondary disabled:bg-twitch-gray disabled:cursor-not-allowed min-h-[44px]">Add to Library</button>
+                <button type="button" onClick={() => void handleAddYouTubeVideo(true)} disabled={loading || !youtubeVideoUrl.trim()}
+                  className="twitch-button disabled:bg-twitch-gray disabled:cursor-not-allowed min-h-[44px]">Add &amp; Make Current</button>
+              </div>
+            </div>
+          </form>
+
           <div className="twitch-card p-4">
             <h3 className="text-lg font-semibold mb-3 text-twitch-text">Add YouTube Playlist</h3>
+            <p className="text-xs text-twitch-text-alt mb-3">Ambient hold only: each viewer runs their own playlist. Use a single YouTube video or Mux asset for the synchronized queue.</p>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-twitch-text mb-2">

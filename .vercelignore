@@ -1,9 +1,12 @@
 node_modules
 .next
+tsconfig.tsbuildinfo
 .env*.local
 *.log
 .DS_Store
 slices
 PRD.md
 foundation-setup.plan.md
-
+supabase/.temp
+.room-player
+tools/room-player

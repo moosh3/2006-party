@@ -256,7 +256,10 @@ export function resolveShowtimePlayoutFor(
     const nextSlot = showtime.schedule[index + 1] ?? null;
 
     if (nowMs >= slot.startUtcMs && nowMs < slot.endUtcMs) {
-      if (earlyEndedSlotId === slot.id) {
+      const duration = slot.assetDetails.durationSeconds;
+      const mediaEndsAt = duration && slot.assetDetails.kind !== 'live'
+        ? slot.startUtcMs + duration * 1000 : null;
+      if (earlyEndedSlotId === slot.id || (mediaEndsAt !== null && nowMs >= mediaEndsAt)) {
         return holdPlayout(
           showtime,
           holdAsset,
@@ -265,7 +268,7 @@ export function resolveShowtimePlayoutFor(
           nextSlot?.startIso ?? slot.endIso,
           slot.id,
           slot.asset,
-          parseTimestamp(earlyEndedAt) ?? nowMs
+          mediaEndsAt !== null && nowMs >= mediaEndsAt ? mediaEndsAt : parseTimestamp(earlyEndedAt) ?? nowMs
         );
       }
 
@@ -280,7 +283,7 @@ export function resolveShowtimePlayoutFor(
         sourceUrl: slot.assetDetails.sourceUrl || null,
         isHoldScreen: false,
         playbackState: 'playing',
-        playbackPosition: Math.max(0, Math.floor((nowMs - slot.startUtcMs) / 1000)),
+        playbackPosition: Math.max(0, (nowMs - slot.startUtcMs) / 1000),
         playbackUpdatedAt: now.toISOString(),
         playbackElapsedMs: 0,
         activeSlotId: slot.id,
@@ -390,7 +393,7 @@ function requireAssets(rawAssets?: Record<string, RawAsset>): Record<string, Sho
       if (!asset.playbackId) {
         throw new Error(`assets.${key}.playbackId is required`);
       }
-      if (asset.durationSeconds !== undefined && asset.durationSeconds <= 0) {
+      if (asset.durationSeconds !== undefined && (!Number.isFinite(asset.durationSeconds) || asset.durationSeconds <= 0)) {
         throw new Error(`assets.${key}.durationSeconds must be greater than 0`);
       }
       const sourceType = normalizeAssetSourceType(asset, key);
@@ -519,8 +522,8 @@ function holdPlayout(
 ): ResolvedSchedulePlayout {
   const elapsedSeconds = (now.getTime() - holdSinceMs) / 1000;
   const playbackPosition = holdAsset.durationSeconds
-    ? Math.floor(positiveModulo(elapsedSeconds, holdAsset.durationSeconds) + 0.001)
-    : 0;
+    ? positiveModulo(elapsedSeconds, holdAsset.durationSeconds)
+    : holdAsset.sourceType === MUX_SOURCE_TYPE ? Math.max(0, elapsedSeconds) : 0;
 
   return {
     mode: 'schedule',

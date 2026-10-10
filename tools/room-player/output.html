@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>2006 — Room output</title>
+    <link rel="stylesheet" href="/room.css" />
+  </head>
+  <body class="room-output">
+    <main id="projection" aria-label="Audience display">
+      <div id="hold-layer" class="output-layer" hidden>
+        <video id="hold-video" playsinline muted loop preload="auto" hidden></video>
+        <img id="hold-image" alt="" hidden />
+        <div id="holding-fallback" class="holding-fallback">
+          <span>2006</span>
+          <span>THE YEAR. THE SHOW.</span>
+        </div>
+      </div>
+      <div id="cue-layer" class="output-layer" hidden>
+        <video id="cue-video" playsinline preload="auto" hidden></video>
+        <img id="cue-image" alt="" hidden />
+      </div>
+      <div id="black-layer" class="output-layer" aria-hidden="true"></div>
+    </main>
+    <audio id="sound-audio" preload="auto" hidden></audio>
+    <section id="output-setup" class="output-setup" aria-labelledby="setup-title">
+      <h1 id="setup-title">Room output</h1>
+      <p>Move this window to the audience display. Keep the operator window on your laptop.</p>
+      <button id="arm-output" type="button">Enable sound &amp; fullscreen</button>
+      <p id="setup-message" role="status">Click once before the show. Playback is controlled from the operator window.</p>
+    </section>
+    <script type="module" src="/output.mjs"></script>
+  </body>
+</html>

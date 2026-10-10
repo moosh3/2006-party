@@ -83,6 +83,12 @@ assert.equal(endedEarly.status, 'ended-early');
 assert.equal(endedEarly.isHoldScreen, true);
 assert.equal(endedEarly.playbackPosition, 0);
 
+const timedShow = parseShowtimeYaml(baseYaml.replace('playbackId: movie-playback', 'playbackId: movie-playback\n    durationSeconds: 600'));
+const automaticScheduledHold = resolveShowtimePlayoutFor(timedShow, new Date('2026-07-04T14:11:00.000Z'));
+assert.equal(automaticScheduledHold.status, 'ended-early');
+assert.equal(automaticScheduledHold.isHoldScreen, true);
+assert.equal(automaticScheduledHold.playbackPosition, 60);
+
 const wallClockTakeover = resolveShowtimePlayoutFor(
   showtime,
   new Date('2026-07-04T17:05:00.000Z'),

@@ -16,8 +16,6 @@ export default function PollCard({ pollId, userId }: PollCardProps) {
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [answerText, setAnswerText] = useState('');
-  const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
   // Load initial poll data
   useEffect(() => {
@@ -147,6 +145,12 @@ export default function PollCard({ pollId, userId }: PollCardProps) {
       const viewerData = getViewerData();
       const userName = viewerData?.displayName || 'Anonymous';
 
+      const joined = await fetch('/api/game', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'join', name: userName.slice(0, 20) }),
+      });
+      if (!joined.ok) { setError((await joined.json()).error || 'Unable to join voting'); return; }
+
       const response = await fetch('/api/polls/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,49 +166,15 @@ export default function PollCard({ pollId, userId }: PollCardProps) {
         const data = await response.json();
         setError(data.error || 'Failed to vote');
       }
-      // Don't need to update state here - Realtime will handle it
+      if (response.ok) {
+        const updated = await fetch(`/api/polls/${pollId}`);
+        if (updated.ok) setPoll((await updated.json()).poll);
+      }
     } catch (err) {
       setError('Network error. Please try again.');
       console.error('Vote error:', err);
     } finally {
       setVoting(false);
-    }
-  }
-
-  async function handleSubmitAnswer(e: React.FormEvent) {
-    e.preventDefault();
-    if (!poll?.is_open || submittingAnswer || !answerText.trim()) return;
-
-    setSubmittingAnswer(true);
-    setError(null);
-
-    try {
-      const viewerData = getViewerData();
-      const userName = viewerData?.displayName || 'Anonymous';
-
-      const response = await fetch('/api/polls/answer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pollId,
-          userId,
-          userName,
-          answer: answerText.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.error || 'Failed to submit answer');
-      } else {
-        setAnswerText('');
-        // Realtime will bring in the new option; no local state update needed
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Submit answer error:', err);
-    } finally {
-      setSubmittingAnswer(false);
     }
   }
 
@@ -242,7 +212,7 @@ export default function PollCard({ pollId, userId }: PollCardProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <span className={`twitch-badge ${!poll.is_open && 'bg-casual-mint text-casual-dark'}`}>
-              {poll.is_open ? (poll.type === 'open' ? 'Add an answer or vote' : 'Vote Now') : 'Closed'}
+              {poll.is_open ? 'Vote Now' : 'Closed'}
             </span>
           </div>
           <h3 className="text-sm font-semibold text-casual-dark">{poll.question}</h3>
@@ -256,29 +226,12 @@ export default function PollCard({ pollId, userId }: PollCardProps) {
 
       {/* Submit an answer (open polls only) */}
       {poll.type === 'open' && poll.is_open && (
-        <form onSubmit={handleSubmitAnswer} className="flex gap-2">
-          <input
-            type="text"
-            value={answerText}
-            onChange={(e) => setAnswerText(e.target.value)}
-            placeholder="type your answer..."
-            maxLength={280}
-            disabled={submittingAnswer}
-            className="twitch-input flex-1 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={submittingAnswer || !answerText.trim()}
-            className="twitch-button text-sm px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submittingAnswer ? '...' : 'Add'}
-          </button>
-        </form>
+        <p className="text-sm">Send new suggestions through the Superlatives tab for host approval.</p>
       )}
 
       {poll.type === 'open' && poll.options.length === 0 && (
         <p className="text-sm text-casual-dark/60 text-center py-2">
-          No answers yet — be the first!
+          No approved choices yet.
         </p>
       )}
 
@@ -384,4 +337,3 @@ export default function PollCard({ pollId, userId }: PollCardProps) {
     </div>
   );
 }
-

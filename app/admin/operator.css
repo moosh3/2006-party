@@ -1,0 +1,28 @@
+.operator-desktop {
+  --operator-paper: oklch(0.98 0.008 250);
+  --operator-chrome: oklch(0.93 0.015 250);
+  --operator-rule: oklch(0.78 0.025 250);
+  --operator-ink: oklch(0.32 0.05 250);
+  --operator-blue: oklch(0.45 0.11 250);
+  background: var(--operator-chrome);
+  color: var(--operator-ink);
+  font-family: Tahoma, Arial, sans-serif;
+}
+.operator-desktop header { background: var(--operator-paper); }
+.operator-desktop .twitch-card { background: var(--operator-paper); border: 1px solid var(--operator-rule); border-radius: 6px; backdrop-filter: none; box-shadow: 0 2px 6px oklch(0.3 0.02 250 / 0.08); }
+.operator-desktop :is(.text-twitch-purple, .text-twitch-text) { color: var(--operator-ink); }
+.operator-desktop .text-twitch-text-alt { color: oklch(0.44 0.025 250); }
+.operator-desktop .text-error { color: oklch(0.45 0.16 25); }
+.operator-desktop :is(.text-yellow-300, .text-yellow-500) { color: oklch(0.43 0.09 80); }
+.operator-desktop .text-purple-400 { color: var(--operator-blue); }
+.operator-desktop .bg-twitch-purple { background: var(--operator-blue); }
+.operator-desktop :is(.twitch-button, .twitch-button-secondary) { background: var(--operator-chrome); border: 1px solid var(--operator-rule); border-radius: 4px; box-shadow: none; color: var(--operator-ink); transform: none; }
+.operator-desktop .twitch-button { background: var(--operator-blue); color: var(--operator-paper); }
+.operator-desktop :is(.twitch-button, .twitch-button-secondary):hover { filter: brightness(0.96); transform: none; }
+.operator-desktop .twitch-input { background: var(--operator-paper); border: 1px solid var(--operator-rule); border-radius: 4px; backdrop-filter: none; }
+.operator-desktop :is(button, input, select, textarea) { font-family: inherit; }
+.operator-desktop button:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (max-width: 650px) {
+  .operator-desktop :is(input, textarea, select) { font-size: 16px; }
+  .operator-desktop :is(button, select) { min-height: 44px; }
+}

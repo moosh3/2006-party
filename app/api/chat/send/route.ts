@@ -1,30 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { audienceViewer } from '@/lib/audience-sign-on';
+import { sameOrigin } from '@/lib/game-server';
+
+export const dynamic = 'force-dynamic';
+const privateHeaders = { 'Cache-Control': 'private, no-store' };
+const json = (body: object, status = 200) =>
+  NextResponse.json(body, { status, headers: privateHeaders });
 
 export async function POST(request: NextRequest) {
   try {
-    const { room = 'event', userName, body, userId } = await request.json();
-
-    // Validate required fields
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 401 }
-      );
+    try {
+      sameOrigin(request);
+    } catch {
+      return json({ error: 'Invalid request origin' }, 403);
     }
+    // The Mac sign-on cookie is canonical. Submitted names and IDs are labels,
+    // not credentials, and must never let a viewer impersonate someone else.
+    const viewer = await audienceViewer();
+    if (!viewer || viewer.blocked) {
+      return json({ error: 'Sign on to participate, or contact the host if participation is unavailable.' }, 403);
+    }
+    const userId = viewer.id;
+    const userName = viewer.name;
+    let input: unknown;
+    try {
+      input = await request.json();
+    } catch {
+      return json({ error: 'Message body is required' }, 400);
+    }
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return json({ error: 'Message body is required' }, 400);
+    }
+    const { room = 'event', body } = input as { room?: unknown; body?: unknown };
 
-    if (!userName || !body) {
-      return NextResponse.json(
-        { error: 'userName and body are required' },
-        { status: 400 }
-      );
+    // Preserve existing message limits and escaping after identity validation.
+    if (typeof body !== 'string' || !body) {
+      return json({ error: 'Message body is required' }, 400);
     }
 
     if (body.length > 600) {
-      return NextResponse.json(
-        { error: 'Message too long (max 600 characters)' },
-        { status: 400 }
-      );
+      return json({ error: 'Message too long (max 600 characters)' }, 400);
     }
 
     // Check rate limit
@@ -42,10 +58,7 @@ export async function POST(request: NextRequest) {
 
       if (timeSinceLastMessage < rateLimitMs) {
         const waitTime = Math.ceil((rateLimitMs - timeSinceLastMessage) / 1000);
-        return NextResponse.json(
-          { error: `Please wait ${waitTime} seconds before sending another message` },
-          { status: 429 }
-        );
+        return json({ error: `Please wait ${waitTime} seconds before sending another message` }, 429);
       }
     }
 
@@ -56,10 +69,7 @@ export async function POST(request: NextRequest) {
       .trim();
 
     if (!sanitizedBody) {
-      return NextResponse.json(
-        { error: 'Message cannot be empty' },
-        { status: 400 }
-      );
+      return json({ error: 'Message cannot be empty' }, 400);
     }
 
     // Insert message
@@ -77,10 +87,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Failed to insert message:', error);
-      return NextResponse.json(
-        { error: 'Failed to send message' },
-        { status: 500 }
-      );
+      return json({ error: 'Failed to send message' }, 500);
     }
 
     // Update rate limit
@@ -91,17 +98,26 @@ export async function POST(request: NextRequest) {
         last_msg_at: new Date().toISOString(),
       });
 
-    return NextResponse.json({
+    return json({
       success: true,
       id: message.id,
       createdAt: message.created_at,
-    }, { status: 201 });
+      // Explicit public fields only: accepted-message rendering must not wait
+      // for a websocket echo, nor expose a viewer's private session data.
+      message: {
+        id: message.id,
+        room: message.room,
+        user_id: message.user_id,
+        user_name: message.user_name,
+        body: message.body,
+        kind: message.kind,
+        created_at: message.created_at,
+        reactions: [],
+        viewerReaction: null,
+      },
+    }, 201);
   } catch (error) {
-    console.error('Error sending message:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Chat send is temporarily unavailable');
+    return json({ error: 'Chat is temporarily unavailable. Please try again.' }, 503);
   }
 }
-

@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getViewerData } from '@/lib/viewer';
+import { useChatMessages } from '@/hooks/useChatMessages';
+import type { ChatMessage as Message } from '@/lib/chat-message-state';
 import PollCard from './PollCard';
 import AimWindow from './aim/AimWindow';
 import {
   ROOM_NAMES,
   CHANNEL_NAMES,
-  DATABASE_TABLES,
   CHAT_SLOWMODE_SECONDS,
   MAX_MESSAGE_LENGTH,
 } from '@/lib/constants';
@@ -17,31 +18,19 @@ import {
   REACTION_GLYPH,
   REACTION_LABEL,
   type MessageReaction,
-  type MessageReactionSummary,
 } from '@/lib/reactions';
-
-interface Message {
-  id: number;
-  user_id: string;
-  user_name: string;
-  body: string;
-  kind: 'user' | 'system' | 'poll';
-  created_at: string;
-  reactions?: MessageReactionSummary[];
-  viewerReaction?: MessageReaction | null;
-}
 
 interface ChatProps {
   room?: string;
   userId: string;
+  screenName?: string;
   embedded?: boolean;
 }
 
-export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = false }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, screenName, embedded = false }: ChatProps) {
+  const { messages, loading, connectionStatus, syncError, refresh, acceptMessage, updateMessage } = useChatMessages(room, userId);
   const [messageBody, setMessageBody] = useState('');
   const [userName, setUserName] = useState('');
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
@@ -50,9 +39,24 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const actionGenerationRef = useRef(0);
+
+  useEffect(() => {
+    const generation = actionGenerationRef.current + 1;
+    actionGenerationRef.current = generation;
+    setMessageBody('');
+    setSending(false);
+    setReactingMessageId(null);
+    setActiveReactionMessageId(null);
+    setRateLimitSeconds(0);
+    setError(null);
+    setAutoScroll(true);
+    return () => { actionGenerationRef.current = generation + 1; };
+  }, [room, userId]);
 
   // Load user name from viewer registration data
   useEffect(() => {
+    if (screenName) { setUserName(screenName); return; }
     const viewerData = getViewerData();
     if (viewerData?.displayName) {
       setUserName(viewerData.displayName);
@@ -60,126 +64,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
       // Fallback for guests who haven't registered
       setUserName('Guest');
     }
-  }, []);
-
-  // Load (or reload) the message list. Also used to backfill anything missed
-  // while the realtime socket was dead — mobile browsers kill websockets
-  // aggressively when the tab backgrounds or the phone locks.
-  const loadMessages = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({
-        room,
-        limit: '100',
-        userId,
-      });
-      const response = await fetch(`/api/chat/messages?${params.toString()}`, {
-        cache: 'no-store',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const fetched: Message[] = data.messages || [];
-        // Keep any realtime messages that arrived while the fetch was in
-        // flight (they'd be newer than the last row the server returned).
-        setMessages((prev) => {
-          const fetchedIds = new Set(fetched.map((m) => m.id));
-          const newer = prev.filter(
-            (m) => !fetchedIds.has(m.id) && m.id > (fetched[fetched.length - 1]?.id ?? 0)
-          );
-          return [...fetched, ...newer];
-        });
-      } else {
-        // Development mode: Show a helpful system message
-        console.log('⚠️  Development mode: Chat requires Supabase configuration');
-        setMessages([{
-          id: 1,
-          user_id: 'system',
-          user_name: 'System',
-          body: 'Chat preview is ready. Configure Supabase to enable real-time messages.',
-          kind: 'system' as const,
-          created_at: new Date().toISOString(),
-        }]);
-      }
-    } catch (err) {
-      console.error('Failed to load messages:', err);
-      setMessages([{
-        id: 1,
-        user_id: 'system',
-        user_name: 'System',
-        body: 'Unable to connect to chat. Check your network connection.',
-        kind: 'system' as const,
-        created_at: new Date().toISOString(),
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  }, [room, userId]);
-
-  // Initial load
-  useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
-
-  // Refetch when the tab becomes visible again — the realtime channel may
-  // have silently dropped messages while the phone was asleep.
-  useEffect(() => {
-    const handleResume = () => {
-      if (document.visibilityState === 'visible') {
-        loadMessages();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleResume);
-    window.addEventListener('pageshow', handleResume);
-    return () => {
-      document.removeEventListener('visibilitychange', handleResume);
-      window.removeEventListener('pageshow', handleResume);
-    };
-  }, [loadMessages]);
-
-  // Subscribe to new messages
-  useEffect(() => {
-    const channel = supabase
-      .channel(CHANNEL_NAMES.CHAT_ROOM(room))
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: DATABASE_TABLES.MESSAGES,
-          filter: `room=eq.${room}`,
-        },
-        (payload) => {
-          const newMessage = {
-            ...(payload.new as Message),
-            reactions: [],
-            viewerReaction: null,
-          };
-          setMessages((prev) => [...prev, newMessage]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: DATABASE_TABLES.MESSAGE_REACTIONS,
-        },
-        () => {
-          loadMessages();
-        }
-      )
-      .subscribe((status) => {
-        // Fires on initial join AND every rejoin after a reconnect — refetch
-        // so messages inserted while the socket was down aren't lost.
-        if (status === 'SUBSCRIBED') {
-          loadMessages();
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [room, loadMessages]);
+  }, [screenName]);
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -229,7 +114,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [loading]);
 
   // Rate limit countdown
   useEffect(() => {
@@ -248,6 +133,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
 
     setSending(true);
     setError(null);
+    const generation = actionGenerationRef.current;
 
     try {
       const response = await fetch('/api/chat/send', {
@@ -262,6 +148,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
       });
 
       const data = await response.json();
+      if (generation !== actionGenerationRef.current) return;
 
       if (response.status === 429) {
         const match = data.error.match(/(\d+) seconds/);
@@ -270,26 +157,12 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
         }
         setError(data.error);
       } else if (!response.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          setMessages((previous) => [
-            ...previous,
-            {
-              id: Date.now(),
-              user_id: userId,
-              user_name: userName,
-              body: messageBody.trim(),
-              kind: 'user',
-              created_at: new Date().toISOString(),
-              reactions: [],
-              viewerReaction: null,
-            },
-          ]);
-          setMessageBody('');
-          setRateLimitSeconds(CHAT_SLOWMODE_SECONDS);
-          return;
-        }
         setError(data.error || 'Failed to send message');
       } else {
+        // The server-confirmed row is visible even if the realtime socket died.
+        // Realtime/fetch echoes share the same database ID and are deduplicated.
+        if (data.message) acceptMessage(data.message);
+        void refresh();
         if (/easter/i.test(messageBody)) {
           supabase.channel(CHANNEL_NAMES.EASTER_EGGS).send({
             type: 'broadcast',
@@ -301,9 +174,9 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
         setRateLimitSeconds(CHAT_SLOWMODE_SECONDS);
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      if (generation === actionGenerationRef.current) setError('Network error. Please try again.');
     } finally {
-      setSending(false);
+      if (generation === actionGenerationRef.current) setSending(false);
     }
   }
 
@@ -312,6 +185,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
 
     setReactingMessageId(message.id);
     setError(null);
+    const generation = actionGenerationRef.current;
 
     try {
       const response = await fetch('/api/chat/reactions', {
@@ -326,26 +200,22 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
       });
 
       const data = await response.json();
+      if (generation !== actionGenerationRef.current) return;
 
       if (!response.ok) {
         setError(data.error || 'Failed to react');
         return;
       }
 
-      setMessages((prev) => prev.map((item) => (
-        item.id === message.id
-          ? {
-              ...item,
-              reactions: data.reactions || [],
-              viewerReaction: data.viewerReaction || null,
-            }
-          : item
-      )));
+      updateMessage(message.id, {
+        reactions: data.reactions || [],
+        viewerReaction: data.viewerReaction || null,
+      });
       setActiveReactionMessageId(null);
     } catch (err) {
-      setError('Network error. Please try again.');
+      if (generation === actionGenerationRef.current) setError('Network error. Please try again.');
     } finally {
-      setReactingMessageId(null);
+      if (generation === actionGenerationRef.current) setReactingMessageId(null);
     }
   }
 
@@ -527,6 +397,11 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
       )}
 
       <div className="aim-chat-compose">
+        {syncError && (
+          <div className="aim-chat-error" role="status">
+            {syncError} <button type="button" className="aim-xp-button" onClick={() => void refresh()}>Retry connection</button>
+          </div>
+        )}
         {error && (
           <div className="aim-chat-error" role="alert">{error}</div>
         )}
@@ -553,6 +428,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
               }
             }}
             placeholder="type ur message..."
+            aria-label="Message the audience"
             className="aim-chat-entry"
             disabled={sending || rateLimitSeconds > 0}
             maxLength={MAX_MESSAGE_LENGTH}
@@ -577,6 +453,10 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
     return (
       <div className="aim-chat-window aim-chat-window-embedded">
         {chatContent}
+        <div className="mac2006-aim-status" role="status" data-connection={connectionStatus}>
+          <span aria-hidden="true" />
+          {connectionStatus === 'live' ? 'Online' : connectionStatus === 'offline' ? 'Offline · retrying' : connectionStatus === 'connecting' ? 'Connecting…' : 'Reconnecting · chat refreshes automatically'}
+        </div>
       </div>
     );
   }
@@ -586,8 +466,8 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, embedded = fal
       title="Chat Room: 2006"
       className="aim-chat-window"
       menuItems={['File', 'Edit', 'People', 'Help']}
-      status={`${messages.length} message${messages.length === 1 ? '' : 's'} in the room`}
-      live
+      status={`${connectionStatus === 'live' ? 'Online' : connectionStatus === 'offline' ? 'Offline · retrying' : connectionStatus === 'connecting' ? 'Connecting…' : 'Reconnecting'} · ${messages.length} message${messages.length === 1 ? '' : 's'} in the room`}
+      live={connectionStatus === 'live'}
     >
       {chatContent}
     </AimWindow>

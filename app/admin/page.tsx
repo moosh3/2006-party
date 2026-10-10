@@ -2,37 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import './operator.css';
 import StreamControl from '@/components/admin/StreamControl';
 import VideoPlayer from '@/components/VideoPlayer';
 import QueueManager from '@/components/admin/QueueManager';
 import VideoPlaylistSettings from '@/components/admin/VideoPlaylistSettings';
-import { supabase } from '@/lib/supabase';
-import {
-  CHANNEL_NAMES,
-  DATABASE_TABLES,
-} from '@/lib/constants';
-
-interface StreamData {
-  playbackId: string;
-  token: string;
-  title: string;
-  kind: string;
-  isHoldScreen?: boolean;
-  showPoster?: boolean;
-  playoutMode?: 'manual' | 'schedule' | string;
-  playbackState?: 'playing' | 'paused' | string;
-  playbackPosition?: number;
-  playbackUpdatedAt?: string;
-  playbackElapsedMs?: number;
-  activeSlotId?: string | null;
-  activeAssetKey?: string | null;
-  scheduleStatus?: string | null;
-  nextTransitionAt?: string | null;
-  scheduleTitle?: string | null;
-  sourceType?: string;
-  youtubePlaylistId?: string | null;
-  sourceUrl?: string | null;
-}
+import AudienceDoorsControl from '@/components/admin/AudienceDoorsControl';
+import { useProgramStream } from '@/hooks/useProgramStream';
 
 function formatTransition(value?: string | null) {
   if (!value) return 'None scheduled';
@@ -47,7 +23,7 @@ function formatTransition(value?: string | null) {
 export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [streamData, setStreamData] = useState<StreamData | null>(null);
+  const { stream: streamData, refresh: refreshStream } = useProgramStream(!loading);
   const [posterMode, setPosterMode] = useState(false);
   const [posterLoading, setPosterLoading] = useState(false);
 
@@ -67,70 +43,13 @@ export default function AdminDashboard() {
       }
     }
 
-    async function loadStream() {
-      try {
-        const response = await fetch('/api/current');
-        if (response.ok) {
-          const data = await response.json();
-          setStreamData(data);
-          setPosterMode(data.showPoster || false);
-        }
-      } catch (error) {
-        console.error('Failed to load stream:', error);
-      }
-    }
-
     checkAuth();
-    loadStream();
-
-    // Reload stream when it changes (for realtime updates)
-    const interval = setInterval(() => {
-      loadStream();
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(interval);
   }, [router]);
 
-  // Subscribe to hold screen changes to reload immediately
+  const receivedPosterMode = streamData?.showPoster;
   useEffect(() => {
-    const channel = supabase.channel(CHANNEL_NAMES.ADMIN_HOLD_SCREEN_UPDATES)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: DATABASE_TABLES.CURRENT_STREAM,
-          filter: 'id=eq.1',
-        },
-        (payload: any) => {
-          const newData = payload.new;
-          const oldData = payload.old;
-          
-          if (
-            newData.hold_screen_enabled !== oldData.hold_screen_enabled ||
-            newData.playback_id !== oldData.playback_id ||
-            newData.playout_mode !== oldData.playout_mode ||
-            newData.schedule_early_ended_slot !== oldData.schedule_early_ended_slot ||
-            newData.last_command_id !== oldData.last_command_id
-          ) {
-            console.log('Stream changed, reloading...');
-            fetch('/api/current')
-              .then(res => res.json())
-              .then(data => {
-                setStreamData(data);
-              })
-              .catch(err => {
-                console.error('Failed to reload stream:', err);
-              });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    if (receivedPosterMode !== undefined) setPosterMode(receivedPosterMode);
+  }, [receivedPosterMode]);
 
   async function handleTogglePoster() {
     setPosterLoading(true);
@@ -155,19 +74,20 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-twitch-darker flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-twitch-purple"></div>
+      <div className="operator-desktop min-h-screen flex items-center justify-center">
+        <p role="status">Loading stream controls…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-twitch-darker text-twitch-text">
+    <div className="operator-desktop min-h-screen text-twitch-text">
       <header className="bg-twitch-dark border-b border-twitch-border">
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-twitch-purple">Admin Dashboard</h1>
+              <a href="/admin/game" className="underline text-sm">Open trivia, TRL &amp; superlative game desk →</a>
               <p className="text-xs sm:text-sm text-twitch-text-alt">Manage your stream</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
@@ -199,11 +119,11 @@ export default function AdminDashboard() {
           <div className="mt-4 pt-4 border-t border-twitch-border">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-twitch-text mb-1">Entry Screen Mode</h3>
+                <h3 className="text-sm font-semibold text-twitch-text mb-1">Program poster mode</h3>
                 <p className="text-xs text-twitch-text-alt">
                   {posterMode 
-                    ? 'Visitors see the event poster with countdown'
-                    : 'Visitors see the registration form'
+                    ? 'Poster flag is on. Audience admission is controlled by doors below.'
+                    : 'Poster flag is off. Audience admission is controlled by doors below.'
                   }
                 </p>
               </div>
@@ -223,11 +143,11 @@ export default function AdminDashboard() {
                   </span>
                 ) : posterMode ? (
                   <span className="flex items-center justify-center gap-2">
-                    🎬 <span className="hidden xs:inline">POSTER MODE</span><span className="xs:hidden">Poster</span>
+                    🎬 <span className="hidden xs:inline">POSTER ON</span><span className="xs:hidden">Poster on</span>
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    📝 <span className="hidden xs:inline">REGISTRATION MODE</span><span className="xs:hidden">Registration</span>
+                    📝 <span className="hidden xs:inline">POSTER OFF</span><span className="xs:hidden">Poster off</span>
                   </span>
                 )}
               </button>
@@ -237,28 +157,31 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
+        <AudienceDoorsControl />
         {streamData && (
           <div className="twitch-card p-4 mb-4 sm:mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
               <div>
                 <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Mode</p>
-                <p className="font-semibold text-twitch-purple">{streamData.playoutMode || 'schedule'}</p>
+                <p className="font-semibold text-twitch-purple">{streamData.playoutMode === 'manual' ? 'Queue' : streamData.playoutMode === 'schedule' ? 'Schedule' : 'Checking…'}</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Status</p>
-                <p className="font-semibold">{streamData.scheduleStatus || (streamData.isHoldScreen ? 'hold' : 'manual')}</p>
+                <p className="font-semibold">{streamData.isHoldScreen ? 'Holding' : streamData.playbackState === 'playing' ? 'Playing' : streamData.playbackState === 'paused' ? 'Paused' : 'Checking…'}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Active Slot</p>
-                <p className="font-semibold">{streamData.activeSlotId || 'Manual queue'}</p>
+                <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Current cue</p>
+                <p className="font-semibold">{streamData.title || 'No cue selected'}</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Next Transition</p>
-                <p className="font-semibold">{formatTransition(streamData.nextTransitionAt)}</p>
+                <p className="font-semibold">{streamData.nextTransitionAt ? formatTransition(streamData.nextTransitionAt) : streamData.playoutMode === 'manual' ? streamData.autoAdvanceEnabled ? streamData.playbackState === 'paused' ? 'After playback resumes' : 'Waiting for a timed cue' : 'When you press Next' : 'None scheduled'}</p>
               </div>
             </div>
             <p className="text-xs text-twitch-text-alt mt-3">
-              Current source: {streamData.title} • {streamData.sourceType || 'mux'}
+              {streamData.playoutMode === 'manual'
+                ? streamData.autoAdvanceEnabled ? 'Auto-advance on: queued videos follow each other automatically.' : 'Auto-advance off: press Play Next in Queue when you are ready.'
+                : 'Schedule follows the show timetable.'}
             </p>
           </div>
         )}
@@ -270,11 +193,19 @@ export default function AdminDashboard() {
             <div className="twitch-card p-4">
               <h2 className="text-lg font-semibold mb-3 text-twitch-text">Video Preview</h2>
               <p className="text-xs text-twitch-text-alt mb-4">
-                Read-only preview. Use the explicit controls in manual mode to change viewer playback.
+                Read-only preview. In Queue mode, use the playback controls to run the show.
               </p>
               {streamData ? (
                 <VideoPlayer
-                  key={`${streamData.sourceType || 'mux'}:${streamData.playbackId}:${streamData.activeSlotId || 'no-slot'}:${streamData.isHoldScreen ? 'hold' : 'movie'}`}
+                  key={streamData.playbackSessionId}
+                  playbackSessionId={streamData.playbackSessionId}
+                  playbackRevision={streamData.playbackRevision}
+                  serverNow={streamData.serverNow}
+                  playbackPositionSeconds={streamData.playbackPositionSeconds}
+                  playbackDurationSeconds={streamData.playbackDurationSeconds}
+                  snapshotReceivedAt={streamData.snapshotReceivedAt}
+                  snapshotRoundTripMs={streamData.snapshotRoundTripMs}
+                  onStreamRefresh={refreshStream}
                   playbackId={streamData.playbackId}
                   token={streamData.token}
                   title={streamData.title}
@@ -308,7 +239,7 @@ export default function AdminDashboard() {
           {/* Right Column - Playback Controls and Queue */}
           <div className="lg:col-span-1 space-y-6">
             <StreamControl showLibraryControls={false} showPlaybackControls={true} />
-            <QueueManager />
+            <QueueManager program={streamData} onStreamRefresh={refreshStream} />
           </div>
         </div>
       </main>

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { gameViewer, sameOrigin, throttle } from '@/lib/game-server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { pollId, optionId, userId, userName } = await request.json();
+    sameOrigin(request);
+    const { pollId, optionId } = await request.json();
+    const viewer = await gameViewer();
+    if (!viewer || viewer.blocked) return NextResponse.json({ error: 'Join the game before voting' }, { status: 403 });
+    const userId = viewer.id;
+    const userName = viewer.name;
+    await throttle(`legacy-vote:${userId}`, 1);
 
     // Validate required fields
     if (!pollId || !optionId || !userId) {
@@ -105,4 +112,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

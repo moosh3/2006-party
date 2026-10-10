@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>2006 — Room player</title>
+  <link rel="stylesheet" href="/room.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body class="operator">
+  <header class="operator-header">
+    <div><strong>2006</strong><span>Room player</span></div>
+    <span class="independent">Local files · independent of the online show</span>
+    <button id="open-output">Open audience window</button>
+  </header>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <main class="desk">
+    <section class="rundown" aria-labelledby="rundown-heading">
+      <div class="section-heading"><h1 id="rundown-heading">Rundown</h1><span id="cue-count"></span></div>
+      <p class="hint">Select a cue to put it next. Nothing plays until GO.</p>
+      <ol id="cue-list" class="cue-list"></ol>
+      <button id="add-cue" class="wide">Add cue</button>
+    </section>
+    <section class="playout" aria-labelledby="now-heading">
+      <div class="output-health"><span id="output-status">Audience window not connected</span><span id="output-time">—</span></div>
+      <div class="now-panel">
+        <span class="eyebrow" id="now-heading">Now</span>
+        <h2 id="now-label">Holding screen</h2>
+        <p id="now-notes">Open the audience window, then enable sound there.</p>
+        <span id="playback-status" class="playback-status">Holding</span>
+      </div>
+      <div class="next-panel"><span class="eyebrow">Next</span><h3 id="next-label">—</h3><p id="next-notes"></p></div>
+      <button id="go" class="go" disabled>GO <span id="go-label">—</span></button>
+      <p id="go-help" class="hint">Space = GO. Keys are ignored while typing.</p>
+      <div class="transport"><button id="pause" disabled>Pause</button><button id="restart" disabled>Restart current</button><button id="hold">Hold</button><button id="black">Blackout</button></div>
+      <section class="soundboard" aria-labelledby="sound-heading">
+        <div class="section-heading"><h2 id="sound-heading">Soundboard</h2><button id="stop-sound" disabled>Stop sound</button></div>
+        <p class="hint">Audio only. The picture and rundown keep going. Press 1 for the first sound.</p>
+        <div id="sound-pads" class="sound-pads"></div>
+        <p id="sound-status" class="hint" role="status" aria-live="polite">Choose a local file to set up the sound.</p>
+        <details class="sound-setup">
+          <summary>Set up first sound</summary>
+          <form id="sound-form">
+            <label for="sound-file">Local audio or video file</label><select id="sound-file"><option value="">Choose a file — no sound installed</option></select>
+            <div class="two-fields"><div><label for="sound-start">Start at (seconds)</label><input id="sound-start" type="number" min="0" step="0.01" value="0" required></div><div><label for="sound-duration">Play for (seconds)</label><input id="sound-duration" type="number" min="0.1" max="30" step="0.01" value="3" required></div></div>
+            <label for="sound-volume">Sound volume (%)</label><input id="sound-volume" type="number" min="0" max="100" step="1" value="100" required>
+            <p class="hint">Use your three-second clip, or choose a longer local source and enter the exact start time. Preview at rehearsal volume. No song is downloaded or included.</p>
+            <button type="submit">Save sound</button>
+          </form>
+        </details>
+      </section>
+      <details class="setup" open>
+        <summary>Local files &amp; setup</summary>
+        <form id="directory-form"><label for="directory">Folder containing your videos, holding screen and sounds</label><div class="input-action"><input id="directory" autocomplete="off" placeholder="Paste the folder’s full path"><button type="submit">Load folder</button></div></form>
+        <p class="hint">In Finder, select the folder and press Option–Command–C to copy its path. Files stay in that folder; no uploads.</p>
+        <div id="library-status" class="hint">No media folder selected.</div>
+        <label for="hold-file">Holding screen (looping video or image)</label><select id="hold-file"><option value="">Built-in 2006 screen</option></select>
+        <label class="check"><input id="captions" type="checkbox" checked> Show matching .vtt captions when available</label>
+        <div class="setup-actions"><button id="preflight">Check show files</button><button id="export-show">Export rundown</button><label class="file-button" for="import-show">Import rundown</label><input id="import-show" type="file" accept="application/json,.json" hidden></div>
+        <button id="close-output" disabled>Close audience window</button>
+        <div id="preflight-results" aria-live="polite"></div>
+        <p class="hint">The starting outline uses live holds only. Assign each room video yourself; the online recordings are not automatically used.</p>
+      </details>
+      <details class="setup cue-editor" open>
+        <summary>Edit selected cue</summary>
+        <form id="cue-form">
+          <label for="cue-label">Cue name</label><input id="cue-label" required maxlength="180">
+          <div class="two-fields"><div><label for="cue-kind">Room action</label><select id="cue-kind"><option value="live">Live scene — hold and wait</option><option value="video">Play local video</option><option value="image">Show local image</option></select></div><div><label for="cue-file">File</label><select id="cue-file"><option value="">Choose a file</option></select></div></div>
+          <label for="cue-notes">Operator notes</label><textarea id="cue-notes" rows="2" maxlength="2000"></textarea>
+          <label for="cue-end">When the video ends</label><select id="cue-end"><option value="hold">Return to holding screen; wait for GO</option><option value="next">Automatically play the next media cue</option></select>
+          <p class="hint">Auto-follow never starts a live scene. Images stay on screen until you press GO or Hold.</p>
+          <div class="setup-actions"><button type="submit">Save cue</button><button type="button" id="move-up">Move up</button><button type="button" id="move-down">Move down</button><button type="button" id="delete-cue">Delete cue</button></div>
+          <div id="delete-confirm" hidden><p>Delete this cue from the room rundown?</p><button type="button" id="confirm-delete">Delete</button><button type="button" id="cancel-delete">Cancel</button></div>
+        </form>
+      </details>
+      <p class="hint footer-note">The laptop is the operator display. Mirror only the two audience displays. This player never sends commands to the online show.</p>
+    </section>
+  </main>
+</body>
+</html>

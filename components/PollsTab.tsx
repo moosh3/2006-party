@@ -27,9 +27,10 @@ interface PollData {
 interface PollsTabProps {
   userId: string;
   room?: string;
+  hideWhenEmpty?: boolean;
 }
 
-export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTabProps) {
+export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT, hideWhenEmpty = false }: PollsTabProps) {
   const [polls, setPolls] = useState<PollData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'closed'>('active');
@@ -95,6 +96,7 @@ export default function PollsTab({ userId, room = ROOM_NAMES.DEFAULT }: PollsTab
   }
 
   if (polls.length === 0) {
+    if (hideWhenEmpty) return null;
     return (
       <div className="text-center p-8">
         <p className="text-sm" style={{ color: '#555' }}>No polls yet. Check back later.</p>

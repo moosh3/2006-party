@@ -1,87 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { MUX_SOURCE_TYPE } from '@/lib/youtube';
+import { moderateRateLimit } from '@/lib/rate-limit-enhanced';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' };
 
 export async function POST(request: NextRequest) {
-  try {
-    const { playbackId } = await request.json();
-
-    if (!playbackId) {
-      return NextResponse.json({ error: 'playbackId is required' }, { status: 400 });
+  return moderateRateLimit()(request, async (req: NextRequest) => {
+    let body;
+    try { body = await req.json(); } catch {
+      return NextResponse.json({ error: 'A valid JSON body is required' }, { status: 400, headers: NO_STORE });
     }
-
-    const { data: current, error: currentError } = await supabaseAdmin
-      .from('current_stream')
-      .select('playout_mode, playback_id, source_type, playback_state, playback_position, playback_updated_at, auto_advance_enabled, hold_screen_enabled')
-      .eq('id', 1)
-      .single();
-
-    if (currentError) {
-      return NextResponse.json({ error: 'Failed to read playout state' }, { status: 500 });
+    const { playbackId, playbackSessionId } = body || {};
+    if (typeof playbackId !== 'string' || !playbackId || playbackId.length > 256 || (playbackSessionId !== undefined && (typeof playbackSessionId !== 'string' || playbackSessionId.length > 100))) {
+      return NextResponse.json({ error: 'A valid playbackId and optional playbackSessionId are required' }, { status: 400, headers: NO_STORE });
     }
-
-    if ((current.playout_mode || 'schedule') !== 'manual') {
-      return NextResponse.json({ success: true, ignored: true, reason: 'schedule-mode' });
-    }
-
-    if ((current.source_type || MUX_SOURCE_TYPE) !== MUX_SOURCE_TYPE) {
-      return NextResponse.json({ success: true, ignored: true, reason: 'non-mux-source' });
-    }
-
-    if (!current.auto_advance_enabled) {
-      return NextResponse.json({ success: true, ignored: true, reason: 'auto-advance-disabled' });
-    }
-
-    if (current.hold_screen_enabled) {
-      return NextResponse.json({ success: true, ignored: true, reason: 'hold-screen' });
-    }
-
-    if (current.playback_id !== playbackId) {
-      return NextResponse.json({ success: true, ignored: true, reason: 'not-current-video' });
-    }
-
-    const { data: muxItem } = await supabaseAdmin
-      .from('mux_items')
-      .select('duration_seconds')
-      .eq('playback_id', playbackId)
-      .single();
-
-    const duration = muxItem?.duration_seconds ? Number(muxItem.duration_seconds) : null;
-    if (duration && duration > 90) {
-      const updatedAt = new Date(current.playback_updated_at).getTime();
-      const basePosition = Number(current.playback_position || 0);
-      const estimatedPosition =
-        current.playback_state === 'playing' && !Number.isNaN(updatedAt)
-          ? basePosition + (Date.now() - updatedAt) / 1000
-          : basePosition;
-
-      if (estimatedPosition < duration - 60) {
-        return NextResponse.json(
-          { success: true, ignored: true, reason: 'too-early' },
-          { status: 202 }
-        );
+    try {
+      // Browser ended events are wake-up hints only. The server's clock and stored
+      // duration decide whether a transition is due, never an untrusted duration.
+      const { data: snapshot, error } = await supabaseAdmin.rpc('get_playout_snapshot');
+      if (error || !snapshot?.stream) {
+        console.error('Failed to reconcile manual playout:', error);
+        return NextResponse.json({ error: 'Failed to read playout state' }, { status: 500, headers: NO_STORE });
       }
+      const current = snapshot.stream;
+      let reason = 'server-deadline-not-due';
+      if ((current.playout_mode || 'schedule') !== 'manual') reason = 'schedule-mode';
+      else if (current.hold_screen_enabled) reason = 'hold-screen';
+      else if ((current.source_type || MUX_SOURCE_TYPE) !== MUX_SOURCE_TYPE) reason = 'non-mux-source';
+      else if (!current.auto_advance_enabled) reason = 'auto-advance-disabled';
+      else if (current.playback_id !== playbackId || (playbackSessionId !== undefined && current.playback_session_id !== playbackSessionId)) reason = 'playback-changed';
+      else if (snapshot.automation_error) reason = 'automation-blocked';
+      else if (current.playback_state !== 'playing') reason = 'not-playing';
+
+      return NextResponse.json({
+        success: true,
+        ignored: true,
+        reason,
+        playback_id: current.playback_id,
+        playback_session_id: current.playback_session_id,
+        playback_state: current.playback_state,
+        playback_position: current.playback_position,
+        playback_updated_at: current.playback_updated_at,
+        is_hold_screen: Boolean(current.hold_screen_enabled),
+        server_now: snapshot.server_now,
+        next_transition_at: snapshot.next_transition_at,
+        automation_status: snapshot.automation_status,
+      }, { headers: NO_STORE });
+    } catch (error) {
+      console.error('Error handling manual ended notification:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_STORE });
     }
-
-    const { data, error } = await supabaseAdmin.rpc('advance_queue_next', {
-      admin_user_id: 'system:auto-advance',
-    });
-
-    if (error) {
-      if (error.message.includes('No videos in queue')) {
-        return NextResponse.json({ success: true, empty: true });
-      }
-
-      console.error('Failed to advance manual queue:', error);
-      return NextResponse.json({ error: 'Failed to advance manual queue' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, advancedTo: data });
-  } catch (error) {
-    console.error('Error handling manual ended notification:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+  });
 }
