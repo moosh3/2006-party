@@ -45,3 +45,12 @@ The character mapping was checked against the existing original portraits. The s
 CSS sizing uses representative upright body bounds rather than the transparent GIF canvas. `CAST_RUN_SIZING` records the measured body heights and reference frames: MK 277px (frame 8), Jen 216px (frame 5), Lip 167px (frame 9), Yongwoo 219px (frame 0), Emma 192px (frame 8), Alec 282px (frame 7). Ground-only shadow tails are excluded for MK (5px), Jen (5px) and Yongwoo (1px). Yongwoo's entrance frame is vertically intact; later poses are cartwheels/handstands and are not used to set upright scale.
 
 Original idle PNG alpha heights are 154, 150, 150, 150, 158 and 158px, respectively, inside 160px canvases. The whole running GIF canvas is displayed at `run canvas height × (48 × idle alpha height / 160) / running body height`, approximately 71.72, 76.25, 98.62, 75.21, 90.36 and 72.28px. Every frame uses that same scale. No pixels, frames, timing or source files are altered. The roster wraps on small screens to retain this size.
+
+## Interactive Clippy (October 11, 2026)
+
+Supplied by the production through Messages. GIFs copied byte-for-byte, with original transparency, frames and timing. They play once; the idle PNG is an extracted frame for paused/reduced-motion states. No external image requests.
+
+- `hello.gif`: original `Clippy.gif`, SHA-256 `0489fdf23545c05e803e0fa0c33cdc3892eced39f1ce172c6833a776cab56647`.
+- `tap.gif`: original `Clippy tap.gif`, SHA-256 `11baaf170afdf721c2e923c2a6b94cfd646d345cd05537e3f8ca649e222bf92c`.
+- `curious.gif`: original `CuriousClippy.gif`, SHA-256 `947c1cc193bb584991cce594e898879c28b9893507a3c47cfb23b2291e6fe9de`.
+- `spin.gif`: original `Clippy360.gif`, SHA-256 `796650f73921de584db2e54e8c3972c3a312809776e27f5c088a783fd5dfe00b`.

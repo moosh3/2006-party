@@ -656,6 +656,59 @@ export function ProgramVideoPlayer({
     };
   }, [sourceType, viewerLocked, playbackId, applyPlaybackState]);
 
+  const hasCountdown = !!countdown;
+
+  // Keep bottom captions above the countdown footer, including after resizing.
+  // Restore the original VTT placement when the countdown cue leaves the player.
+  useEffect(() => {
+    const player = playerRef.current;
+    if (sourceType !== MUX_SOURCE_TYPE || !player || !hasCountdown || isHoldScreen) return;
+    const originals = new Map<VTTCue, { line: VTTCue['line']; snapToLines: boolean; lineAlign: VTTCue['lineAlign'] }>();
+    const tracks = new Set<TextTrack>();
+    let trackList: TextTrackList | undefined;
+    const positionCaptions = () => {
+      const banner = player.closest('.countdown-frame')?.querySelector('.countdown-banner');
+      if (!banner) return;
+      const picture = player.getBoundingClientRect();
+      const footer = banner.getBoundingClientRect();
+      if (!picture.height) return;
+      const line = Math.max(0, Math.min(100, (footer.top - picture.top - 24) / picture.height * 100));
+      for (const track of tracks) {
+        for (const cue of Array.from(track.activeCues || [])) {
+          if (!(cue instanceof VTTCue)) continue;
+          if (!originals.has(cue)) originals.set(cue, { line: cue.line, snapToLines: cue.snapToLines, lineAlign: cue.lineAlign });
+          const original = originals.get(cue)!;
+          // Preserve intentionally top-positioned captions.
+          if (original.line !== 'auto' && (original.snapToLines ? original.line >= 0 : original.line < line)) continue;
+          cue.snapToLines = false;
+          cue.lineAlign = 'end';
+          cue.line = line;
+        }
+      }
+    };
+    const attach = () => {
+      trackList = player.media?.textTracks || player.textTracks;
+      trackList?.addEventListener('addtrack', attach);
+      for (const track of Array.from(trackList || [])) {
+        if (!['captions', 'subtitles'].includes(track.kind) || tracks.has(track)) continue;
+        tracks.add(track);
+        track.addEventListener('cuechange', positionCaptions);
+      }
+      positionCaptions();
+    };
+    const observer = new ResizeObserver(positionCaptions);
+    observer.observe(player);
+    player.addEventListener('loadedmetadata', attach);
+    attach();
+    return () => {
+      observer.disconnect();
+      player.removeEventListener('loadedmetadata', attach);
+      trackList?.removeEventListener('addtrack', attach);
+      for (const track of tracks) track.removeEventListener('cuechange', positionCaptions);
+      for (const [cue, original] of originals) Object.assign(cue, original);
+    };
+  }, [sourceType, playbackId, hasCountdown, isHoldScreen]);
+
   // Side-load the caption file (public/assets/captions/*) as a text track on
   // the underlying media element, for assets with no embedded subtitles. The
   // requestCaptions effect below flips the track to 'showing' once it exists.
@@ -1210,6 +1263,7 @@ export function ProgramVideoPlayer({
         <button
           type="button"
           onClick={handleUnmute}
+          style={countdown ? { top: 16, bottom: 'auto' } : undefined}
           className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 flex items-center gap-2 rounded-full bg-pink-300 px-5 py-3 text-sm font-bold text-black shadow-lg animate-pulse"
         >
           {needsStart ? 'JOIN LIVE SHOW' : '🔊 TAP TO UNMUTE'}

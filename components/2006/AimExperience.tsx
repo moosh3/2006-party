@@ -1162,7 +1162,7 @@ export default function AimExperience({
               onMinimize={() => hideMacWindow('textedit')}
               onZoom={() => toggleMacZoom('textedit')}
             >
-              <TextEditApp
+              {macWindows.textedit && <TextEditApp
                 promptIndex={essayPrompt}
                 setPromptIndex={(index) => { setEssayPrompt(index); setEssaySaved(false); setEssaySaveError(null); }}
                 draft={essayDraft}
@@ -1170,12 +1170,15 @@ export default function AimExperience({
                 saved={essaySaved}
                 saveError={essaySaveError}
                 onSave={saveEssay}
-              />
+                paused={castAnimationsPaused}
+                active={activeMacWindow === 'textedit'}
+              />}
             </MacWindow>
 
-            {clippyVisible && (
+            {clippyVisible && !macWindows.textedit && (
               <ClippyAssistant
                 mode={clippyMode}
+                paused={castAnimationsPaused}
                 onOpenMail={openMail}
                 onOpenEssay={() => { openMacWindow('textedit'); setClippyVisible(false); }}
                 onDismiss={() => setClippyVisible(false)}
@@ -1189,7 +1192,10 @@ export default function AimExperience({
               mailOpen={macWindows.mail}
               textEditOpen={macWindows.textedit}
               openWindow={openMacWindow}
-              showClippy={() => setClippyVisible(true)}
+              showClippy={() => {
+                if (macWindows.textedit) openMacWindow('textedit');
+                else { setClippyMode('mail'); setClippyVisible(true); }
+              }}
               navigate={navigate}
             />
           </>

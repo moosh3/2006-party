@@ -28,7 +28,7 @@ export default function CountdownFrame({ cue, sessionId, paused, children }: {
   return <div ref={frame} className="countdown-frame relative bg-black w-full">
     <div className="countdown-picture relative w-full">
     {children}
-    <div className="absolute left-0 right-0 pointer-events-none z-10" style={{ bottom: 52 }} aria-label={`Countdown number ${cue.rank}`}>
+    <div className="countdown-banner absolute left-0 right-0 pointer-events-none z-10" style={{ bottom: 8 }} aria-label={`Countdown number ${cue.rank}`}>
       {cue.bannerUrl && !failed ? isVideo
         ? <video key={`${sessionId}:${cue.bannerUrl}`} ref={video} src={cue.bannerUrl} muted playsInline loop onError={() => setFailed(true)} className="w-full max-h-28 object-contain object-bottom" aria-hidden="true" />
         // Operator-provided artwork has variable dimensions and may be transparent.

@@ -1,5 +1,8 @@
 'use client';
 
+import { useState } from 'react';
+import ClippyAnimation from './ClippyAnimation';
+
 export type ClippyMode = 'mail' | 'essay' | 'saved';
 
 export const ESSAY_PROMPTS = [
@@ -52,7 +55,7 @@ export function MailApp({ onStartEssay }: { onStartEssay: () => void }) {
 }
 
 export function TextEditApp({
-  promptIndex, setPromptIndex, draft, setDraft, saved, saveError, onSave,
+  promptIndex, setPromptIndex, draft, setDraft, saved, saveError, onSave, paused = false, active = true,
 }: {
   promptIndex: number;
   setPromptIndex: (index: number) => void;
@@ -61,7 +64,10 @@ export function TextEditApp({
   saved: boolean;
   saveError?: string | null;
   onSave: () => void;
+  paused?: boolean;
+  active?: boolean;
 }) {
+  const [helperVisible, setHelperVisible] = useState(true);
   const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
 
   return (
@@ -76,6 +82,13 @@ export function TextEditApp({
         </label>
         <button type="button" className="mac2006-aqua-button primary" onClick={onSave}>Save Draft</button>
       </div>
+      {helperVisible ? <aside className="show2006-essay-clippy" aria-label="Clippy essay helper">
+        <ClippyAnimation reaction={saved ? 'spin' : 'curious'} paused={paused} active={active} />
+        <div><strong>{saved ? 'Homework crisis averted.' : 'It looks like you’re writing an essay.'}</strong>
+          <p>{saved ? 'Your draft is saved in this browser. I knew you had it in you.' : 'Pick a prompt, write something very profound, and save your draft. I’ll supervise.'}</p>
+          <button type="button" className="mac2006-aqua-button" onClick={() => setHelperVisible(false)}>Hide Clippy</button>
+        </div>
+      </aside> : <button type="button" className="show2006-clippy-return" onClick={() => setHelperVisible(true)}>Bring back Clippy</button>}
       <div className="mac2006-ruler" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
       <div className="mac2006-document-wrap">
         <div className="mac2006-document">
@@ -91,9 +104,10 @@ export function TextEditApp({
 }
 
 export function ClippyAssistant({
-  mode, onOpenMail, onOpenEssay, onDismiss,
+  mode, onOpenMail, onOpenEssay, onDismiss, paused = false,
 }: {
   mode: ClippyMode;
+  paused?: boolean;
   onOpenMail: () => void;
   onOpenEssay: () => void;
   onDismiss: () => void;
@@ -126,8 +140,7 @@ export function ClippyAssistant({
           <button type="button" className="mac2006-aqua-button" onClick={onDismiss}>Not Now</button>
         </div>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/2006/clippy.png" alt="Clippy, an animated paperclip assistant" />
+      <ClippyAnimation reaction={mode === 'saved' ? 'spin' : mode === 'essay' ? 'curious' : 'hello'} paused={paused} />
     </aside>
   );
 }
