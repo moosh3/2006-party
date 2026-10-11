@@ -115,7 +115,7 @@ export default function AudienceDoorsControl() {
 
   return (
     <section className="twitch-card p-4 mb-4 sm:mb-6" aria-labelledby="audience-doors-heading">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <div className="flex flex-col gap-3">
         <div>
           <h2 id="audience-doors-heading" className="text-lg font-semibold text-twitch-text">Audience doors</h2>
           <p className="text-sm mt-1" role="status">

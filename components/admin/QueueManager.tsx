@@ -54,6 +54,8 @@ interface MediaItem {
 }
 
 export default function QueueManager({ program, onStreamRefresh }: { program?: ProgramStream | null; onStreamRefresh?: () => void }) {
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [countdownEditor, setCountdownEditor] = useState<QueueItem | 'new' | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [muxItems, setMuxItems] = useState<MediaItem[]>([]);
@@ -426,18 +428,21 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
 
   return (
     <div className="space-y-4">
-      <div className="twitch-card p-4 border-t-4 border-twitch-purple">
-        <h3 className="text-lg font-semibold mb-3 text-twitch-text flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <div className="twitch-card operator-queue-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <h3 className="text-lg font-semibold text-twitch-text flex items-center gap-4">
+          <span className="flex items-center gap-2">
             <svg className="w-5 h-5 text-twitch-purple" fill="currentColor" viewBox="0 0 20 20">
               <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
             </svg>
-            <span>Video Queue</span>
-          </div>
+            <span>Show queue</span>
+          </span>
           <span className="text-sm font-normal text-twitch-text-alt">
             {queue.length} {queue.length === 1 ? 'video' : 'videos'}
           </span>
         </h3>
+        <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} onClick={() => setCountdownEditor('new')}>Add countdown cue</button>
+        </div>
 
         {message && (
           <div role="status" aria-live="polite" className={`rounded p-3 mb-3 text-sm ${
@@ -449,14 +454,66 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
           </div>
         )}
 
-        <button type="button" className="mb-3 min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} onClick={() => setCountdownEditor('new')}>Add countdown cue</button>
+
         {countdownEditor && <CountdownEditor key={countdownEditor === 'new' ? 'new' : countdownEditor.id} media={muxItems} initial={countdownEditor === 'new' ? undefined : countdownEditor} onCancel={() => setCountdownEditor(null)} onSaved={() => { setCountdownEditor(null); void loadQueue(); setMessage({ type: 'success', text: 'Countdown cue saved. Playback is unchanged.' }); }} />}
+
+        {/* Adding media is preparation; the running order stays in focus. */}
+        <details className="operator-queue-library mb-4" open={libraryOpen} onToggle={event => setLibraryOpen(event.currentTarget.open)}>
+          <summary className="min-h-[44px] cursor-pointer text-sm font-semibold text-twitch-text py-3">Add videos from library</summary>
+          <label className="block text-sm font-medium mb-3">Search videos
+            <input type="search" value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} className="twitch-input w-full mt-2" placeholder="Find a video by title…" />
+          </label>
+          {queueableItems.length === 0 ? (
+            <p className="text-sm text-twitch-text-alt text-center py-4">
+              No Mux or individual YouTube videos in library. Add a video from the main controls; playlists cannot enter the timed queue.
+            </p>
+          ) : (
+            <div className="operator-queue-library-list">
+              {!queueableItems.some(item => item.label.toLowerCase().includes(librarySearch.trim().toLowerCase())) && <p className="py-4 text-sm">No videos match “{librarySearch}”.</p>}
+              {queueableItems.filter(item => item.label.toLowerCase().includes(librarySearch.trim().toLowerCase())).map((item) => {
+                const duration = timedDuration(item.duration_seconds);
+                return (
+                <div key={item.id} className="operator-queue-library-row">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-twitch-text truncate">
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-twitch-text-alt mt-1">{mediaSourceLabel(item.source_type)}</p>
+                        {duration !== null && (
+                          <p className="text-xs text-twitch-text-alt mt-1">
+                            {formatDuration(duration)}
+                          </p>
+                        )}
+                        {duration === null && <p className="text-xs text-yellow-500 mt-1">An exact positive duration is required for the timed queue.</p>}
+                      </div>
+                      <button
+                        onClick={() => handleAddToQueue(item.id, item.label)}
+                        disabled={loading || isInQueue(item.id) || duration === null}
+                        className={`w-full sm:w-auto px-4 py-2 rounded text-sm font-medium transition-colors min-h-[44px] ${
+                          isInQueue(item.id) || duration === null
+                            ? 'bg-twitch-hover text-twitch-text-alt cursor-not-allowed'
+                            : 'bg-twitch-purple hover:bg-purple-600 text-white'
+                        }`}
+                      >
+                        {isInQueue(item.id) ? 'In Queue' : duration === null ? 'Needs Duration' : 'Add to Queue'}
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+                );
+              })}
+            </div>
+          )}
+        </details>
 
         {/* Manual Next Button */}
         <button
           onClick={handleNextVideo}
           disabled={loading || queue.length === 0}
-          className="w-full mb-4 bg-[oklch(0.42_0.1_150)] hover:bg-[oklch(0.36_0.1_150)] disabled:bg-twitch-gray disabled:cursor-not-allowed text-[oklch(0.98_0.008_150)] py-3 px-4 rounded font-medium text-sm transition-colors min-h-[44px]"
+          className="operator-go w-full mb-4 bg-[oklch(0.42_0.1_150)] hover:bg-[oklch(0.36_0.1_150)] disabled:bg-twitch-gray disabled:cursor-not-allowed text-[oklch(0.98_0.008_150)] py-3 px-4 rounded font-medium text-sm transition-colors min-h-[44px]"
         >
           {queue.length > 0 ? '▶ Play Next in Queue' : 'Queue is Empty'}
         </button>
@@ -464,29 +521,31 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
         {/* Select and arrange independently of playback. */}
         <section className="mb-5" aria-label="Arrange queue" aria-busy={loading}>
           <h4 className="font-semibold text-twitch-text">Upcoming cues</h4>
-          <p className="text-sm text-twitch-text-alt mt-1 mb-3">Click a cue to select it. Select several to move them together. Shift-click selects a range.</p>
+          <p className="text-sm text-twitch-text-alt mt-1 mb-3">Select cues to move them. Shift-click selects a range. Moving never starts playback.</p>
           <div className="border border-twitch-border rounded overflow-hidden">
-            <div className="p-3 bg-[oklch(0.97_0.008_250)] border-b border-twitch-border space-y-2">
+            {queue.length > 0 && <div className="p-3 bg-[oklch(0.97_0.008_250)] border-b border-twitch-border space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-twitch-text mr-auto" role="status">{selected.length} selected</span>
                 <button className={moveButton} disabled={loading || !queue.length} onClick={() => setSelectedIds(queue.map(item => item.id))}>Select all</button>
                 <button className={moveButton} disabled={loading || !selected.length} onClick={() => setSelectedIds([])}>Clear</button>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" hidden={!selected.length && !undo}>
                 <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('up')}>↑ Up</button>
                 <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('down')}>↓ Down</button>
                 <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('top')}>Move to top</button>
                 <button className={moveButton} disabled={loading || !selected.length} onClick={() => moveSelection('bottom')}>Move to end</button>
                 <button className={moveButton} disabled={loading || !undo} onClick={() => undo && updateQueueOrder(undo.before, true)}>Undo move</button>
               </div>
+              <details hidden={!selected.length}>
+              <summary className="cursor-pointer text-sm py-2">Move to a specific position</summary>
               <form className="flex flex-wrap items-center gap-2" onSubmit={event => { event.preventDefault(); void moveSelection('position'); }}>
-                <label className="text-sm text-twitch-text flex items-center gap-2">Move selection to position
+                <label className="text-sm text-twitch-text flex flex-wrap items-center gap-2">Move selection to position
                   <input type="number" min="1" max={queue.length - selected.length + 1} step="1" value={destination} onChange={event => setDestination(event.target.value)} disabled={loading || !selected.length} className="twitch-input w-20 min-h-[44px] px-2" />
                 </label>
                 <button className={moveButton} disabled={loading || !selected.length} type="submit">Move</button>
               </form>
-              <p className="text-xs text-twitch-text-alt">Top of the queue plays next. Moving cues does not start playback.</p>
-            </div>
+              </details>
+            </div>}
             <ol className="max-h-[60vh] overflow-y-auto divide-y divide-twitch-border" aria-label="Upcoming videos">
               {queue.map((item, index) => {
                 const muxItem = Array.isArray(item.mux_items) ? item.mux_items[0] : item.mux_items;
@@ -513,7 +572,11 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
                 );
               })}
             </ol>
-            {!queue.length && <p className="p-5 text-sm text-twitch-text-alt">No upcoming cues. Add videos from the library below.</p>}
+            {!queue.length && <div className="operator-queue-empty">
+              <p className="font-semibold">Your running order starts here.</p>
+              <p className="text-sm text-twitch-text-alt mt-2">Add your show videos, then arrange them in the order you’ll play them.</p>
+              <button type="button" className="twitch-button min-h-[44px] px-4 mt-4" onClick={() => setLibraryOpen(true)}>Browse library</button>
+            </div>}
           </div>
         </section>
 
@@ -639,66 +702,7 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
 
         </details>
 
-        {/* Adding media is preparation; the running order stays in focus. */}
-        <details>
-          <summary className="min-h-[44px] cursor-pointer text-sm font-semibold text-twitch-text py-3">Add videos from library</summary>
-          {queueableItems.length === 0 ? (
-            <p className="text-sm text-twitch-text-alt text-center py-4">
-              No Mux or individual YouTube videos in library. Add a video from the main controls; playlists cannot enter the timed queue.
-            </p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {queueableItems.map((item) => {
-                const duration = timedDuration(item.duration_seconds);
-                return (
-                <div key={item.id} className="bg-twitch-darker border border-twitch-border rounded p-3">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-twitch-text truncate">
-                          {item.label}
-                        </p>
-                        <p className="text-xs text-twitch-text-alt font-mono truncate">
-                          {item.playback_id}
-                        </p>
-                        <p className="text-xs text-twitch-text-alt mt-1">{mediaSourceLabel(item.source_type)}</p>
-                        {duration !== null && (
-                          <p className="text-xs text-twitch-text-alt mt-1">
-                            {formatDuration(duration)}
-                          </p>
-                        )}
-                        {duration === null && <p className="text-xs text-yellow-500 mt-1">An exact positive duration is required for the timed queue.</p>}
-                      </div>
-                      <button
-                        onClick={() => handleAddToQueue(item.id, item.label)}
-                        disabled={loading || isInQueue(item.id) || duration === null}
-                        className={`w-full sm:w-auto px-4 py-2 rounded text-sm font-medium transition-colors min-h-[44px] ${
-                          isInQueue(item.id) || duration === null
-                            ? 'bg-twitch-hover text-twitch-text-alt cursor-not-allowed'
-                            : 'bg-twitch-purple hover:bg-purple-600 text-white'
-                        }`}
-                      >
-                        {isInQueue(item.id) ? 'In Queue' : duration === null ? 'Needs Duration' : 'Add to Queue'}
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => handleSetHoldScreen(item.id, item.label)}
-                      disabled={loading}
-                      className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors min-h-[44px] ${
-                        holdScreenMuxItemId === item.id
-                          ? 'bg-success/20 text-success border border-success'
-                          : 'bg-twitch-gray hover:bg-twitch-hover text-twitch-text'
-                      }`}
-                    >
-                      {holdScreenMuxItemId === item.id ? '✓ Set as Hold Screen' : 'Set as Hold Screen'}
-                    </button>
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          )}
-        </details>
+
       </div>
     </div>
   );

@@ -400,20 +400,9 @@ export default function PlaybackControls() {
     <div className="twitch-card p-4 border-t-4 border-twitch-purple">
       <h3 className="text-lg font-semibold mb-3 text-twitch-text flex items-center gap-2">
         <div className="w-2 h-2 bg-twitch-purple rounded-full" aria-hidden="true"></div>
-        Synchronized Playback Control
+        Playback
       </h3>
       
-      <div className="bg-twitch-hover/50 border border-twitch-border rounded-lg p-3 mb-4">
-        <p className="text-xs text-twitch-text-alt mb-2">
-          <strong>Watch Party Mode:</strong> All viewers watch together in real-time
-        </p>
-        <p className="text-xs text-twitch-text-alt">
-          ✓ Viewers join the current point in the program<br/>
-          ✓ Server-clock queue transitions and continuous sync recovery<br/>
-          ✓ Viewers can only control volume
-        </p>
-      </div>
-
       <div className="bg-twitch-darker border border-twitch-border rounded-lg p-3 mb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1 basis-40">
@@ -530,7 +519,7 @@ export default function PlaybackControls() {
         )}
 
         {/* Control Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="operator-transport">
           <button
             onClick={() => handlePlaybackControl('play')}
             disabled={loading || playbackLocked || playbackState === 'playing'}
@@ -603,12 +592,7 @@ export default function PlaybackControls() {
           </button>
         </div>
 
-        <div className="text-xs text-twitch-text-alt bg-twitch-darker p-3 rounded border border-twitch-border">
-          <strong className="text-twitch-text">Tip:</strong>{' '}
-          {scheduleLocked
-            ? 'Schedule follows the show timetable. Switching to Queue puts you in control of playback.'
-            : 'Use Play/Pause to control all viewers at once. Hit Restart to begin the video from the start for everyone. Use Hold Screen for a looping intermission video.'}
-        </div>
+
       </div>
     </div>
   );

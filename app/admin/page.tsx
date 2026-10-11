@@ -83,12 +83,12 @@ export default function AdminDashboard() {
   return (
     <div className="operator-desktop min-h-screen text-twitch-text">
       <header className="bg-twitch-dark border-b border-twitch-border">
-        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
+        <div className="operator-shell px-4 py-3">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-twitch-purple">Admin Dashboard</h1>
-              <a href="/admin/game" className="underline text-sm">Open trivia, TRL &amp; superlative game desk →</a>
-              <p className="text-xs sm:text-sm text-twitch-text-alt">Manage your stream</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-twitch-purple">2006 · Show control</h1>
+              <a href="/admin/game" className="underline text-sm">Trivia, TRL &amp; awards →</a>
+
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <a
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
               >
                 Stage Display
               </a>
-              <a 
+              <a
                 href="/event"
                 className="twitch-button-secondary text-sm flex-1 sm:flex-none text-center min-h-[44px] flex items-center justify-center"
               >
@@ -114,53 +114,13 @@ export default function AdminDashboard() {
               </button>
             </div>
           </div>
-          
-          {/* Entry Screen Mode Toggle */}
-          <div className="mt-4 pt-4 border-t border-twitch-border">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-twitch-text mb-1">Program poster mode</h3>
-                <p className="text-xs text-twitch-text-alt">
-                  {posterMode 
-                    ? 'Poster flag is on. Audience admission is controlled by doors below.'
-                    : 'Poster flag is off. Audience admission is controlled by doors below.'
-                  }
-                </p>
-              </div>
-              <button
-                onClick={handleTogglePoster}
-                disabled={posterLoading}
-                className={`w-full sm:w-auto px-4 sm:px-6 py-3 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] ${
-                  posterMode
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white'
-                    : 'bg-gradient-to-r from-success to-green-600 hover:from-green-500 hover:to-success text-white'
-                }`}
-              >
-                {posterLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin">⟳</span>
-                    <span className="hidden sm:inline">Switching...</span>
-                  </span>
-                ) : posterMode ? (
-                  <span className="flex items-center justify-center gap-2">
-                    🎬 <span className="hidden xs:inline">POSTER ON</span><span className="xs:hidden">Poster on</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    📝 <span className="hidden xs:inline">POSTER OFF</span><span className="xs:hidden">Poster off</span>
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 sm:p-6">
-        <AudienceDoorsControl />
+      <main className="operator-shell p-4 sm:p-6">
         {streamData && (
-          <div className="twitch-card p-4 mb-4 sm:mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
+          <div className="operator-status">
+            <div className="operator-status-grid text-sm">
               <div>
                 <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Mode</p>
                 <p className="font-semibold text-twitch-purple">{streamData.playoutMode === 'manual' ? 'Queue' : streamData.playoutMode === 'schedule' ? 'Schedule' : 'Checking…'}</p>
@@ -171,27 +131,29 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Current cue</p>
-                <p className="font-semibold">{streamData.title || 'No cue selected'}</p>
+                <p className="font-semibold break-words">{streamData.title || 'No cue selected'}</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-twitch-text-alt mb-1">Next Transition</p>
                 <p className="font-semibold">{streamData.nextTransitionAt ? formatTransition(streamData.nextTransitionAt) : streamData.playoutMode === 'manual' ? streamData.autoAdvanceEnabled ? streamData.playbackState === 'paused' ? 'After playback resumes' : 'Waiting for a timed cue' : 'When you press Next' : 'None scheduled'}</p>
               </div>
             </div>
-            <p className="text-xs text-twitch-text-alt mt-3">
-              {streamData.playoutMode === 'manual'
-                ? streamData.autoAdvanceEnabled ? 'Auto-advance on: queued videos follow each other automatically.' : 'Auto-advance off: press Play Next in Queue when you are ready.'
-                : 'Schedule follows the show timetable.'}
-            </p>
+
           </div>
         )}
 
         <div className="operator-workspace">
+          {/* The queue is the operator's main workspace. Keep setup secondary. */}
+          <section className="operator-queue min-w-0" aria-label="Show queue">
+            <QueueManager program={streamData} onStreamRefresh={refreshStream} />
+          </section>
+
+          <div className="operator-monitor">
           {/* Monitor the current cue beside its playback controls. */}
           <section className="operator-preview min-w-0 twitch-card p-4" aria-label="Program preview">
-              <h2 className="text-lg font-semibold mb-3 text-twitch-text">Video Preview</h2>
+              <h2 className="text-lg font-semibold mb-3 text-twitch-text">Program monitor</h2>
               <p className="text-xs text-twitch-text-alt mb-4">
-                Read-only preview. In Queue mode, use the playback controls to run the show.
+                What’s on the shared program.
               </p>
               {streamData ? (
                 <VideoPlayer
@@ -232,10 +194,10 @@ export default function AdminDashboard() {
             <StreamControl showLibraryControls={false} showPlaybackControls={true} />
           </section>
 
-          {/* The queue is the operator's main workspace. Keep setup secondary. */}
-          <section className="operator-queue min-w-0" aria-label="Show queue">
-            <QueueManager program={streamData} onStreamRefresh={refreshStream} />
-          </section>
+
+          <AudienceDoorsControl />
+          </div>
+        </div>
 
           <aside className="operator-library min-w-0 space-y-4" aria-label="Library and show setup">
             <details className="operator-setup">
@@ -244,11 +206,19 @@ export default function AdminDashboard() {
               <StreamControl showLibraryControls={true} showPlaybackControls={false} />
             </details>
             <details className="operator-setup">
+              <summary>Program poster</summary>
+              <div className="operator-setting-row">
+                <p className="text-sm">Poster is {posterMode ? 'on' : 'off'}. Audience admission is controlled separately by the doors.</p>
+                <button type="button" onClick={handleTogglePoster} disabled={posterLoading} className="twitch-button-secondary min-h-[44px] px-4">
+                  {posterLoading ? 'Updating…' : posterMode ? 'Turn poster off' : 'Turn poster on'}
+                </button>
+              </div>
+            </details>
+            <details className="operator-setup">
               <summary className="min-h-[44px] cursor-pointer py-3 font-semibold">Event extras</summary>
               <VideoPlaylistSettings />
             </details>
           </aside>
-        </div>
       </main>
     </div>
   );

@@ -79,6 +79,7 @@ export default function StreamControl({
   showLibraryControls = true, 
   showPlaybackControls = true 
 }: StreamControlProps) {
+  const [librarySearch, setLibrarySearch] = useState('');
   const [muxItems, setMuxItems] = useState<MediaItem[]>([]);
   const [currentStream, setCurrentStream] = useState<CurrentStream | null>(null);
   const [customPlaybackId, setCustomPlaybackId] = useState('');
@@ -676,28 +677,7 @@ export default function StreamControl({
       {/* Playback Controls Section */}
       {showPlaybackControls && (
         <div>
-          <h2 className="text-2xl font-bold mb-4 text-twitch-text">Stream Control</h2>
-          
-          {/* Synchronized Playback Controls */}
           <PlaybackControls />
-          
-          {currentStream && (
-            <div className="twitch-card p-4 mb-6 border-l-4 border-twitch-purple mt-4">
-              <p className="text-xs text-twitch-text-alt uppercase tracking-wider mb-1">Currently Streaming</p>
-              <p className="font-semibold text-lg text-twitch-text">{currentStream.title}</p>
-              <p className="text-xs text-twitch-text-alt mt-2 font-mono">
-                {currentStream.playback_id} • {currentStream.kind} • {mediaSourceLabel(currentStream.source_type || MUX_SOURCE_TYPE)}
-              </p>
-              {currentStream.source_url && (
-                <p className="text-xs text-twitch-text-alt mt-1 break-all">
-                  {currentStream.source_url}
-                </p>
-              )}
-              <p className="text-xs text-twitch-text-alt mt-1">
-                Last updated: {new Date(currentStream.updated_at).toLocaleString()}
-              </p>
-            </div>
-          )}
 
           {message && (
             <div role="status" className={`rounded p-4 mb-4 ${messageClass(message.type)}`}>
@@ -712,20 +692,24 @@ export default function StreamControl({
         <>
           {message && <p role="status" className={`rounded p-3 text-sm ${messageClass(message.type)}`}>{message.text}</p>}
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-twitch-text">Select from Library</h3>
+            <h3 className="text-lg font-semibold mb-3 text-twitch-text">Manage source videos</h3>
+            <label className="block text-sm font-medium mb-4">Search media library
+              <input type="search" value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} className="twitch-input w-full mt-2" placeholder="Find a video by title…" />
+            </label>
             {muxItems.length === 0 ? (
               <p className="text-twitch-text-alt text-sm">No media items available. Add one below.</p>
             ) : (
-              <div className="space-y-2">
-                {muxItems.map(item => {
+              <div className="operator-media-list">
+                {!muxItems.some(item => item.label.toLowerCase().includes(librarySearch.trim().toLowerCase())) && <p className="py-4 text-sm">No videos match “{librarySearch}”.</p>}
+                {muxItems.filter(item => item.label.toLowerCase().includes(librarySearch.trim().toLowerCase())).map(item => {
                   const sourceType = item.source_type || MUX_SOURCE_TYPE;
                   const duration = Number(item.duration_seconds);
                   return (
-                    <div key={item.id} className={`twitch-card p-4 ${holdScreenMuxItemId === item.id ? 'border-l-4 border-yellow-500' : ''}`}>
-                      <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
+                    <div key={item.id} className="operator-media-item">
+                      <div className="operator-media-row">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <p className="font-medium text-twitch-text">{item.label}</p>
+                            <p className="font-medium text-twitch-text break-words">{item.label}</p>
                             <span className="text-xs font-semibold px-2 py-1 rounded bg-twitch-purple/20 text-twitch-purple">
                               {mediaSourceLabel(sourceType)}
                             </span>
@@ -738,17 +722,20 @@ export default function StreamControl({
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-twitch-text-alt font-mono break-all">{item.playback_id}</p>
-                          {item.source_url && (
-                            <p className="text-xs text-twitch-text-alt break-all mt-1">{item.source_url}</p>
-                          )}
                           {Number.isFinite(duration) && duration > 0 && (
                             <p className="text-xs text-twitch-text-alt">
                               Duration: {formatDuration(duration)}
                             </p>
                           )}
+                          <details className="operator-source-details">
+                            <summary>Source details</summary>
+                          <p className="text-xs text-twitch-text-alt font-mono break-all">{item.playback_id}</p>
+                          {item.source_url && (
+                            <p className="text-xs text-twitch-text-alt break-all mt-1">{item.source_url}</p>
+                          )}
+                          </details>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
+                        <div className="operator-media-actions">
                           <button
                             onClick={() => handleSetStream(
                               item.playback_id,
@@ -762,7 +749,7 @@ export default function StreamControl({
                             className={`px-4 py-2 rounded text-sm transition-colors min-h-[44px] ${
                               currentStream?.playback_id === item.playback_id
                                 ? 'bg-twitch-hover text-twitch-text-alt cursor-not-allowed'
-                                : 'twitch-button'
+                                : 'twitch-button-secondary'
                             }`}
                           >
                             {currentStream?.playback_id === item.playback_id ? 'Current' : 'Make Current'}
@@ -773,7 +760,7 @@ export default function StreamControl({
                             className={`px-4 py-2 rounded text-sm transition-colors min-h-[44px] ${
                               holdScreenMuxItemId === item.id
                                 ? 'bg-yellow-500/20 text-yellow-500 cursor-not-allowed border border-yellow-500'
-                                : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                : 'twitch-button-secondary'
                             }`}
                             title="Set this as the hold screen video"
                           >
@@ -782,7 +769,7 @@ export default function StreamControl({
                           <button
                             onClick={() => handleDeleteMuxItem(item.id, item.label)}
                             disabled={loading}
-                            className="px-4 py-2 rounded text-sm transition-colors bg-error hover:bg-red-600 disabled:bg-twitch-gray disabled:cursor-not-allowed text-white min-h-[44px]"
+                            className="operator-delete px-4 py-2 rounded text-sm min-h-[44px]"
                             title="Delete this item from library"
                           >
                             Delete

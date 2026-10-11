@@ -31,20 +31,45 @@
 .operator-desktop summary:focus-visible { outline: 2px solid var(--operator-blue); outline-offset: 3px; }
 .operator-desktop [aria-label="Library and show setup"] :is(input, select, textarea) { max-width: 100%; }
 
-/* Independent desktop columns prevent a tall control panel from pushing the
-   queue down. Source order remains preview, controls, queue, then setup for
-   keyboard navigation and the single-column phone layout. */
-.operator-workspace { display: flow-root; }
-.operator-workspace > * { margin-bottom: 1.5rem; }
-@media (min-width: 1024px) {
-  .operator-workspace > :is(.operator-preview, .operator-queue) {
-    float: left;
-    clear: left;
-    width: calc((100% - 1.5rem) * 2 / 3);
-  }
-  .operator-workspace > :is(.operator-controls, .operator-library) {
-    float: right;
-    clear: right;
-    width: calc((100% - 1.5rem) / 3);
-  }
+
+/* Queue first. The monitor has its own column; setup spans the workspace. */
+.operator-shell { max-width: 1560px; margin-inline: auto; }
+.operator-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.operator-monitor { display: grid; gap: 1rem; min-width: 0; }
+.operator-monitor > * { min-width: 0; margin: 0; }
+.operator-status { padding: 0 0 1.25rem; }
+.operator-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.operator-library { margin-top: 1.5rem; }
+.operator-setup > summary { min-height: 52px; padding: .85rem 0; cursor: pointer; font-weight: 600; }
+.operator-setting-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; }
+.operator-transport { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.operator-transport button { padding-inline: .5rem; }
+.operator-desktop :is(.bg-twitch-darker, .bg-twitch-dark, .bg-twitch-hover) { background-color: var(--operator-paper); }
+.operator-desktop .text-success { color: oklch(0.4 0.1 150); }
+.operator-desktop :is(input, select, textarea) { min-width: 0; }
+.operator-desktop :is(button, a, summary):focus-visible { outline: 2px solid var(--operator-blue); outline-offset: 3px; }
+.operator-media-list { container-type: inline-size; max-height: 32rem; overflow-y: auto; border-block: 1px solid var(--operator-rule); background: var(--operator-paper); }
+.operator-media-item + .operator-media-item { border-top: 1px solid var(--operator-rule); }
+.operator-media-row { display: flex; flex-direction: column; align-items: stretch; gap: 1rem; padding: 1rem; }
+.operator-media-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start; flex-shrink: 0; }
+.operator-media-actions button { flex: 0 1 auto; height: auto; white-space: normal; }
+.operator-source-details { margin-top: .25rem; font-size: .75rem; color: oklch(0.44 0.025 250); }
+.operator-source-details summary { cursor: pointer; padding-block: .5rem; }
+.operator-source-details p { max-width: 70ch; }
+.operator-delete { border: 1px solid oklch(0.75 0.06 25); color: oklch(0.45 0.16 25); background: transparent; }
+.operator-queue-library { border-block: 1px solid var(--operator-rule); }
+.operator-queue-library-list { max-height: 22rem; overflow-y: auto; }
+.operator-queue-library-row { padding: .75rem 0; border-top: 1px solid var(--operator-rule); }
+.operator-queue-empty { padding: 2rem 1.25rem; }
+@container (min-width: 760px) {
+  .operator-media-row { flex-direction: row; align-items: flex-start; }
 }
+@media (min-width: 1050px) {
+  .operator-workspace { grid-template-columns: minmax(0, 1fr) 380px; }
+  .operator-status-grid { grid-template-columns: .6fr .6fr 1.8fr 1fr; }
+}
+
+.operator-desktop .operator-go:disabled { background: var(--operator-chrome); color: var(--operator-ink); opacity: 1; }
+.operator-media-row > :first-child { overflow-wrap: anywhere; }
+
+.operator-desktop [hidden] { display: none !important; }
