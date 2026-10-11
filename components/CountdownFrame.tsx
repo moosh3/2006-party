@@ -3,8 +3,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { COUNTDOWN_BANNERS, type CountdownCue } from '@/lib/countdown';
 
 /** Fullscreen the composition, so the numbered artwork stays with the picture. */
-export default function CountdownFrame({ cue, sessionId, paused, children }: {
-  cue: CountdownCue; sessionId?: string; paused: boolean; children: ReactNode;
+export default function CountdownFrame({ cue, sessionId, paused, children, separateFooter = false }: {
+  cue: CountdownCue; sessionId?: string; paused: boolean; children: ReactNode; separateFooter?: boolean;
 }) {
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -30,9 +30,9 @@ export default function CountdownFrame({ cue, sessionId, paused, children }: {
     else void player.play().catch(() => { /* Static first frame remains visible. */ });
   }, [paused, reducedMotion, cue.bannerUrl, sessionId]);
   return <div ref={frame} className="countdown-frame relative bg-black w-full">
-    <div className="countdown-picture relative w-full">
+    <div className={`countdown-picture relative w-full${separateFooter ? ' countdown-picture--footer' : ''}`}>
     {children}
-    <div className="countdown-banner absolute left-0 right-0 pointer-events-none z-10" style={{ bottom: 8 }} aria-label={`Countdown number ${cue.rank}`}>
+    <div className={`countdown-banner left-0 right-0 pointer-events-none z-10 ${separateFooter ? 'relative py-2' : 'absolute'}`} style={{ bottom: separateFooter ? undefined : 8 }} aria-label={`Countdown number ${cue.rank}`}>
       {imageUrl && !imageFailed
         // Operator artwork may be transparent; bundled stills also cover reduced motion and unsupported alpha video.
         // eslint-disable-next-line @next/next/no-img-element
@@ -47,8 +47,13 @@ export default function CountdownFrame({ cue, sessionId, paused, children }: {
       catch { setFullscreenError('Fullscreen with banner is unavailable in this browser. Use the stage display or browser fullscreen.'); }
     }}>Fullscreen with banner</button>
     <style>{`
+      /* YouTube captions live inside a cross-origin iframe. Keep artwork outside
+         that picture instead of covering captions or native controls. */
+      .countdown-picture.countdown-picture--footer { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+      .countdown-frame:fullscreen .countdown-picture--footer > .aspect-video { height: 100%; max-height: 100%; }
       .countdown-frame:fullscreen { display: grid; place-items: center; height: 100vh; }
       .countdown-frame:fullscreen .countdown-picture { max-width: min(100vw, 177.7778vh); }
+      .countdown-frame:fullscreen .countdown-picture--footer { height: 100%; max-width: 100%; }
       .countdown-frame:fullscreen .countdown-fullscreen { opacity: 0; }
       .countdown-frame:fullscreen:hover .countdown-fullscreen,
       .countdown-frame:fullscreen:focus-within .countdown-fullscreen { opacity: 1; }

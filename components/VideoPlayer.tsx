@@ -349,7 +349,7 @@ function YouTubePlaylistPlayer({
 
 export default function VideoPlayer(props: VideoPlayerProps) {
   const cue = !props.isHoldScreen && props.playoutMode !== 'schedule' ? props.countdown : null;
-  return cue ? <CountdownFrame cue={cue} sessionId={props.playbackSessionId} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;
+  return cue ? <CountdownFrame cue={cue} separateFooter={props.sourceType === YOUTUBE_VIDEO_SOURCE_TYPE} sessionId={props.playbackSessionId} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;
 }
 
 export function ProgramVideoPlayer({
