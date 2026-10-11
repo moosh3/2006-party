@@ -400,6 +400,7 @@
 
 .aim-chat-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -410,6 +411,7 @@
 
 .aim-chat-actions span {
   margin-right: auto;
+  overflow-wrap: anywhere;
 }
 
 .aim-chat-error,

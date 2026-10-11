@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { playAimSound, unlockAimSounds } from '@/lib/aim-sounds';
 import Chat from '@/components/Chat';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PollsTab from '@/components/PollsTab';
@@ -823,6 +824,8 @@ export default function AimExperience({
   };
 
   const signOff = () => {
+    unlockAimSounds();
+    void playAimSound('goodbye');
     clearViewerData();
     onSignOff();
   };

@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { getViewerData } from '@/lib/viewer';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import type { ChatMessage as Message } from '@/lib/chat-message-state';
+import AimSoundToggle from '@/components/aim/AimSoundToggle';
+import { playAimSound, unlockAimSounds } from '@/lib/aim-sounds';
 import PollCard from './PollCard';
 import AimWindow from './aim/AimWindow';
 import {
@@ -40,6 +42,21 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, screenName, em
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const actionGenerationRef = useRef(0);
+  const latestSoundMessage = useRef<{room: string; userId: string; id: number} | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const previous = latestSoundMessage.current;
+    const newest = messages.reduce((id, message) => Math.max(id, message.id), previous?.room === room && previous.userId === userId ? previous.id : 0);
+    latestSoundMessage.current = {room, userId, id:newest};
+    // History, reconnect catch-up, own messages and reaction updates are silent.
+    if (!previous || previous.room !== room || previous.userId !== userId) return;
+    const now = Date.now();
+    const incoming = messages.some(message => {
+      const age = now - Date.parse(message.created_at);
+      return message.id > previous.id && message.kind === 'user' && message.user_id !== userId && age >= -1000 && age < 10000;
+    });
+    if (incoming && document.hasFocus()) void playAimSound('mail');
+  }, [messages, loading, room, userId]);
 
   useEffect(() => {
     const generation = actionGenerationRef.current + 1;
@@ -412,7 +429,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, screenName, em
           </div>
         )}
 
-        <form onSubmit={handleSend}>
+        <form onSubmit={handleSend} onFocus={unlockAimSounds}>
           <div className="aim-chat-tools" aria-hidden="true">
             <span className="aim-chat-format aim-chat-format-bold">A</span>
             <span className="aim-chat-format aim-chat-format-italic">A</span>
@@ -436,6 +453,7 @@ export default function Chat({ room = ROOM_NAMES.DEFAULT, userId, screenName, em
           />
           <div className="aim-chat-actions">
             <span>Chatting as <strong>{userName}</strong></span>
+            <AimSoundToggle />
             <button
               type="submit"
               className="aim-xp-button aim-xp-button-primary"

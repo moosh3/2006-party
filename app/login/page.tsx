@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { playAimSound, unlockAimSounds } from '@/lib/aim-sounds';
 import MacAudienceGate from '@/components/2006/MacAudienceGate';
 import { parseAudienceViewer } from '@/lib/audience-access';
 import { adoptAudienceViewer, getViewerData } from '@/lib/viewer';
@@ -36,6 +37,7 @@ export default function LoginPage() {
   }, []);
 
   async function signOn(name: string) {
+    unlockAimSounds();
     const request = new AbortController();
     activeSignOn.current = request;
     const timeout = window.setTimeout(() => request.abort(), 10000);
@@ -51,6 +53,7 @@ export default function LoginPage() {
       if (!mounted.current || request.signal.aborted) return;
       adoptAudienceViewer(viewer);
       try { sessionStorage.setItem('2006_party_initial_screen', 'show'); } catch { /* Show is the default. */ }
+      void playAimSound('welcome');
       router.push('/event');
     } catch (signOnError) {
       if (request.signal.aborted) throw new Error('The connection timed out. Please try again.');

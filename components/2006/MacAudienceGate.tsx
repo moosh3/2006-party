@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import './mac-audience-gate.css';
+import AimSoundToggle from '@/components/aim/AimSoundToggle';
 
 export type MacAudienceGateProps = {
   mode: 'login' | 'waiting' | 'connecting';
@@ -121,7 +122,7 @@ export default function MacAudienceGate({
               </p>
               {visibleError && <p id={errorId} className="mac2006-audience-error" role="alert">{visibleError}</p>}
               <div className="mac2006-audience-login-actions">
-                <span>No password needed.</span>
+                <AimSoundToggle className="mac2006-audience-button" />
                 <button type="submit" className="mac2006-audience-button primary" disabled={busy || !onSignOn}>
                   {busy ? 'Signing on…' : 'Sign on'}
                 </button>
