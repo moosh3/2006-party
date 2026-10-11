@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { CountdownCue } from '@/lib/countdown';
+import { COUNTDOWN_BANNERS, type CountdownCue } from '@/lib/countdown';
 
 /** Fullscreen the composition, so the numbered artwork stays with the picture. */
 export default function CountdownFrame({ cue, sessionId, paused, children }: {
@@ -9,10 +9,14 @@ export default function CountdownFrame({ cue, sessionId, paused, children }: {
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(true);
   const isVideo = !!cue.bannerUrl && /\.(mp4|webm|mov)(?:[?#]|$)/i.test(cue.bannerUrl);
-  useEffect(() => { setFailed(false); }, [cue.bannerUrl, sessionId]);
+  const bundled = cue.bannerUrl === COUNTDOWN_BANNERS[cue.rank]?.video;
+  const poster = bundled ? COUNTDOWN_BANNERS[cue.rank].poster : undefined;
+  const imageUrl = bundled && (reducedMotion || failed) ? poster : !isVideo ? cue.bannerUrl : null;
+  useEffect(() => { setFailed(false); setImageFailed(false); }, [cue.bannerUrl, sessionId]);
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReducedMotion(query.matches);
@@ -29,11 +33,12 @@ export default function CountdownFrame({ cue, sessionId, paused, children }: {
     <div className="countdown-picture relative w-full">
     {children}
     <div className="countdown-banner absolute left-0 right-0 pointer-events-none z-10" style={{ bottom: 8 }} aria-label={`Countdown number ${cue.rank}`}>
-      {cue.bannerUrl && !failed ? isVideo
-        ? <video key={`${sessionId}:${cue.bannerUrl}`} ref={video} src={cue.bannerUrl} muted playsInline loop onError={() => setFailed(true)} className="w-full max-h-28 object-contain object-bottom" aria-hidden="true" />
-        // Operator-provided artwork has variable dimensions and may be transparent.
+      {imageUrl && !imageFailed
+        // Operator artwork may be transparent; bundled stills also cover reduced motion and unsupported alpha video.
         // eslint-disable-next-line @next/next/no-img-element
-        : <img src={cue.bannerUrl} alt="" onError={() => setFailed(true)} className="w-full max-h-28 object-contain object-bottom" />
+        ? <img src={imageUrl} alt="" onError={() => setImageFailed(true)} className="w-full max-h-28 object-contain object-bottom" />
+        : cue.bannerUrl && !imageUrl && !failed && isVideo
+        ? <video key={`${sessionId}:${cue.bannerUrl}`} ref={video} src={cue.bannerUrl} poster={poster} muted playsInline loop onError={() => setFailed(true)} className="w-full max-h-28 object-contain object-bottom" aria-hidden="true" />
         : <span className="inline-block ml-4 bg-black/80 text-white px-4 py-2 text-2xl font-bold">#{cue.rank}</span>}
     </div>
     </div>

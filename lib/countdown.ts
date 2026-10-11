@@ -5,6 +5,11 @@ export interface CountdownCue {
   bannerUrl: string | null;
 }
 
+/** Bundled artwork stays attached to the rank, never the selected song. */
+export const COUNTDOWN_BANNERS: Record<number, { video: string; poster: string }> = Object.fromEntries(
+  [1, 2, 3, 4, 5].map(rank => [rank, { video: `/2006/countdown/number-${rank}.webm`, poster: `/2006/countdown/number-${rank}.png` }]),
+);
+
 export const COUNTDOWN_LENGTHS: Record<number, number> = { 5: 15, 4: 30, 3: 45, 2: 60 };
 
 export function countdownError(cue: CountdownCue, sourceDuration: number): string | null {

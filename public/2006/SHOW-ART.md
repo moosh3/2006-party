@@ -54,3 +54,13 @@ Supplied by the production through Messages. GIFs copied byte-for-byte, with ori
 - `tap.gif`: original `Clippy tap.gif`, SHA-256 `11baaf170afdf721c2e923c2a6b94cfd646d345cd05537e3f8ca649e222bf92c`.
 - `curious.gif`: original `CuriousClippy.gif`, SHA-256 `947c1cc193bb584991cce594e898879c28b9893507a3c47cfb23b2291e6fe9de`.
 - `spin.gif`: original `Clippy360.gif`, SHA-256 `796650f73921de584db2e54e8c3972c3a312809776e27f5c088a783fd5dfe00b`.
+
+## Countdown banners 1–5 (October 11, 2026)
+
+Supplied by the production as 1280×720 Canva MOV exports through Messages. The original attachments are unchanged. Exterior connected near-white background removed with a flood-fill alpha mask; enclosed white lettering and CD details retained, with slight edge erosion/feather for compression fringes. All five use source frames 101–181 (81 frames, 30fps, 2.7 seconds), cropped to 1280×220 at y=500. VP9/WebM includes alpha; PNGs are exact first decoded output frames. All 405 output frames were checked for transparent exterior and retained opaque foreground. The loop omits the original intro so the rank is readable when paused or looping.
+
+- #1: source `video number 1.mov`, source SHA-256 `69cc4e4ce7ae99b6ad63f95cc694e470615c02fba20001887cdf1d9255c905b9`; WebM SHA-256 `b69810caa790ea64966d1a462a7976368e0fd7fe3f36a181f3429a8a20b7d6e5`.
+- #2: source `video number 2.mov`, source SHA-256 `12af335ec657d3874bcb07cd38200ea99bc6686e04f39708a506fcd06f90b4db`; WebM SHA-256 `fc2944d6fe0277ccf69499c1decdb5810194289a08fbf31503f96ec8b060b248`.
+- #3: source `video number 3.mov`, source SHA-256 `c77e9e4dd4b94232bd3749ead154a7d53dbdd48db8ba6c4e7247f3a6828855f9`; WebM SHA-256 `60687ff890152d0e5753776739cc973703a78ab3e0c962890efb2c42fdd50f81`.
+- #4: source `video number 4.mov`, source SHA-256 `6d1282d512fe327222f79e53882a85d6bf089d13db61466c7c59af88589540f3`; WebM SHA-256 `9317faf2202becb99cb1e9b6f96638dcf0da5ed4ebd384147054d01303e7f233`.
+- #5: source `video number five.mov`, source SHA-256 `943dff676e0f1a8dbbb668378d2282a7cb8017c6455b1c63484c432c5692578b`; WebM SHA-256 `f85c98f0d92f7cb1551256aae0c04b4718866510cb67bfb026addb7c63718468`.
