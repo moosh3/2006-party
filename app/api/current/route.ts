@@ -75,6 +75,8 @@ export async function GET() {
       sourceType, youtubePlaylistId: youtubePlaylistId || parseYouTubePlaylistPlaybackId(playbackId), sourceUrl,
       youtubeVideoId: sourceType === YOUTUBE_VIDEO_SOURCE_TYPE ? parseYouTubeVideoPlaybackId(playbackId) : null,
       playoutMode: mode, playbackState,
+      countdown: !resolved && !isHoldScreen ? data.countdown || null : null,
+      clipEndSeconds: !resolved && !isHoldScreen && data.countdown ? Number(data.countdown.startSeconds) + Number(data.countdown.durationSeconds) : null,
       autoAdvanceEnabled: data.auto_advance_enabled === true,
       playbackPosition: resolved?.playbackPosition ?? Number(data.playback_position || 0),
       playbackUpdatedAt: anchor, playbackElapsedMs: 0,

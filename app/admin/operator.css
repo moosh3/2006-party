@@ -26,3 +26,25 @@
   .operator-desktop :is(input, textarea, select) { font-size: 16px; }
   .operator-desktop :is(button, select) { min-height: 44px; }
 }
+
+.operator-desktop .operator-setup { border-top: 1px solid var(--operator-rule); }
+.operator-desktop summary:focus-visible { outline: 2px solid var(--operator-blue); outline-offset: 3px; }
+.operator-desktop [aria-label="Library and show setup"] :is(input, select, textarea) { max-width: 100%; }
+
+/* Independent desktop columns prevent a tall control panel from pushing the
+   queue down. Source order remains preview, controls, queue, then setup for
+   keyboard navigation and the single-column phone layout. */
+.operator-workspace { display: flow-root; }
+.operator-workspace > * { margin-bottom: 1.5rem; }
+@media (min-width: 1024px) {
+  .operator-workspace > :is(.operator-preview, .operator-queue) {
+    float: left;
+    clear: left;
+    width: calc((100% - 1.5rem) * 2 / 3);
+  }
+  .operator-workspace > :is(.operator-controls, .operator-library) {
+    float: right;
+    clear: right;
+    width: calc((100% - 1.5rem) / 3);
+  }
+}

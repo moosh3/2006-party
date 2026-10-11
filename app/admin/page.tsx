@@ -186,11 +186,9 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Left Column - Video Preview and Library Controls */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Video Preview */}
-            <div className="twitch-card p-4">
+        <div className="operator-workspace">
+          {/* Monitor the current cue beside its playback controls. */}
+          <section className="operator-preview min-w-0 twitch-card p-4" aria-label="Program preview">
               <h2 className="text-lg font-semibold mb-3 text-twitch-text">Video Preview</h2>
               <p className="text-xs text-twitch-text-alt mb-4">
                 Read-only preview. In Queue mode, use the playback controls to run the show.
@@ -202,7 +200,7 @@ export default function AdminDashboard() {
                   playbackRevision={streamData.playbackRevision}
                   serverNow={streamData.serverNow}
                   playbackPositionSeconds={streamData.playbackPositionSeconds}
-                  playbackDurationSeconds={streamData.playbackDurationSeconds}
+                  countdown={streamData.countdown} clipEndSeconds={streamData.clipEndSeconds} playbackDurationSeconds={streamData.playbackDurationSeconds}
                   snapshotReceivedAt={streamData.snapshotReceivedAt}
                   snapshotRoundTripMs={streamData.snapshotRoundTripMs}
                   onStreamRefresh={refreshStream}
@@ -228,19 +226,28 @@ export default function AdminDashboard() {
                   <p className="text-twitch-text-alt">No stream configured. Add a video below.</p>
                 </div>
               )}
-            </div>
+          </section>
 
-            <VideoPlaylistSettings />
-
-            {/* Library Controls - Below Video Preview */}
-            <StreamControl showLibraryControls={true} showPlaybackControls={false} />
-          </div>
-
-          {/* Right Column - Playback Controls and Queue */}
-          <div className="lg:col-span-1 space-y-6">
+          <section className="operator-controls min-w-0" aria-label="Live playback controls">
             <StreamControl showLibraryControls={false} showPlaybackControls={true} />
+          </section>
+
+          {/* The queue is the operator's main workspace. Keep setup secondary. */}
+          <section className="operator-queue min-w-0" aria-label="Show queue">
             <QueueManager program={streamData} onStreamRefresh={refreshStream} />
-          </div>
+          </section>
+
+          <aside className="operator-library min-w-0 space-y-4" aria-label="Library and show setup">
+            <details className="operator-setup">
+              <summary className="min-h-[44px] cursor-pointer py-3 font-semibold">Media library &amp; setup</summary>
+              <p className="text-sm text-twitch-text-alt mb-4">Add and manage source videos here. Arrange and run them from the queue.</p>
+              <StreamControl showLibraryControls={true} showPlaybackControls={false} />
+            </details>
+            <details className="operator-setup">
+              <summary className="min-h-[44px] cursor-pointer py-3 font-semibold">Event extras</summary>
+              <VideoPlaylistSettings />
+            </details>
+          </aside>
         </div>
       </main>
     </div>

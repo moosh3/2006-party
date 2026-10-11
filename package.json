@@ -49,7 +49,10 @@
     "generate-admin-hash": "tsx scripts/generate-admin-hash.ts",
     "setup:db": "tsx -r dotenv/config scripts/setup-database.ts dotenv_config_path=.env.local",
     "seed:demo": "tsx -r dotenv/config scripts/seed-demo-data.ts dotenv_config_path=.env.local",
-    "enable:realtime": "tsx -r dotenv/config scripts/enable-realtime.ts dotenv_config_path=.env.local"
+    "enable:realtime": "tsx -r dotenv/config scripts/enable-realtime.ts dotenv_config_path=.env.local",
+    "test:countdown-db": "node --import tsx scripts/test-countdown-db.ts",
+    "test:countdown-api": "node --import tsx scripts/test-countdown-api.ts",
+    "db:countdown": "node --import tsx scripts/apply-countdown-db.ts"
   },
   "dependencies": {
     "@mux/mux-node": "^8.0.0",

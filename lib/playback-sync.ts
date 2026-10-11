@@ -8,6 +8,7 @@ export interface PlaybackSnapshot {
   playbackState: string;
   playbackPositionSeconds: number;
   playbackDurationSeconds?: number | null;
+  clipEndSeconds?: number | null;
 }
 
 export interface PlaybackAnchor extends PlaybackSnapshot {
@@ -60,12 +61,19 @@ export function projectPlaybackPosition(
     ? Math.max(0, now - anchor.receivedAt) + anchor.roundTripMs / 2
     : 0;
   const position = Math.max(0, anchor.playbackPositionSeconds + elapsedMs / 1000);
-  const duration = options.duration ?? anchor.playbackDurationSeconds;
+  const duration = !options.hold && anchor.clipEndSeconds != null ? anchor.clipEndSeconds : options.duration ?? anchor.playbackDurationSeconds;
   if (!Number.isFinite(duration) || !duration || duration <= 0) return position;
   if (options.hold) return position % duration;
   // Leave a tiny margin so a correction doesn't repeatedly manufacture an
   // ended event while the authoritative server is loading the next cue.
   return Math.min(position, Math.max(0, duration - 0.05));
+}
+
+/** Independent of polling: an excerpt stops even while the network is down. */
+export function excerptHasEnded(anchor: PlaybackAnchor | null, now: number) {
+  if (!anchor || anchor.clipEndSeconds == null) return false;
+  const elapsed = anchor.playbackState === 'playing' ? (Math.max(0, now - anchor.receivedAt) + anchor.roundTripMs / 2) / 1000 : 0;
+  return anchor.playbackPositionSeconds + elapsed >= anchor.clipEndSeconds;
 }
 
 export interface SyncMediaState {
@@ -93,13 +101,13 @@ export function getPlaybackCorrection(
   const correction: PlaybackCorrection = { seekTo: null, playbackRate: 1, action: null };
   if (media.readyState < 1 || media.seeking) return correction;
 
-  const playing = options.hold || anchor.playbackState === 'playing';
+  const playing = options.hold || (anchor.playbackState === 'playing' && !excerptHasEnded(anchor, now));
   if (!options.live) {
     const duration = Number.isFinite(media.duration) && media.duration > 0
       ? media.duration : anchor.playbackDurationSeconds;
     const target = projectPlaybackPosition(anchor, now, { hold: options.hold, duration });
     const drift = target - media.currentTime;
-    if (Math.abs(drift) > (options.force || !playing ? 0.15 : 2)) {
+    if ((!options.hold && anchor.clipEndSeconds != null && media.currentTime >= anchor.clipEndSeconds) || Math.abs(drift) > (options.force || !playing ? 0.15 : 2)) {
       correction.seekTo = target;
     } else if (playing && Math.abs(drift) > 0.35) {
       correction.playbackRate = drift > 0 ? 1.03 : 0.97;

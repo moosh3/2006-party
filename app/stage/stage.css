@@ -167,3 +167,15 @@ body:has(.stage-display) {
 @media (prefers-reduced-motion: reduce) {
   .stage-display * { animation: none !important; transition: none !important; }
 }
+
+/* The countdown composition must fit the stage's remaining height, including
+   its artwork. A nested aspect-ratio box otherwise overflows below the cue bar. */
+.stage-program .countdown-frame,
+.stage-program .countdown-picture {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.stage-program .countdown-picture > .aspect-video { height: 100%; }
+.stage-program .countdown-fullscreen { display: none; }

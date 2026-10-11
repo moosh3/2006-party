@@ -487,6 +487,18 @@ await test('caption availability is not invented and repeated cues use session-s
   const parent = source('components/VideoPlayer.tsx');
   assert.match(parent, /key=\{`\$\{playbackSessionId \|\| activeSlotId \|\| 'manual'\}:\$\{videoId\}`\}/);
 });
+await test('countdown out point pauses YouTube and Reconnect cannot restart an expired excerpt', async () => {
+  let reconnect: (() => void) | null = null;
+  const { harness, environment, player } = await setup({ snapshot: { ...baseSnapshot, playbackPositionSeconds:50, clipEndSeconds:65 }, onReconnectReady: value => { reconnect = value; } });
+  player.ready(); player.duration=240; player.emit(1); harness.flush();
+  environment.advance(16000); await settle(harness);
+  assert.equal(player.state,2);
+  const plays=player.plays;
+  (reconnect as (() => void) | null)?.(); await settle(harness);
+  assert.equal(player.plays,plays); assert.equal(player.state,2);
+  assert.equal(player.options.playerVars.fs,0);
+  harness.unmount();
+});
 process.stdout.write(`\n${checks} isolated YouTube player scenarios passed.\n`);
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

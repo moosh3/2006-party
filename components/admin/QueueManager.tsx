@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import CountdownEditor from './CountdownEditor';
+import type { CountdownCue } from '@/lib/countdown';
 import type { ProgramStream } from '@/lib/program-stream';
 import { MUX_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
 
@@ -31,6 +33,7 @@ interface QueueItem {
   position: number;
   mux_item_id: string;
   created_at: string;
+  countdown: CountdownCue | null;
   mux_items: {
     id: string;
     playback_id: string;
@@ -51,6 +54,7 @@ interface MediaItem {
 }
 
 export default function QueueManager({ program, onStreamRefresh }: { program?: ProgramStream | null; onStreamRefresh?: () => void }) {
+  const [countdownEditor, setCountdownEditor] = useState<QueueItem | 'new' | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [muxItems, setMuxItems] = useState<MediaItem[]>([]);
   const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
@@ -445,6 +449,9 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
           </div>
         )}
 
+        <button type="button" className="mb-3 min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} onClick={() => setCountdownEditor('new')}>Add countdown cue</button>
+        {countdownEditor && <CountdownEditor key={countdownEditor === 'new' ? 'new' : countdownEditor.id} media={muxItems} initial={countdownEditor === 'new' ? undefined : countdownEditor} onCancel={() => setCountdownEditor(null)} onSaved={() => { setCountdownEditor(null); void loadQueue(); setMessage({ type: 'success', text: 'Countdown cue saved. Playback is unchanged.' }); }} />}
+
         {/* Manual Next Button */}
         <button
           onClick={handleNextVideo}
@@ -486,19 +493,22 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
                 const duration = timedDuration(muxItem?.duration_seconds);
                 const isSelected = selectedIds.includes(item.id);
                 return (
-                  <li key={item.id} className={`flex items-center gap-2 p-2 ${isSelected ? 'bg-[oklch(0.9_0.045_250)]' : 'bg-[oklch(0.97_0.008_250)]'}`}>
+                  <li key={item.id} className={`flex flex-wrap items-center gap-2 p-2 ${isSelected ? 'bg-[oklch(0.9_0.045_250)]' : 'bg-[oklch(0.97_0.008_250)]'}`}>
                     <button type="button" aria-pressed={isSelected} aria-label={`Select cue ${index + 1}: ${muxItem?.label || 'Unknown'}`} disabled={loading}
                       onClick={event => selectCue(item.id, event.shiftKey)}
-                      className="flex flex-1 items-center gap-3 text-left min-w-0 min-h-[60px] p-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                      className="flex flex-1 basis-60 items-center gap-3 text-left min-w-0 min-h-[60px] p-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
                       <span aria-hidden="true" className="text-lg text-twitch-text">{isSelected ? '☑' : '☐'}</span>
                       <span className="text-sm tabular-nums text-twitch-text-alt w-6 shrink-0">{index + 1}</span>
                       <span className="min-w-0">
                         {index === 0 && <span className="block text-xs font-bold text-twitch-purple">UP NEXT</span>}
                         <span className="block font-medium text-sm text-twitch-text break-words">{muxItem?.label || 'Unknown'}</span>
-                        <span className="block text-xs text-twitch-text-alt mt-1">{mediaSourceLabel(muxItem?.source_type)}{duration !== null ? ` · ${formatDuration(duration)}` : ''}</span>
+                        <span className="block text-xs text-twitch-text-alt mt-1">{item.countdown ? `TRL #${item.countdown.rank} · ${item.countdown.rank === 1 ? 'Full video' : `${item.countdown.durationSeconds}s from ${item.countdown.startSeconds}s`} · ${item.countdown.bannerUrl ? 'Banner set' : 'Number only'}` : `${mediaSourceLabel(muxItem?.source_type)}${duration !== null ? ` · ${formatDuration(duration)}` : ''}`}</span>
                       </span>
                     </button>
+                    <div className="flex gap-2 ml-auto">
+                    {item.countdown && <button type="button" className={`${moveButton} shrink-0`} disabled={loading} aria-label={`Edit countdown #${item.countdown.rank}`} onClick={() => setCountdownEditor(item)}>Edit</button>}
                     <button type="button" className={`${moveButton} shrink-0`} aria-label={`Remove ${muxItem?.label || 'video'} from queue`} disabled={loading} onClick={() => handleRemoveFromQueue(item.id, muxItem?.label || 'video')}>Remove</button>
+                    </div>
                   </li>
                 );
               })}
@@ -629,11 +639,9 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
 
         </details>
 
-        {/* Add to Queue from Library */}
-        <div>
-          <p className="text-xs font-semibold text-twitch-text-alt uppercase tracking-wider mb-2">
-            Add from Library
-          </p>
+        {/* Adding media is preparation; the running order stays in focus. */}
+        <details>
+          <summary className="min-h-[44px] cursor-pointer text-sm font-semibold text-twitch-text py-3">Add videos from library</summary>
           {queueableItems.length === 0 ? (
             <p className="text-sm text-twitch-text-alt text-center py-4">
               No Mux or individual YouTube videos in library. Add a video from the main controls; playlists cannot enter the timed queue.
@@ -690,7 +698,7 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
               })}
             </div>
           )}
-        </div>
+        </details>
       </div>
     </div>
   );

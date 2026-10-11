@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         id,
         position,
         created_at,
+        countdown,
         mux_item_id,
         mux_items (
           id,

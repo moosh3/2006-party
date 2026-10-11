@@ -95,6 +95,7 @@ Verify READY status, production aliases, basic HTTP health and the changed behav
 ## Further context
 
 - `docs/playout-hardening.md`: playback guarantees, migration sequence and rehearsal evidence. Historical references to Manual mean the current Queue mode.
+- `docs/countdown-queue.md`: TRL excerpt timing, rank banners and migration 026. Apply after 025; never replay older playback function definitions afterward.
 - `docs/youtube-queue.md`: finite YouTube cues, duration and caption limitations.
 - `docs/show-access.md`: audience identity, doors and access boundaries.
 - `docs/show-game.md`: scoring, moderation, TRL and end-of-show results.

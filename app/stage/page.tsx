@@ -7,8 +7,8 @@ import VideoPlayer from '@/components/VideoPlayer';
 import { getNextRunOfShowCue, getRunOfShowCue } from '@/lib/run-of-show';
 import './stage.css';
 
-function formatRemaining(nextTransitionAt: string | null | undefined, now: number) {
-  if (!nextTransitionAt) return 'MANUAL';
+function formatRemaining(nextTransitionAt: string | null | undefined, now: number, mode?: string) {
+  if (!nextTransitionAt) return mode === 'schedule' ? 'SCHEDULE' : 'QUEUE';
   const remainingSeconds = Math.max(0, Math.floor((new Date(nextTransitionAt).getTime() - now) / 1000));
   const hours = Math.floor(remainingSeconds / 3600);
   const minutes = Math.floor((remainingSeconds % 3600) / 60);
@@ -33,7 +33,7 @@ export default function StagePage() {
 
   const currentCue = useMemo(() => getRunOfShowCue(stream?.activeSlotId), [stream?.activeSlotId]);
   const nextCue = useMemo(() => getNextRunOfShowCue(stream?.activeSlotId), [stream?.activeSlotId]);
-  const clock = formatRemaining(stream?.nextTransitionAt, now);
+  const clock = formatRemaining(stream?.nextTransitionAt, now, stream?.playoutMode);
   const urgent = Boolean(stream?.nextTransitionAt) && new Date(stream!.nextTransitionAt!).getTime() - now <= 60_000;
 
   async function enterFullscreen() {
@@ -67,7 +67,7 @@ export default function StagePage() {
             playbackRevision={stream.playbackRevision}
             serverNow={stream.serverNow}
             playbackPositionSeconds={stream.playbackPositionSeconds}
-            playbackDurationSeconds={stream.playbackDurationSeconds}
+            countdown={stream.countdown} clipEndSeconds={stream.clipEndSeconds} playbackDurationSeconds={stream.playbackDurationSeconds}
             snapshotReceivedAt={stream.snapshotReceivedAt}
             snapshotRoundTripMs={stream.snapshotRoundTripMs}
             onStreamRefresh={refresh}
@@ -96,7 +96,7 @@ export default function StagePage() {
       <section className={`stage-cue-bar ${urgent ? 'stage-cue-urgent' : ''}`} aria-live="polite">
         <div className="stage-cue-current">
           <span className="stage-cue-label">NOW</span>
-          <strong>{currentCue?.label || stream.title}</strong>
+          <strong>{stream.countdown ? `#${stream.countdown.rank} · ${stream.title}` : currentCue?.label || stream.title}</strong>
           <span>{currentCue?.performerCue || (stream.playoutMode === 'manual' ? 'Following the operator console' : 'Following the scheduled program feed')}</span>
         </div>
 

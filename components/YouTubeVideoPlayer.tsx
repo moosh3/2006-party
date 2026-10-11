@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  isPlaybackSnapshot, makePlaybackAnchor, projectPlaybackPosition, snapshotIsNewer,
+  excerptHasEnded, isPlaybackSnapshot, makePlaybackAnchor, projectPlaybackPosition, snapshotIsNewer,
   type PlaybackAnchor, type PlaybackSnapshot,
 } from '@/lib/playback-sync';
 import { loadYouTubeIframeApi, type YouTubePlayer } from '@/lib/youtube-iframe';
@@ -66,7 +66,7 @@ export default function YouTubeVideoPlayer({
     try {
       // A new server pause must stop a previously issued load/play promptly,
       // even if YouTube has not yet exposed its duration.
-      const wantsPause = anchor.playbackState === 'paused' && !isHoldScreen;
+      const wantsPause = !isHoldScreen && (anchor.playbackState === 'paused' || excerptHasEnded(anchor, performance.now()));
       const stateBeforeCorrection = player.getPlayerState();
       if (wantsPause && stateBeforeCorrection !== 2 && stateBeforeCorrection !== 5) player.pauseVideo();
       const correction = getYouTubePlaybackCorrection(player, anchor, performance.now(), {
@@ -162,7 +162,7 @@ export default function YouTubeVideoPlayer({
       // only, so StrictMode/retry can always create a fresh child safely.
       const target = document.createElement('iframe');
       const playerVars = {
-        autoplay: 0, controls: 1, playsinline: 1, enablejsapi: 1,
+        fs: snapshot.clipEndSeconds != null ? 0 : 1, autoplay: 0, controls: 1, playsinline: 1, enablejsapi: 1,
         cc_load_policy: 1, cc_lang_pref: captionLanguage || 'en',
         origin: window.location.origin,
       };
@@ -204,14 +204,14 @@ export default function YouTubeVideoPlayer({
             if (rememberedMuted) readyPlayer.mute();
             else readyPlayer.unMute();
             setNeedsUnmute(rememberedMuted);
-            if (anchor?.playbackState === 'paused' && !isHoldScreen) {
+            if (!isHoldScreen && (anchor?.playbackState === 'paused' || excerptHasEnded(anchor, performance.now()))) {
               readyPlayer.cueVideoById({ videoId, startSeconds });
               readyPlayer.pauseVideo();
             } else {
               readyPlayer.loadVideoById({ videoId, startSeconds });
               autoplayDeadlineRef.current = window.setTimeout(() => {
                 autoplayDeadlineRef.current = null;
-                if (disposed || (!isHoldScreen && anchorRef.current?.playbackState !== 'playing')
+                if (disposed || (!isHoldScreen && (anchorRef.current?.playbackState !== 'playing' || excerptHasEnded(anchorRef.current, performance.now())))
                   || readyPlayer.getPlayerState() === YT.PlayerState.PLAYING) return;
                 if (!readyPlayer.isMuted()) {
                   readyPlayer.mute();
@@ -236,7 +236,7 @@ export default function YouTubeVideoPlayer({
             applyPlayback();
           },
           onAutoplayBlocked: ({ target: blockedPlayer }) => {
-            if (disposed || anchorRef.current?.playbackState === 'paused') return;
+            if (disposed || anchorRef.current?.playbackState === 'paused' || excerptHasEnded(anchorRef.current, performance.now())) return;
             if (!blockedPlayer.isMuted()) {
               blockedPlayer.mute();
               setNeedsUnmute(true);
@@ -287,7 +287,7 @@ export default function YouTubeVideoPlayer({
       try { player?.destroy(); } catch { /* A failed iframe can already be gone. */ }
       playerRef.current = null;
     };
-  }, [videoId, snapshot.playbackSessionId, captionLanguage, retry, title, isHoldScreen, applyPlayback, refreshSnapshot, refreshStream]);
+  }, [videoId, snapshot.playbackSessionId, snapshot.clipEndSeconds, captionLanguage, retry, title, isHoldScreen, applyPlayback, refreshSnapshot, refreshStream]);
 
   const joinWithSound = useCallback(() => {
     const player = playerRef.current;
@@ -299,7 +299,7 @@ export default function YouTubeVideoPlayer({
       player.unMute();
       rememberedMuted = false;
       setNeedsUnmute(false);
-      if (anchor.playbackState === 'playing' || isHoldScreen) {
+      if (isHoldScreen || (anchor.playbackState === 'playing' && !excerptHasEnded(anchor, performance.now()))) {
         player.playVideo();
       } else {
         player.pauseVideo();

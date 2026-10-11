@@ -1,3 +1,5 @@
+import type { CountdownCue } from './countdown';
+
 export type ProgramStream = {
   playbackId: string; token: string; expiresAt: string; title: string; kind: string;
   showPoster?: boolean; isHoldScreen?: boolean; playoutMode?: string; playbackState?: string;
@@ -9,6 +11,8 @@ export type ProgramStream = {
   nextTransitionAt?: string | null; scheduleTitle?: string | null;
   sourceType?: string; youtubePlaylistId?: string | null; youtubeVideoId?: string | null; sourceUrl?: string | null;
   captionUrl?: string | null; captionLabel?: string | null; captionLanguage?: string | null;
+  countdown?: CountdownCue | null;
+  clipEndSeconds?: number | null;
   autoAdvanceEnabled?: boolean;
   automationStatus?: string; automationError?: string | null;
 };

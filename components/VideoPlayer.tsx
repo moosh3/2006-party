@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import type MuxPlayerElement from '@mux/mux-player';
+import CountdownFrame from '@/components/CountdownFrame';
+import type { CountdownCue } from '@/lib/countdown';
 import YouTubeVideoPlayer from '@/components/YouTubeVideoPlayer';
 import { loadYouTubeIframeApi, type YouTubePlayer } from '@/lib/youtube-iframe';
 import { supabase } from '@/lib/supabase';
@@ -14,6 +16,7 @@ import {
 } from '@/lib/constants';
 import {
   getPlaybackCorrection,
+  excerptHasEnded,
   applySynchronousPlaybackCorrection,
   isPlaybackSnapshot,
   makePlaybackAnchor,
@@ -48,6 +51,8 @@ interface VideoPlayerProps {
   serverNow?: string;
   playbackPositionSeconds?: number;
   playbackDurationSeconds?: number | null;
+  clipEndSeconds?: number | null;
+  countdown?: CountdownCue | null;
   snapshotReceivedAt?: number;
   snapshotRoundTripMs?: number;
   activeSlotId?: string | null;
@@ -342,7 +347,12 @@ function YouTubePlaylistPlayer({
   );
 }
 
-export default function VideoPlayer({
+export default function VideoPlayer(props: VideoPlayerProps) {
+  const cue = !props.isHoldScreen && props.playoutMode !== 'schedule' ? props.countdown : null;
+  return cue ? <CountdownFrame cue={cue} sessionId={props.playbackSessionId} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;
+}
+
+export function ProgramVideoPlayer({
   playbackId,
   token,
   title,
@@ -360,6 +370,8 @@ export default function VideoPlayer({
   serverNow,
   playbackPositionSeconds,
   playbackDurationSeconds = null,
+  clipEndSeconds = null,
+  countdown,
   snapshotReceivedAt,
   snapshotRoundTripMs = 0,
   activeSlotId = null,
@@ -462,7 +474,7 @@ export default function VideoPlayer({
   // muted playback (viewers see video immediately) and surface an unmute pill.
   const safePlay = useCallback(async (video: MuxPlayerElement): Promise<boolean> => {
     const playbackWasStopped = () => {
-      if (mountedRef.current && (isHoldScreen || anchorRef.current?.playbackState === 'playing')) return false;
+      if (mountedRef.current && (isHoldScreen || anchorRef.current?.playbackState === 'playing' && !excerptHasEnded(anchorRef.current, performance.now()))) return false;
       if (!video.paused) video.pause();
       if (mountedRef.current) {
         setNeedsStart(false);
@@ -800,7 +812,7 @@ export default function VideoPlayer({
       serverNow: serverNow || playbackUpdatedAt || '1970-01-01T00:00:00.000Z',
       playbackState,
       playbackPositionSeconds: playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000),
-      playbackDurationSeconds,
+      playbackDurationSeconds, clipEndSeconds,
     };
     if (!isPlaybackSnapshot(snapshot) || !snapshotIsNewer(snapshot, anchorRef.current)) return;
     const changed = snapshot.playbackRevision !== anchorRef.current?.playbackRevision;
@@ -809,7 +821,7 @@ export default function VideoPlayer({
   }, [
     canBroadcastAdminControls, sourceType, playbackId, playbackSessionId, activeSlotId,
     playbackRevision, serverNow, playbackState, playbackPositionSeconds, playbackPosition,
-    playbackUpdatedAt, playbackElapsedMs, playbackDurationSeconds, snapshotReceivedAt,
+    playbackUpdatedAt, playbackElapsedMs, playbackDurationSeconds, clipEndSeconds, snapshotReceivedAt,
     snapshotRoundTripMs, applyPlaybackState,
   ]);
 
@@ -1118,7 +1130,7 @@ export default function VideoPlayer({
           serverNow: serverNow || playbackUpdatedAt || '1970-01-01T00:00:00.000Z',
           playbackState,
           playbackPositionSeconds: playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000),
-          playbackDurationSeconds,
+          playbackDurationSeconds, clipEndSeconds,
         }}
         snapshotReceivedAt={snapshotReceivedAt}
         snapshotRoundTripMs={snapshotRoundTripMs}
@@ -1132,6 +1144,7 @@ export default function VideoPlayer({
 
   const viewerControlStyle = viewerLocked
     ? ({
+        '--fullscreen-button': countdown ? 'none' : undefined,
         '--play-button': 'none',
         '--center-play-button': 'none',
         '--bottom-play-button': 'none',

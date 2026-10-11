@@ -126,3 +126,19 @@ test('live streams never receive VOD epoch seeking or drift playback rates', () 
   assert.deepEqual(correction, { seekTo: null, playbackRate: 1, action: 'play' });
 });
 console.log(`Playback sync: ${checks} isolated checks passed; no database or production writes.`);
+
+const excerpt = makePlaybackAnchor({ ...snapshot, playbackPositionSeconds: 50, clipEndSeconds: 65 }, 0);
+test('late join projects the highlight, bounded by excerpt rather than source duration', () => {
+  assert.equal(projectPlaybackPosition(excerpt, 5000, { duration: 600 }), 55);
+  assert.equal(projectPlaybackPosition(excerpt, 16000, { duration: 600 }), 64.95);
+});
+test('expired excerpt pauses during a network outage and never restarts on a stale snapshot', () => {
+  const correction = getPlaybackCorrection({ ...media, currentTime: 65.4 }, excerpt, 16000);
+  assert.equal(correction.action, 'pause');
+  assert.equal(correction.seekTo, 64.95);
+  assert.equal(getPlaybackCorrection({ ...media, currentTime: 64.95, paused: true }, excerpt, 60000).action, null);
+});
+test('pause and hold retain their existing timing behavior within countdown cues', () => {
+  assert.equal(projectPlaybackPosition({ ...excerpt, playbackState: 'paused' }, 60000), 50);
+  assert.equal(getPlaybackCorrection({ ...media, paused: true, currentTime: 0, duration: 10 }, excerpt, 60000, { hold: true }).action, 'play');
+});

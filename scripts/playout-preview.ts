@@ -29,7 +29,7 @@ const migrations = [
   '014_showtime_playout_and_queue', '015_youtube_playlist_sources',
   '016_open_answer_polls', '017_video_playlist_shelf', '018_message_reactions',
   '019_lock_down_admin_tables', '020_2006_initial_state', '021_show_game',
-  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue',
+  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue',
 ];
 const tables = new Set([
   'current_stream', 'mux_items', 'video_queue', 'admin_actions', 'messages', 'chat_throttle',
@@ -46,6 +46,7 @@ const rpcArguments: Record<string, string[]> = {
   set_playout_mode: ['mode', 'admin_user_id', 'command_id'],
   delete_mux_item: ['item_id', 'admin_user_id'],
   enqueue_video: ['mux_item_id', 'admin_user_id'],
+  save_countdown_cue: ['media_id', 'cue', 'actor', 'queue_id', 'command_id'],
   reorder_queue: ['items', 'admin_user_id'],
   delete_from_queue: ['queue_item_id', 'admin_user_id'],
   game_throttle: ['k', 'seconds'], game_totals: ['s'],

@@ -81,6 +81,7 @@ function evaluate(code: string, environment: Environment, react?: Record<string,
     crypto: { randomUUID: () => '00000000-0000-4000-8000-000000000002' },
     console: { error() {}, log() {}, warn() {} },
     require: (name: string) => {
+      if (name === './CountdownEditor') return { default: 'fixture-countdown-editor' };
       if (name === 'react') return react;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'fragment' };
       if (name === '@/lib/youtube') return youtube;

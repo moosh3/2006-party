@@ -176,6 +176,7 @@ function evaluate(code: string, environment: Environment, react?: Record<string,
   const imports: Record<string, unknown> = {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'fragment' },
     '@mux/mux-player-react': { default: 'fixture-mux-player' },
+    '@/components/CountdownFrame': { default: 'fixture-countdown-frame' },
     '@/components/YouTubeVideoPlayer': { default: 'fixture-youtube-player' },
     '@/lib/youtube-iframe': {}, '@/lib/supabase': { supabase: environment.supabase },
     '@/hooks/useRealtimeHealth': { useRealtimeHealth: () => 'healthy' },
@@ -203,7 +204,7 @@ function evaluate(code: string, environment: Environment, react?: Record<string,
 function player(environment: Environment, code = componentSource, props: Partial<Props> = {}) {
   const Constructor = evaluate(harnessSource, environment).HookHarness as { new(): Harness };
   const harness = new Constructor();
-  harness.component = evaluate(code, environment, harness.react).default;
+  harness.component = (evaluate(code, environment, harness.react).ProgramVideoPlayer || evaluate(code, environment, harness.react).default);
   harness.mount({ ...environment.snapshot, token: 'unsigned', title: 'Isolated cue',
     snapshotReceivedAt: 0, ...props,
   });
@@ -543,6 +544,21 @@ async function main() {
       assert.equal(recoveryLabel(harness), 'JOIN LIVE SHOW'); assert.equal(environment.commands.length, 0); harness.unmount();
     });
   }
+  await test('countdown out point pauses the actual player and Reconnect cannot restart it', async () => {
+    const environment = new Environment(80);
+    environment.snapshot = { ...environment.snapshot, clipEndSeconds: 42 } as typeof environment.snapshot;
+    let reconnect: (() => void) | null = null;
+    const harness = player(environment, componentSource, { clipEndSeconds: 42, onReconnectReady: value => { reconnect = value; } });
+    await settle(harness); await environment.advance(3500,harness);
+    assert.equal(environment.media.paused,true);
+    const plays = environment.media.playCalls;
+    (reconnect as (() => void) | null)?.();
+    await settle(harness); await environment.advance(500,harness);
+    assert.equal(environment.media.playCalls,plays);
+    assert.equal(environment.media.paused,true);
+    assert.equal(environment.commands.length,0);
+    harness.unmount();
+  });
   console.log(`Mux seek recovery: ${checks} actual-source checks passed; no network, database, browser, or live writes.`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
