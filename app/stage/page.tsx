@@ -66,7 +66,7 @@ export default function StagePage() {
             playbackSessionId={stream.playbackSessionId}
             playbackRevision={stream.playbackRevision}
             serverNow={stream.serverNow}
-            playbackPositionSeconds={stream.playbackPositionSeconds}
+            playbackPositionSeconds={stream.playbackPositionSeconds} playbackStartDelaySeconds={stream.playbackStartDelaySeconds}
             countdown={stream.countdown} clipEndSeconds={stream.clipEndSeconds} playbackDurationSeconds={stream.playbackDurationSeconds}
             snapshotReceivedAt={stream.snapshotReceivedAt}
             snapshotRoundTripMs={stream.snapshotRoundTripMs}

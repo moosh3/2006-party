@@ -55,7 +55,7 @@ class Environment {
   snapshot = {
     playbackId: 'isolated-mux-cue', sourceType: 'mux', playbackSessionId: 'isolated-session',
     playbackRevision: 1, serverNow: '2026-10-09T20:00:00.000Z', playbackState: 'playing',
-    playbackPositionSeconds: 40, playbackDurationSeconds: 600,
+    playbackPositionSeconds: 40, playbackDurationSeconds: 600, playbackStartDelaySeconds: 0,
   };
   constructor(public seekLatency: number, public reactEventFirst = true) { this.media = new Media(this); }
   setTimeout = (callback: () => void, delay: number) => {
@@ -76,7 +76,8 @@ class Environment {
       this.currentReads++;
       const snapshot = { ...this.snapshot,
         serverNow: new Date(Date.parse(this.snapshot.serverNow) + this.now).toISOString(),
-        playbackPositionSeconds: this.snapshot.playbackPositionSeconds + (this.snapshot.playbackState === 'playing' ? this.now / 1000 : 0),
+        playbackPositionSeconds: this.snapshot.playbackPositionSeconds + (this.snapshot.playbackState === 'playing' ? Math.max(0,this.now / 1000-this.snapshot.playbackStartDelaySeconds) : 0),
+        playbackStartDelaySeconds: this.snapshot.playbackState === 'playing' ? Math.max(0,this.snapshot.playbackStartDelaySeconds-this.now/1000) : this.snapshot.playbackStartDelaySeconds,
       };
       return { ok: true, status: 200, json: async () => snapshot };
     }
@@ -558,6 +559,19 @@ async function main() {
     assert.equal(environment.media.paused,true);
     assert.equal(environment.commands.length,0);
     harness.unmount();
+  });
+
+  await test('title card keeps Mux silent and reconnect cannot skip the shared intro', async () => {
+    const environment=new Environment(0);environment.snapshot.playbackStartDelaySeconds=3;
+    let reconnect:(()=>void)|null=null;
+    const harness=player(environment,componentSource,{onReconnectReady:value=>{reconnect=value;}});
+    await settle(harness);await environment.advance(2000,harness);
+    assert.equal(environment.media.playCalls,0);
+    (reconnect as (()=>void)|null)?.();await settle(harness);
+    assert.equal(environment.media.playCalls,0);
+    await environment.advance(1500,harness);
+    assert(environment.media.playCalls>0);assert(environment.media.currentTime>=40 && environment.media.currentTime<42);
+    assert.equal(environment.commands.length,0);harness.unmount();
   });
   console.log(`Mux seek recovery: ${checks} actual-source checks passed; no network, database, browser, or live writes.`);
 }

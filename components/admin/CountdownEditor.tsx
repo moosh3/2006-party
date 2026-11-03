@@ -9,6 +9,7 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
   onSaved: () => void; onCancel: () => void;
 }) {
   const [rank, setRank] = useState(initial?.countdown?.rank || 5);
+  const [intro, setIntro] = useState(String(initial ? initial.countdown?.introSeconds || 0 : 3));
   const [mediaId, setMediaId] = useState(initial?.mux_item_id || '');
   const [start, setStart] = useState(String(initial?.countdown?.startSeconds || 0));
   const [length, setLength] = useState(String(initial?.countdown?.durationSeconds || 15));
@@ -23,7 +24,7 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
   const [error, setError] = useState('');
   const videos = media.filter(m => m.kind !== 'live' && ['mux', 'youtube_video'].includes(m.source_type || 'mux') && Number(m.duration_seconds) > 0);
   const duration = Number(videos.find(m => m.id === mediaId)?.duration_seconds || 0);
-  const cue: CountdownCue = { rank, startSeconds: rank === 1 ? 0 : start.trim() ? Number(start) : NaN,
+  const cue: CountdownCue = { rank, introSeconds: intro.trim() ? Number(intro) : NaN, startSeconds: rank === 1 ? 0 : start.trim() ? Number(start) : NaN,
     durationSeconds: rank === 1 ? duration : length.trim() ? Number(length) : NaN, bannerUrl: artwork === 'show' ? COUNTDOWN_BANNERS[rank].video : artwork === 'custom' ? banner.trim() || null : null };
   const validation = artwork === 'custom' && !banner.trim() ? 'Enter a custom banner URL, or choose the show banner.' : countdownError(cue, duration);
   const input = 'block w-full mt-1 min-h-[44px] rounded border border-twitch-border bg-white text-twitch-text px-3';
@@ -54,6 +55,8 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
         <label className="text-sm">Play for (seconds)<input className={input} type="number" min="0.1" step="0.1" value={length} disabled={rank === 5} onChange={e => setLength(e.target.value)} /></label>
       </div>}
       {mediaId && <p className="text-sm" role="status">{validation || (rank === 1 ? `Plays the full ${duration}-second video.` : `Plays ${cue.startSeconds}s–${Number((cue.startSeconds + cue.durationSeconds).toFixed(3))}s of the original video.`)}</p>}
+      <label className="block text-sm">Title card before video (seconds)<input className={input} type="number" min="0" max="10" step="0.5" value={intro} onChange={e => setIntro(e.target.value)} /></label>
+      <p className="text-sm text-twitch-text-alt">{cue.introSeconds ? `“And now time for video #${rank}” appears for ${cue.introSeconds} seconds, then the music video begins. This time is added to the cue.` : 'No title card. Set a length above zero to add one.'}</p>
       <label className="block text-sm">Footer artwork<select className={input} value={artwork} onChange={e => setArtwork(e.target.value as 'show' | 'number' | 'custom')}>
         <option value="show">Show banner · #{rank}</option><option value="number">Number only</option><option value="custom">Custom artwork</option>
       </select></label>

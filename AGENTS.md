@@ -75,7 +75,7 @@ Run checks appropriate to the change:
 - General application: `npm run lint`, `npx tsc --noEmit --incremental false`, `npm run build`.
 - Queue UX: `node --import tsx scripts/test-queue-interactions.ts`.
 - Operator reliability: `node --import tsx scripts/test-admin-playback-stability.ts`.
-- Playback: `npm run test:playout-db`, `npm run test:playback-sync`, `npm run test:mux-seek-recovery`, `npm run test:youtube-player`.
+- Playback: `npm run test:playout-db`, `npm run test:playback-sync`, `npm run test:mux-seek-recovery`, `npm run test:youtube-player`, `npm run test:countdown-intro`.
 - Queue media/library: `npm run test:youtube-admin`, `npm run test:youtube-queue-db`.
 - Games: `npm run test:game`; game API checks require their local fixture.
 - Admission: `npm run test:audience-access`, `npm run test:audience-doors-hook`, `npm run test:audience-doors-db`.
@@ -95,7 +95,7 @@ Verify READY status, production aliases, basic HTTP health and the changed behav
 ## Further context
 
 - `docs/playout-hardening.md`: playback guarantees, migration sequence and rehearsal evidence. Historical references to Manual mean the current Queue mode.
-- `docs/countdown-queue.md`: TRL excerpt timing, rank banners and migration 026. Apply after 025; never replay older playback function definitions afterward.
+- `docs/countdown-queue.md`: TRL excerpt timing, rank banners and migrations 026–027. Apply 027 after 026 for synchronized title cards; never replay older playback function definitions afterward.
 - `docs/youtube-queue.md`: finite YouTube cues, duration and caption limitations.
 - `docs/show-access.md`: audience identity, doors and access boundaries.
 - `docs/show-game.md`: scoring, moderation, TRL and end-of-show results.

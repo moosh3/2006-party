@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   applySynchronousPlaybackCorrection,
   getPlaybackCorrection,
+  playbackStartDelayRemaining, playbackShouldPlay, excerptHasEnded,
   isPlaybackSnapshot,
   makePlaybackAnchor,
   projectPlaybackPosition,
@@ -125,7 +126,6 @@ test('live streams never receive VOD epoch seeking or drift playback rates', () 
   const correction = getPlaybackCorrection({ ...media, currentTime: 50000, duration: Infinity, paused: true }, anchor, 8000, { live: true, force: true });
   assert.deepEqual(correction, { seekTo: null, playbackRate: 1, action: 'play' });
 });
-console.log(`Playback sync: ${checks} isolated checks passed; no database or production writes.`);
 
 const excerpt = makePlaybackAnchor({ ...snapshot, playbackPositionSeconds: 50, clipEndSeconds: 65 }, 0);
 test('late join projects the highlight, bounded by excerpt rather than source duration', () => {
@@ -142,3 +142,32 @@ test('pause and hold retain their existing timing behavior within countdown cues
   assert.equal(projectPlaybackPosition({ ...excerpt, playbackState: 'paused' }, 60000), 50);
   assert.equal(getPlaybackCorrection({ ...media, paused: true, currentTime: 0, duration: 10 }, excerpt, 60000, { hold: true }).action, 'play');
 });
+
+
+test('title card freezes the source clock, including receipt latency, then starts at the excerpt', () => {
+  const intro = makePlaybackAnchor({ ...snapshot, playbackStartDelaySeconds: 3 }, 1000, 200);
+  assert.equal(projectPlaybackPosition(intro, 2900), 120);
+  assert.equal(playbackStartDelayRemaining(intro,2900),1);
+  assert.equal(playbackShouldPlay(intro,2900),false);
+  assert.equal(getPlaybackCorrection(media,intro,2900).action,'pause');
+  assert.equal(projectPlaybackPosition(intro,4000),120.1);
+  assert.equal(playbackShouldPlay(intro,4000),true);
+  assert.equal(getPlaybackCorrection({...media,paused:true},intro,4000).action,'play');
+});
+test('paused title card preserves its remaining time and a late join skips consumed intro time', () => {
+  const paused = makePlaybackAnchor({...snapshot,playbackState:'paused',playbackStartDelaySeconds:1.5},1000,200);
+  assert.equal(playbackStartDelayRemaining(paused,90000),1.5);
+  assert.equal(projectPlaybackPosition(paused,90000),120);
+  const late = makePlaybackAnchor({...snapshot,playbackStartDelaySeconds:0,playbackPositionSeconds:122},1000);
+  assert.equal(projectPlaybackPosition(late,2000),123);
+  assert.equal(playbackShouldPlay(late,2000),true);
+});
+test('title-card time is added before the complete excerpt and never delays a hold source', () => {
+  const intro=makePlaybackAnchor({...snapshot,playbackStartDelaySeconds:3,playbackPositionSeconds:50,clipEndSeconds:65},0);
+  assert.equal(excerptHasEnded(intro,17999),false);
+  assert.equal(excerptHasEnded(intro,18000),true);
+  assert.equal(projectPlaybackPosition({...intro,clipEndSeconds:null},1000,{hold:true,duration:100}),51);
+  assert.equal(playbackShouldPlay(intro,1000,true),true);
+  for(const delay of [-1,11,NaN,Infinity,'3',null]) assert.equal(isPlaybackSnapshot({...snapshot,playbackStartDelaySeconds:delay}),false);
+});
+console.log(`Playback sync: ${checks} isolated checks passed; no database or production writes.`);

@@ -5,6 +5,7 @@ export type ProgramStream = {
   showPoster?: boolean; isHoldScreen?: boolean; playoutMode?: string; playbackState?: string;
   playbackPosition?: number; playbackUpdatedAt?: string; playbackElapsedMs?: number;
   playbackSessionId: string; playbackRevision: number; serverNow: string;
+  playbackStartDelaySeconds?: number;
   playbackPositionSeconds: number; playbackDurationSeconds: number | null;
   snapshotReceivedAt: number; snapshotRoundTripMs: number;
   activeSlotId?: string | null; activeAssetKey?: string | null; scheduleStatus?: string | null;
@@ -28,6 +29,8 @@ export function isProgramStream(value: unknown): value is Omit<ProgramStream, 's
     && ['playing', 'paused'].includes(data.playbackState as string)
     && Number.isFinite(data.playbackPositionSeconds)
     && (data.playbackPositionSeconds as number) >= 0
+    && (data.playbackStartDelaySeconds === undefined || (typeof data.playbackStartDelaySeconds === 'number'
+      && Number.isFinite(data.playbackStartDelaySeconds) && data.playbackStartDelaySeconds >= 0 && data.playbackStartDelaySeconds <= 10))
     && (data.playbackDurationSeconds === null || (
       Number.isFinite(data.playbackDurationSeconds) && (data.playbackDurationSeconds as number) > 0
     ));

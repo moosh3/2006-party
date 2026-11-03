@@ -1,5 +1,7 @@
 export interface CountdownCue {
   rank: number;
+  /** Separate title-card time; omitted on existing cues. */
+  introSeconds?: number;
   startSeconds: number;
   durationSeconds: number;
   bannerUrl: string | null;
@@ -14,6 +16,7 @@ export const COUNTDOWN_LENGTHS: Record<number, number> = { 5: 15, 4: 30, 3: 45, 
 
 export function countdownError(cue: CountdownCue, sourceDuration: number): string | null {
   if (!Number.isInteger(cue.rank) || cue.rank < 1 || cue.rank > 5) return 'Choose a countdown position from #5 to #1.';
+  if (cue.introSeconds !== undefined && (!Number.isFinite(cue.introSeconds) || cue.introSeconds < 0 || cue.introSeconds > 10)) return 'Choose a title card length from 0 to 10 seconds.';
   if (!Number.isFinite(sourceDuration) || sourceDuration <= 0) return 'Add the exact video duration in the library first.';
   if (!Number.isFinite(cue.startSeconds) || cue.startSeconds < 0 || !Number.isFinite(cue.durationSeconds) || cue.durationSeconds <= 0) return 'Enter a valid highlight start and excerpt length in seconds.';
   if (cue.startSeconds + cue.durationSeconds > sourceDuration) return 'The excerpt extends past the end of this video.';

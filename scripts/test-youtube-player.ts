@@ -499,6 +499,20 @@ await test('countdown out point pauses YouTube and Reconnect cannot restart an e
   assert.equal(player.options.playerVars.fs,0);
   harness.unmount();
 });
+
+await test('countdown title card cues silently, ignores reconnect play, and starts when the shared delay expires', async () => {
+  let reconnect: (()=>void)|null=null;
+  const {harness,environment,player}=await setup({snapshot:{...baseSnapshot,playbackStartDelaySeconds:3},onReconnectReady:value=>{reconnect=value;}});
+  player.ready();harness.flush();
+  assert.equal(player.loads.length,0);assert.equal(player.plays,0);
+  assert.equal(player.cues[0].startSeconds,83);
+  (reconnect as (()=>void)|null)?.();await settle(harness);
+  assert.equal(player.plays,0);
+  environment.advance(2500);harness.flush();assert.equal(player.plays,0);
+  player.duration=250;environment.advance(500);harness.flush();
+  assert(player.plays>0);assert.equal(player.current,83);
+  harness.unmount();
+});
 process.stdout.write(`\n${checks} isolated YouTube player scenarios passed.\n`);
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

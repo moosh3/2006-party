@@ -1,6 +1,6 @@
 import type { GameKind } from './game-types';
 import type { ProgramStream } from './program-stream';
-import { isPlaybackSnapshot, makePlaybackAnchor, projectPlaybackPosition } from './playback-sync';
+import { isPlaybackSnapshot, playbackStartDelayRemaining, makePlaybackAnchor, projectPlaybackPosition } from './playback-sync';
 
 export type AudienceCueAction =
   | { type: 'poll'; promptId: string; kind: GameKind }
@@ -119,7 +119,7 @@ export function getAudienceCueFrame(
     activeCues: [],
     healthy: true,
   };
-  if (duration !== null && projected >= duration) return frame;
+  if (playbackStartDelayRemaining(anchor, now) > 0 || duration !== null && projected >= duration) return frame;
 
   const configured: readonly AudienceCue[] = Array.isArray(cues) ? cues : [];
   const ids = new Map<string, number>();

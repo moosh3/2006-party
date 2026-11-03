@@ -230,4 +230,10 @@ test('overlapping cues preserve configured order and never mutate inputs', () =>
   assert.deepEqual(active(configured, snapshot).activeCues, [first, second]);
   assert.equal(snapshot.playbackDurationSeconds, 100);
 });
+
+test('title cards suppress source-offset tasks until the music video starts', () => {
+  const intro={...stream,playbackStartDelaySeconds:3};
+  assert.deepEqual(getAudienceCueFrame([cue],intro,2000).activeCues,[]);
+  assert.deepEqual(getAudienceCueFrame([cue],intro,4000).activeCues,[cue]);
+});
 console.log(`Audience cues: ${checks} pure checks passed; no database, media DOM, polling or production writes.`);

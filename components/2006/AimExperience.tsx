@@ -1059,7 +1059,7 @@ export default function AimExperience({
                       <VideoPlayer
                         key={streamData.playbackSessionId}
                         playbackSessionId={streamData.playbackSessionId} playbackRevision={streamData.playbackRevision}
-                        serverNow={streamData.serverNow} playbackPositionSeconds={streamData.playbackPositionSeconds}
+                        serverNow={streamData.serverNow} playbackPositionSeconds={streamData.playbackPositionSeconds} playbackStartDelaySeconds={streamData.playbackStartDelaySeconds}
                         countdown={streamData.countdown} clipEndSeconds={streamData.clipEndSeconds} playbackDurationSeconds={streamData.playbackDurationSeconds} snapshotReceivedAt={streamData.snapshotReceivedAt}
                         snapshotRoundTripMs={streamData.snapshotRoundTripMs} onStreamRefresh={refreshStream}
                         onReconnectReady={registerVideoReconnect}

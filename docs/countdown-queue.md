@@ -8,9 +8,19 @@ New countdown cues default to the supplied transparent show banner for their ran
 
 **Play Next** starts the next cue. Auto-advance moves to the next cue at the excerpt end. With auto-advance off, the excerpt pauses at its out point. **Restart** restarts at the chosen highlight; #1 restarts at zero. Pauses/holds preserve progress. New arrivals use the shared source position. Clients enforce the excerpt endpoint even if the server becomes unreachable, with the existing periodic media correction tolerance. They never advance the queue themselves.
 
+## Title cards before countdown videos
+
+New countdown cues default to a **3-second title card** reading **And now time for video #N**, using the cue’s assigned rank. In the countdown editor, set **Title card before video (seconds)** between 0 and 10; zero disables it. Existing queued and active cues keep their original behavior until edited. Each countdown cue gets its own card, including consecutive videos. Ordinary show videos and ads do not receive a guessed number.
+
+Title-card time is added before the complete source excerpt. PostgreSQL owns the remaining time; the source picture and audio stay paused behind the card. Late arrivals see only the unconsumed card time. Pause, hold and returning from Schedule preserve the remainder. Restart deliberately replays the card; an explicit source seek skips its remaining time. Reconnecting or refreshing does not start a new card. The text is available to assistive technology, remains static with reduced motion, and stays with the composition in fullscreen. Cards work with Mux and individual YouTube countdown cues on `/event`, `/stage`, and the operator monitor.
+
+Requires **027 after 026**, before saving cues with title cards. `npm run db:countdown-intro` is a read-only preflight; `npm run db:countdown-intro -- --apply` installs the support with the same state-preservation guard. This change does not install itself or modify production playback. Missing support produces an actionable save error instead of silently dropping the requested card. Never replay 022, 025 or 026 after 027; they replace its timing functions. No new assets or external media uploads are required, and the independent offline room player is unchanged.
+
+Run `npm run test:countdown-intro` alongside the existing countdown, Mux, YouTube, audience-cue and shared-clock tests. The isolated playout preview includes 027 automatically.
+
 ## Installation and verification
 
-Requires `sql/026_countdown_queue.sql` after 025. Install the database migration before deploying this application version. It adds nullable cue metadata and replaces queue/playback functions; it does not seed media, alter running playback, reorder the queue, change audience doors or deploy anything. Do not rerun older playback migrations after 026 because they replace these functions.
+Requires `sql/026_countdown_queue.sql` after 025. Install the database migration before using countdown cues. Install 027 afterward for title cards. It adds nullable cue metadata and replaces queue/playback functions; it does not seed media, alter running playback, reorder the queue, change audience doors or deploy anything. Do not rerun older playback migrations after 026 because they replace these functions.
 
 `npm run db:countdown` performs a read-only preflight against the existing 2006 Supabase project. `npm run db:countdown -- --apply` is the explicit install action. The installer locks and compares show/audience state in one transaction and rolls back if existing values change. Missing countdown columns are normalized to null in that comparison, while existing countdown values are preserved and checked on repeat installs.
 

@@ -1,11 +1,32 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { COUNTDOWN_BANNERS, type CountdownCue } from '@/lib/countdown';
+import './countdown-introduction.css';
 
 /** Fullscreen the composition, so the numbered artwork stays with the picture. */
-export default function CountdownFrame({ cue, sessionId, paused, children, separateFooter = false }: {
+export default function CountdownFrame({ cue, sessionId, paused, children, separateFooter = false, playbackStartDelaySeconds = 0, snapshotReceivedAt, snapshotRoundTripMs = 0 }: {
   cue: CountdownCue; sessionId?: string; paused: boolean; children: ReactNode; separateFooter?: boolean;
+  playbackStartDelaySeconds?: number; snapshotReceivedAt?: number; snapshotRoundTripMs?: number;
 }) {
+  const [expiredIntro, setExpiredIntro] = useState('');
+  const introKey = JSON.stringify([sessionId, snapshotReceivedAt, playbackStartDelaySeconds, paused]);
+  const introActive = playbackStartDelaySeconds > 0 && (paused || expiredIntro !== introKey);
+  useEffect(() => {
+    if (paused || playbackStartDelaySeconds <= 0) return;
+    const receivedAt = snapshotReceivedAt ?? performance.now();
+    const latency = Math.min(2000, Math.max(0, snapshotRoundTripMs)) / 2;
+    const remaining = () => Math.max(0, playbackStartDelaySeconds * 1000 - Math.max(0, performance.now() - receivedAt) - latency);
+    let timer: number | undefined;
+    const finish = () => {
+      window.clearTimeout(timer);
+      const left = remaining();
+      if (left <= 0) setExpiredIntro(introKey);
+      else timer = window.setTimeout(finish, Math.ceil(left));
+    };
+    document.addEventListener('visibilitychange', finish);
+    finish();
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', finish); };
+  }, [introKey, paused, playbackStartDelaySeconds, snapshotReceivedAt, snapshotRoundTripMs]);
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
@@ -26,13 +47,18 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
   useEffect(() => {
     const player = video.current;
     if (!player) return;
-    if (paused || reducedMotion) player.pause();
+    if (paused || introActive || reducedMotion) player.pause();
     else void player.play().catch(() => { /* Static first frame remains visible. */ });
-  }, [paused, reducedMotion, cue.bannerUrl, sessionId]);
+  }, [paused, introActive, reducedMotion, cue.bannerUrl, sessionId]);
   return <div ref={frame} className="countdown-frame relative bg-black w-full">
     <div className={`countdown-picture relative w-full${separateFooter ? ' countdown-picture--footer' : ''}`}>
-    {children}
-    <div className={`countdown-banner left-0 right-0 pointer-events-none z-10 ${separateFooter ? 'relative py-2' : 'absolute'}`} style={{ bottom: separateFooter ? undefined : 8 }} aria-label={`Countdown number ${cue.rank}`}>
+    <div className="countdown-source" style={{ visibility: introActive ? 'hidden' : undefined }} aria-hidden={introActive || undefined}>{children}</div>
+    {introActive && <div className="countdown-introduction" role="status" aria-label={`And now time for video #${cue.rank}`}>
+      <span className="countdown-introduction-label">2006 · TRL</span>
+      <p>And now time for <strong>video #{cue.rank}</strong></p>
+      {paused && <span className="countdown-introduction-paused">Paused</span>}
+    </div>}
+    <div className={`countdown-banner left-0 right-0 pointer-events-none z-10 ${separateFooter ? 'relative py-2' : 'absolute'}`} style={{ bottom: separateFooter ? undefined : 8, visibility: introActive ? 'hidden' : undefined }} aria-label={`Countdown number ${cue.rank}`}>
       {imageUrl && !imageFailed
         // Operator artwork may be transparent; bundled stills also cover reduced motion and unsupported alpha video.
         // eslint-disable-next-line @next/next/no-img-element
@@ -50,7 +76,7 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
       /* YouTube captions live inside a cross-origin iframe. Keep artwork outside
          that picture instead of covering captions or native controls. */
       .countdown-picture.countdown-picture--footer { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
-      .countdown-frame:fullscreen .countdown-picture--footer > .aspect-video { height: 100%; max-height: 100%; }
+      .countdown-frame:fullscreen .countdown-picture--footer .aspect-video { height: 100%; max-height: 100%; }
       .countdown-frame:fullscreen { display: grid; place-items: center; height: 100vh; }
       .countdown-frame:fullscreen .countdown-picture { max-width: min(100vw, 177.7778vh); }
       .countdown-frame:fullscreen .countdown-picture--footer { height: 100%; max-width: 100%; }

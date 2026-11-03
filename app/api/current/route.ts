@@ -60,7 +60,9 @@ export async function GET() {
     // Scheduled resolver has already calculated the position at this instant.
     const elapsed = resolved ? 0 : playbackState === 'playing'
       ? Math.max(0, (nowMs - Date.parse(anchor)) / 1000) : 0;
-    let position = Math.max(0, basePosition + (Number.isFinite(elapsed) ? elapsed : 0));
+    let position = !resolved && snapshot.playback_position_seconds != null
+      ? Number(snapshot.playback_position_seconds)
+      : Math.max(0, basePosition + (Number.isFinite(elapsed) ? elapsed : 0));
     if (duration && duration > 0 && kind !== 'live') position = isHoldScreen ? position % duration : Math.min(position, duration);
     if (resolved) duration = null;
     const captions = resolved || (sourceType === MUX_SOURCE_TYPE ? getCaptionTrackForPlaybackId(playbackId) : null);
@@ -75,6 +77,7 @@ export async function GET() {
       sourceType, youtubePlaylistId: youtubePlaylistId || parseYouTubePlaylistPlaybackId(playbackId), sourceUrl,
       youtubeVideoId: sourceType === YOUTUBE_VIDEO_SOURCE_TYPE ? parseYouTubeVideoPlaybackId(playbackId) : null,
       playoutMode: mode, playbackState,
+      playbackStartDelaySeconds: !resolved && !isHoldScreen ? Number(snapshot.playback_start_delay_seconds || 0) : 0,
       countdown: !resolved && !isHoldScreen ? data.countdown || null : null,
       clipEndSeconds: !resolved && !isHoldScreen && data.countdown ? Number(data.countdown.startSeconds) + Number(data.countdown.durationSeconds) : null,
       autoAdvanceEnabled: data.auto_advance_enabled === true,

@@ -16,7 +16,7 @@ import {
 } from '@/lib/constants';
 import {
   getPlaybackCorrection,
-  excerptHasEnded,
+  playbackShouldPlay,
   applySynchronousPlaybackCorrection,
   isPlaybackSnapshot,
   makePlaybackAnchor,
@@ -50,6 +50,7 @@ interface VideoPlayerProps {
   playbackRevision?: number;
   serverNow?: string;
   playbackPositionSeconds?: number;
+  playbackStartDelaySeconds?: number;
   playbackDurationSeconds?: number | null;
   clipEndSeconds?: number | null;
   countdown?: CountdownCue | null;
@@ -349,7 +350,7 @@ function YouTubePlaylistPlayer({
 
 export default function VideoPlayer(props: VideoPlayerProps) {
   const cue = !props.isHoldScreen && props.playoutMode !== 'schedule' ? props.countdown : null;
-  return cue ? <CountdownFrame cue={cue} separateFooter={props.sourceType === YOUTUBE_VIDEO_SOURCE_TYPE} sessionId={props.playbackSessionId} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;
+  return cue ? <CountdownFrame cue={cue} separateFooter={props.sourceType === YOUTUBE_VIDEO_SOURCE_TYPE} sessionId={props.playbackSessionId} playbackStartDelaySeconds={props.playbackStartDelaySeconds} snapshotReceivedAt={props.snapshotReceivedAt} snapshotRoundTripMs={props.snapshotRoundTripMs} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;
 }
 
 export function ProgramVideoPlayer({
@@ -369,6 +370,7 @@ export function ProgramVideoPlayer({
   playbackRevision = 0,
   serverNow,
   playbackPositionSeconds,
+  playbackStartDelaySeconds = 0,
   playbackDurationSeconds = null,
   clipEndSeconds = null,
   countdown,
@@ -444,7 +446,7 @@ export function ProgramVideoPlayer({
     const elapsed = playbackState === 'playing' && snapshotReceivedAt !== undefined
       ? Math.max(0, performance.now() - snapshotReceivedAt) / 1000 + snapshotRoundTripMs / 2000
       : 0;
-    const position = Math.max(0, base + elapsed);
+    const position = Math.max(0, base + Math.max(0, elapsed - (isHoldScreen ? 0 : playbackStartDelaySeconds)));
     initialStartTimeRef.current = playbackDurationSeconds && playbackDurationSeconds > 0
       ? isHoldScreen ? position % playbackDurationSeconds : Math.min(position, Math.max(0, playbackDurationSeconds - 0.05))
       : position;
@@ -474,7 +476,7 @@ export function ProgramVideoPlayer({
   // muted playback (viewers see video immediately) and surface an unmute pill.
   const safePlay = useCallback(async (video: MuxPlayerElement): Promise<boolean> => {
     const playbackWasStopped = () => {
-      if (mountedRef.current && (isHoldScreen || anchorRef.current?.playbackState === 'playing' && !excerptHasEnded(anchorRef.current, performance.now()))) return false;
+      if (mountedRef.current && playbackShouldPlay(anchorRef.current, performance.now(), isHoldScreen)) return false;
       if (!video.paused) video.pause();
       if (mountedRef.current) {
         setNeedsStart(false);
@@ -542,7 +544,7 @@ export function ProgramVideoPlayer({
     if (!viewerLocked || sourceType !== MUX_SOURCE_TYPE || !video || !anchor) return;
     if (force) forceNextSyncRef.current = true;
     // A new pause must cancel an older pending play() immediately.
-    if (anchor.playbackState === 'paused' && !isHoldScreen && !video.paused) video.pause();
+    if (!playbackShouldPlay(anchor, performance.now(), isHoldScreen) && !video.paused) video.pause();
     if (isSyncingRef.current) return;
 
     const seeking = Boolean(video.media?.seeking);
@@ -865,7 +867,7 @@ export function ProgramVideoPlayer({
       serverNow: serverNow || playbackUpdatedAt || '1970-01-01T00:00:00.000Z',
       playbackState,
       playbackPositionSeconds: playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000),
-      playbackDurationSeconds, clipEndSeconds,
+      playbackDurationSeconds, clipEndSeconds, playbackStartDelaySeconds,
     };
     if (!isPlaybackSnapshot(snapshot) || !snapshotIsNewer(snapshot, anchorRef.current)) return;
     const changed = snapshot.playbackRevision !== anchorRef.current?.playbackRevision;
@@ -874,7 +876,7 @@ export function ProgramVideoPlayer({
   }, [
     canBroadcastAdminControls, sourceType, playbackId, playbackSessionId, activeSlotId,
     playbackRevision, serverNow, playbackState, playbackPositionSeconds, playbackPosition,
-    playbackUpdatedAt, playbackElapsedMs, playbackDurationSeconds, clipEndSeconds, snapshotReceivedAt,
+    playbackUpdatedAt, playbackElapsedMs, playbackDurationSeconds, clipEndSeconds, playbackStartDelaySeconds, snapshotReceivedAt,
     snapshotRoundTripMs, applyPlaybackState,
   ]);
 
@@ -1002,7 +1004,7 @@ export function ProgramVideoPlayer({
         console.warn('Reconnect seek will be retried:', reason);
       }
     }
-    if (isHoldScreen || anchor?.playbackState === 'playing') {
+    if (playbackShouldPlay(anchor, performance.now(), isHoldScreen)) {
       video.muted = false;
       setNeedsUnmute(true);
       setNeedsStart(true);
@@ -1183,7 +1185,7 @@ export function ProgramVideoPlayer({
           serverNow: serverNow || playbackUpdatedAt || '1970-01-01T00:00:00.000Z',
           playbackState,
           playbackPositionSeconds: playbackPositionSeconds ?? Math.max(0, playbackPosition + playbackElapsedMs / 1000),
-          playbackDurationSeconds, clipEndSeconds,
+          playbackDurationSeconds, clipEndSeconds, playbackStartDelaySeconds,
         }}
         snapshotReceivedAt={snapshotReceivedAt}
         snapshotRoundTripMs={snapshotRoundTripMs}

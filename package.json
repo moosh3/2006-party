@@ -52,6 +52,8 @@
     "enable:realtime": "tsx -r dotenv/config scripts/enable-realtime.ts dotenv_config_path=.env.local",
     "test:countdown-db": "node --import tsx scripts/test-countdown-db.ts",
     "test:countdown-api": "node --import tsx scripts/test-countdown-api.ts",
+    "db:countdown-intro": "node --import tsx scripts/apply-countdown-intro-db.ts",
+    "test:countdown-intro": "node --import tsx scripts/test-countdown-intro.ts",
     "db:countdown": "node --import tsx scripts/apply-countdown-db.ts"
   },
   "dependencies": {

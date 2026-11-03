@@ -10,7 +10,7 @@ async function main() {
     for (const file of ['001_schema', '004_synchronized_playback', '005_event_poster_mode', '006_video_queue',
       '008_auto_advance_lock', '009_queue_transaction_functions', '010_playback_elapsed_time', '011_hold_screen',
       '012_stream_resume_improvements', '013_fix_sync_restarts', '014_showtime_playout_and_queue',
-      '015_youtube_playlist_sources', '022_playout_hardening', '025_youtube_video_queue', '026_countdown_queue']) {
+      '015_youtube_playlist_sources', '022_playout_hardening', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions']) {
       await db.exec(readFileSync(`sql/${file}.sql`, 'utf8'));
     }
     const q = async (sql: string, args: unknown[] = []) => (await db.query<any>(sql, args)).rows;
@@ -99,7 +99,7 @@ async function main() {
     assert.equal((await snapshot()).automation_status,'blocked-queue-item');
     assert.equal((await q('SELECT count(*)::int n FROM video_queue'))[0].n,1);
     const before=await state(); const queueBefore=await q('SELECT * FROM video_queue');
-    await db.exec(readFileSync('sql/026_countdown_queue.sql','utf8'));
+    await db.exec(readFileSync('sql/027_countdown_introductions.sql','utf8'));
     assert.deepEqual(await state(),before); assert.deepEqual(await q('SELECT * FROM video_queue'),queueBefore);
     await db.exec('SET ROLE anon');
     await assert.rejects(save(cue()),/permission denied/);

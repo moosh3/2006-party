@@ -561,7 +561,7 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
                       <span className="min-w-0">
                         {index === 0 && <span className="block text-xs font-bold text-twitch-purple">UP NEXT</span>}
                         <span className="block font-medium text-sm text-twitch-text break-words">{muxItem?.label || 'Unknown'}</span>
-                        <span className="block text-xs text-twitch-text-alt mt-1">{item.countdown ? `TRL #${item.countdown.rank} · ${item.countdown.rank === 1 ? 'Full video' : `${item.countdown.durationSeconds}s from ${item.countdown.startSeconds}s`} · ${item.countdown.bannerUrl ? 'Banner set' : 'Number only'}` : `${mediaSourceLabel(muxItem?.source_type)}${duration !== null ? ` · ${formatDuration(duration)}` : ''}`}</span>
+                        <span className="block text-xs text-twitch-text-alt mt-1">{item.countdown ? `TRL #${item.countdown.rank}${item.countdown.introSeconds ? ` · ${item.countdown.introSeconds}s title card` : ''} · ${item.countdown.rank === 1 ? 'Full video' : `${item.countdown.durationSeconds}s from ${item.countdown.startSeconds}s`} · ${item.countdown.bannerUrl ? 'Banner set' : 'Number only'}` : `${mediaSourceLabel(muxItem?.source_type)}${duration !== null ? ` · ${formatDuration(duration)}` : ''}`}</span>
                       </span>
                     </button>
                     <div className="flex gap-2 ml-auto">

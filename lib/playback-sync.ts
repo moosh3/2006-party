@@ -7,6 +7,8 @@ export interface PlaybackSnapshot {
   serverNow: string;
   playbackState: string;
   playbackPositionSeconds: number;
+  /** Remaining title-card time at serverNow, before source time advances. */
+  playbackStartDelaySeconds?: number;
   playbackDurationSeconds?: number | null;
   clipEndSeconds?: number | null;
 }
@@ -26,7 +28,9 @@ export function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
     && data.playbackRevision >= 0
     && (data.playbackState === 'playing' || data.playbackState === 'paused')
     && typeof data.playbackPositionSeconds === 'number'
-    && Number.isFinite(data.playbackPositionSeconds) && data.playbackPositionSeconds >= 0;
+    && Number.isFinite(data.playbackPositionSeconds) && data.playbackPositionSeconds >= 0
+    && (data.playbackStartDelaySeconds === undefined || (typeof data.playbackStartDelaySeconds === 'number'
+      && Number.isFinite(data.playbackStartDelaySeconds) && data.playbackStartDelaySeconds >= 0 && data.playbackStartDelaySeconds <= 10));
 }
 
 export function makePlaybackAnchor(
@@ -51,6 +55,18 @@ export function snapshotIsNewer(candidate: PlaybackSnapshot, current: PlaybackSn
   return Date.parse(candidate.serverNow) >= Date.parse(current.serverNow);
 }
 
+/** The intro clock shares the same monotonic anchor as media correction. */
+export function playbackStartDelayRemaining(anchor: PlaybackAnchor, now: number) {
+  const elapsed = anchor.playbackState === 'playing'
+    ? (Math.max(0, now - anchor.receivedAt) + anchor.roundTripMs / 2) / 1000 : 0;
+  return Math.max(0, (anchor.playbackStartDelaySeconds || 0) - elapsed);
+}
+
+export function playbackShouldPlay(anchor: PlaybackAnchor | null, now: number, hold = false): boolean {
+  return hold || !!anchor && anchor.playbackState === 'playing'
+    && playbackStartDelayRemaining(anchor, now) === 0 && !excerptHasEnded(anchor, now);
+}
+
 /** The timestamp comparison guards stale HTTP responses; elapsed uses only a monotonic clock. */
 export function projectPlaybackPosition(
   anchor: PlaybackAnchor,
@@ -60,7 +76,7 @@ export function projectPlaybackPosition(
   const elapsedMs = anchor.playbackState === 'playing'
     ? Math.max(0, now - anchor.receivedAt) + anchor.roundTripMs / 2
     : 0;
-  const position = Math.max(0, anchor.playbackPositionSeconds + elapsedMs / 1000);
+  const position = Math.max(0, anchor.playbackPositionSeconds + Math.max(0, elapsedMs / 1000 - (options.hold ? 0 : anchor.playbackStartDelaySeconds || 0)));
   const duration = !options.hold && anchor.clipEndSeconds != null ? anchor.clipEndSeconds : options.duration ?? anchor.playbackDurationSeconds;
   if (!Number.isFinite(duration) || !duration || duration <= 0) return position;
   if (options.hold) return position % duration;
@@ -73,7 +89,7 @@ export function projectPlaybackPosition(
 export function excerptHasEnded(anchor: PlaybackAnchor | null, now: number) {
   if (!anchor || anchor.clipEndSeconds == null) return false;
   const elapsed = anchor.playbackState === 'playing' ? (Math.max(0, now - anchor.receivedAt) + anchor.roundTripMs / 2) / 1000 : 0;
-  return anchor.playbackPositionSeconds + elapsed >= anchor.clipEndSeconds;
+  return anchor.playbackPositionSeconds + Math.max(0, elapsed - (anchor.playbackStartDelaySeconds || 0)) >= anchor.clipEndSeconds;
 }
 
 export interface SyncMediaState {
@@ -101,7 +117,7 @@ export function getPlaybackCorrection(
   const correction: PlaybackCorrection = { seekTo: null, playbackRate: 1, action: null };
   if (media.readyState < 1 || media.seeking) return correction;
 
-  const playing = options.hold || (anchor.playbackState === 'playing' && !excerptHasEnded(anchor, now));
+  const playing = playbackShouldPlay(anchor, now, options.hold);
   if (!options.live) {
     const duration = Number.isFinite(media.duration) && media.duration > 0
       ? media.duration : anchor.playbackDurationSeconds;

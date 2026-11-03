@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  excerptHasEnded, isPlaybackSnapshot, makePlaybackAnchor, projectPlaybackPosition, snapshotIsNewer,
+  playbackShouldPlay, isPlaybackSnapshot, makePlaybackAnchor, projectPlaybackPosition, snapshotIsNewer,
   type PlaybackAnchor, type PlaybackSnapshot,
 } from '@/lib/playback-sync';
 import { loadYouTubeIframeApi, type YouTubePlayer } from '@/lib/youtube-iframe';
@@ -66,7 +66,7 @@ export default function YouTubeVideoPlayer({
     try {
       // A new server pause must stop a previously issued load/play promptly,
       // even if YouTube has not yet exposed its duration.
-      const wantsPause = !isHoldScreen && (anchor.playbackState === 'paused' || excerptHasEnded(anchor, performance.now()));
+      const wantsPause = !playbackShouldPlay(anchor, performance.now(), isHoldScreen);
       const stateBeforeCorrection = player.getPlayerState();
       if (wantsPause && stateBeforeCorrection !== 2 && stateBeforeCorrection !== 5) player.pauseVideo();
       const correction = getYouTubePlaybackCorrection(player, anchor, performance.now(), {
@@ -204,14 +204,14 @@ export default function YouTubeVideoPlayer({
             if (rememberedMuted) readyPlayer.mute();
             else readyPlayer.unMute();
             setNeedsUnmute(rememberedMuted);
-            if (!isHoldScreen && (anchor?.playbackState === 'paused' || excerptHasEnded(anchor, performance.now()))) {
+            if (!playbackShouldPlay(anchor, performance.now(), isHoldScreen)) {
               readyPlayer.cueVideoById({ videoId, startSeconds });
               readyPlayer.pauseVideo();
             } else {
               readyPlayer.loadVideoById({ videoId, startSeconds });
               autoplayDeadlineRef.current = window.setTimeout(() => {
                 autoplayDeadlineRef.current = null;
-                if (disposed || (!isHoldScreen && (anchorRef.current?.playbackState !== 'playing' || excerptHasEnded(anchorRef.current, performance.now())))
+                if (disposed || !playbackShouldPlay(anchorRef.current, performance.now(), isHoldScreen)
                   || readyPlayer.getPlayerState() === YT.PlayerState.PLAYING) return;
                 if (!readyPlayer.isMuted()) {
                   readyPlayer.mute();
@@ -236,7 +236,7 @@ export default function YouTubeVideoPlayer({
             applyPlayback();
           },
           onAutoplayBlocked: ({ target: blockedPlayer }) => {
-            if (disposed || anchorRef.current?.playbackState === 'paused' || excerptHasEnded(anchorRef.current, performance.now())) return;
+            if (disposed || !playbackShouldPlay(anchorRef.current, performance.now(), isHoldScreen)) return;
             if (!blockedPlayer.isMuted()) {
               blockedPlayer.mute();
               setNeedsUnmute(true);
@@ -299,7 +299,7 @@ export default function YouTubeVideoPlayer({
       player.unMute();
       rememberedMuted = false;
       setNeedsUnmute(false);
-      if (isHoldScreen || (anchor.playbackState === 'playing' && !excerptHasEnded(anchor, performance.now()))) {
+      if (playbackShouldPlay(anchor, performance.now(), isHoldScreen)) {
         player.playVideo();
       } else {
         player.pauseVideo();

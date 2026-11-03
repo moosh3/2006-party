@@ -161,7 +161,7 @@ export default function AdminDashboard() {
                   playbackSessionId={streamData.playbackSessionId}
                   playbackRevision={streamData.playbackRevision}
                   serverNow={streamData.serverNow}
-                  playbackPositionSeconds={streamData.playbackPositionSeconds}
+                  playbackPositionSeconds={streamData.playbackPositionSeconds} playbackStartDelaySeconds={streamData.playbackStartDelaySeconds}
                   countdown={streamData.countdown} clipEndSeconds={streamData.clipEndSeconds} playbackDurationSeconds={streamData.playbackDurationSeconds}
                   snapshotReceivedAt={streamData.snapshotReceivedAt}
                   snapshotRoundTripMs={streamData.snapshotRoundTripMs}
