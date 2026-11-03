@@ -27,7 +27,7 @@ function cueCopy(cue: AudienceCue): { context: string; action: string } | null {
         case 'superlative': return { context: 'Pick a 2006er.', action: 'Open Superlatives' };
         default: return null;
       }
-    case 'essay': return { context: 'Your essay is due.', action: 'Open essay' };
+    case 'essay': return { context: 'STUDY BREAK! Add a few lines to your 2006 reflection.', action: 'Open essay' };
     case 'feedback': return { context: 'How was the show?', action: 'Open feedback form ↗' };
     case 'awards': return { context: 'Tonight’s winners.', action: 'View results' };
     case 'commercial':

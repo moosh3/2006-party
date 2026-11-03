@@ -9,7 +9,7 @@ import GameBoard, { type GameCueRequest } from '@/components/game/GameBoard';
 import VideoPlayer from '@/components/VideoPlayer';
 import type { ProgramStream } from '@/lib/program-stream';
 import VideoPlaylistShelf from '@/components/VideoPlaylistShelf';
-import { ClippyAssistant, ESSAY_PROMPTS, MailApp, TextEditApp, type ClippyMode } from '@/components/2006/MacInteractiveShowcase';
+import { ClippyAssistant, ESSAY_PROMPTS, MailApp, StudyBreakInvitation, TextEditApp, type ClippyMode } from '@/components/2006/MacInteractiveShowcase';
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
@@ -806,7 +806,6 @@ export default function AimExperience({
     // Offer the essay reminder without covering the show or an in-progress vote.
     const clippyTimer = window.setTimeout(() => {
       if (showInteraction.current) return;
-      if (window.matchMedia('(max-width: 900px)').matches) return;
       setClippyMode('mail');
       setClippyVisible(true);
     }, 1_200);
@@ -845,6 +844,7 @@ export default function AimExperience({
   };
 
   const openMacWindow = (name: MacWindowName) => {
+    showInteraction.current = true;
     setMacWindows((windows) => ({ ...windows, [name]: true }));
     setActiveMacWindow(name);
     if (window.matchMedia('(max-width: 900px)').matches) {
@@ -869,10 +869,17 @@ export default function AimExperience({
     setClippyVisible(false);
   };
 
+  const dismissClippy = () => {
+    showInteraction.current = true;
+    setClippyVisible(false);
+    if (invitedCue?.action.type === 'essay') audienceCues.dismissCue(invitedCue);
+  };
+
   const openEssay = () => {
+    showInteraction.current = true;
     openMacWindow('textedit');
     setClippyMode('essay');
-    setClippyVisible(true);
+    setClippyVisible(false);
   };
 
   const openAudienceTask = (cue: AudienceCue) => {
@@ -1078,6 +1085,10 @@ export default function AimExperience({
                   <TransitionClock nextTransitionAt={streamData?.nextTransitionAt} />
                 </div>
 
+                {clippyVisible && clippyMode === 'mail' && !macWindows.textedit && !audienceCues.armed && (
+                  <StudyBreakInvitation onOpenEssay={openEssay} onDismiss={dismissClippy} />
+                )}
+
                 <AudienceCueBar cue={invitedCue} onAction={openAudienceTask}
                   onDismiss={() => {
                     if (!invitedCue) return;
@@ -1183,8 +1194,8 @@ export default function AimExperience({
                 mode={clippyMode}
                 paused={castAnimationsPaused}
                 onOpenMail={openMail}
-                onOpenEssay={() => { openMacWindow('textedit'); setClippyVisible(false); }}
-                onDismiss={() => setClippyVisible(false)}
+                onOpenEssay={openEssay}
+                onDismiss={dismissClippy}
               />
             )}
 

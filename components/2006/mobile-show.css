@@ -1,5 +1,5 @@
 /* One player and one set of game/chat state, reflowed for touch screens. */
-.mobile2006-header, .mobile2006-watch, .mobile2006-extras { display: none; }
+.mobile2006-header, .mobile2006-watch, .mobile2006-extras, .show2006-study-break { display: none; }
 
 @media (max-width: 900px) {
   .mac2006-desktop {
@@ -24,6 +24,7 @@
   .mobile2006-header nav button[aria-pressed='true'] { border-bottom-color: var(--mobile-accent); background: var(--mobile-paper); font-weight: bold; }
   .mac2006-window-safari, .mac2006-window-safari.zoomed, .mac2006-window-safari.hidden { display: flex; width: 100% !important; height: auto !important; max-height: none; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
   .mac2006-window-safari > .mac2006-titlebar, .mac2006-safari-toolbar, .mac2006-bookmarks, .mac2006-tabs { display: none; }
+  .show2006-study-break { display: flex; }
   .mac2006-video { padding: 0; }
   .mac2006-video-error { min-height: 0; padding: 16px; font-size: 14px; }
   .mac2006-now-playing { padding: 10px 14px; font-size: 13px; }
@@ -48,4 +49,8 @@
   .mac2006-shell .game-heading { flex-wrap: wrap; gap: 8px; }
   .mac2006-shell .game-score { margin-left: auto; }
   .game-popup { max-height: calc(100dvh - 24px); }
+}
+
+@media (max-width: 480px) {
+  .show2006-study-break { display: grid; }
 }

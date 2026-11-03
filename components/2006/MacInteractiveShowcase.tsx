@@ -5,6 +5,55 @@ import ClippyAnimation from './ClippyAnimation';
 
 export type ClippyMode = 'mail' | 'essay' | 'saved';
 
+const CLIPPY_DIALOGUE = {
+  mail: {
+    heading: 'STUDY BREAK!',
+    lines: [
+      'Your 2006 reflection is due before the show ends. Pick a prompt and add a few lines.',
+      'Remember your away message? Your essay can be a little longer than that.',
+      'A song, a screen name, a wildly optimistic life plan. Pick a prompt and tell us about 2006.',
+    ],
+  },
+  essay: {
+    heading: 'It looks like you’re writing an essay.',
+    lines: [
+      'Pick a prompt and start with one memory. Save your draft when you want to keep it.',
+      'No need for a five-paragraph masterpiece. A few lines about your 2006 will do.',
+      'I bring the paperclip energy. You bring the memories. Remember to save your draft.',
+    ],
+  },
+  saved: {
+    heading: 'Homework crisis averted.',
+    lines: [
+      'Your draft is saved in this browser. I knew you had it in you.',
+      'Saved in this browser. Your English teacher would be so proud.',
+      'One small save for you. One giant relief for your paperclip. Your draft is stored in this browser.',
+    ],
+  },
+} satisfies Record<ClippyMode, { heading: string; lines: string[] }>;
+
+/** Guest-controlled copy changes, with no timer or changes to their writing. */
+function ClippyDialogue({ mode }: { mode: ClippyMode }) {
+  const [line, setLine] = useState(0);
+  const content = CLIPPY_DIALOGUE[mode];
+  return <>
+    <div className="show2006-clippy-copy" role="status" aria-atomic="true">
+      <strong>{content.heading}</strong>
+      <p>{content.lines[line % content.lines.length]}</p>
+    </div>
+    <button type="button" className="show2006-clippy-another" onClick={() => setLine(value => (value + 1) % content.lines.length)}>What else, Clippy?</button>
+  </>;
+}
+
+/** Phone counterpart to the desktop helper, kept below the program picture. */
+export function StudyBreakInvitation({ onOpenEssay, onDismiss }: { onOpenEssay: () => void; onDismiss: () => void }) {
+  return <aside className="show2006-audience-cue show2006-study-break" aria-label="Essay invitation">
+    <span className="show2006-audience-cue-copy" role="status"><strong>STUDY BREAK!</strong> Pick a prompt and add a few lines to your 2006 reflection.</span>
+    <button type="button" className="show2006-audience-cue-action" onClick={onOpenEssay}>Open essay</button>
+    <button type="button" className="show2006-audience-cue-dismiss" onClick={onDismiss} aria-label="Dismiss essay invitation">×</button>
+  </aside>;
+}
+
 export const ESSAY_PROMPTS = [
   'Write about a song that made 2006 feel bigger than your bedroom.',
   'Describe the first online space where you felt like yourself.',
@@ -84,8 +133,8 @@ export function TextEditApp({
       </div>
       {helperVisible ? <aside className="show2006-essay-clippy" aria-label="Clippy essay helper">
         <ClippyAnimation reaction={saved ? 'spin' : 'curious'} paused={paused} active={active} />
-        <div><strong>{saved ? 'Homework crisis averted.' : 'It looks like you’re writing an essay.'}</strong>
-          <p>{saved ? 'Your draft is saved in this browser. I knew you had it in you.' : 'Pick a prompt, write something very profound, and save your draft. I’ll supervise.'}</p>
+        <div>
+          <ClippyDialogue mode={saved ? 'saved' : 'essay'} />
           <button type="button" className="mac2006-aqua-button" onClick={() => setHelperVisible(false)}>Hide Clippy</button>
         </div>
       </aside> : <button type="button" className="show2006-clippy-return" onClick={() => setHelperVisible(true)}>Bring back Clippy</button>}
@@ -112,31 +161,14 @@ export function ClippyAssistant({
   onOpenEssay: () => void;
   onDismiss: () => void;
 }) {
-  const content = {
-    mail: {
-      message: 'It looks like you have an essay due. Would you like me to open your mail?',
-      action: 'Check Mail',
-      onAction: onOpenMail,
-    },
-    essay: {
-      message: 'It looks like you’re writing an essay. Need to see the prompts again?',
-      action: 'Show Prompts',
-      onAction: onOpenEssay,
-    },
-    saved: {
-      message: 'Your draft is saved in this browser. Homework crisis averted. Keep writing?',
-      action: 'Keep Writing',
-      onAction: onOpenEssay,
-    },
-  }[mode];
-
   return (
     <aside className="mac2006-clippy" aria-label="Clippy assistant">
-      <div className="mac2006-clippy-bubble" role="status">
+      <div className="mac2006-clippy-bubble">
         <button type="button" className="mac2006-clippy-close" aria-label="Dismiss Clippy" onClick={onDismiss} />
-        <p>{content.message}</p>
-        <div>
-          <button type="button" className="mac2006-aqua-button primary" onClick={content.onAction}>{content.action}</button>
+        <ClippyDialogue mode={mode} />
+        <div className="show2006-clippy-actions">
+          <button type="button" className="mac2006-aqua-button primary" onClick={onOpenEssay}>{mode === 'saved' ? 'Keep writing' : 'Open essay'}</button>
+          <button type="button" className="mac2006-aqua-button" onClick={onOpenMail}>Check Mail</button>
           <button type="button" className="mac2006-aqua-button" onClick={onDismiss}>Not Now</button>
         </div>
       </div>
