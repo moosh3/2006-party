@@ -27,6 +27,7 @@ h1 { font-size:18px; margin:0; font-weight:500; }
 .section-heading span { font-size:11px; color:var(--muted); }
 .hint { color:var(--muted); font-size:11px; line-height:1.7; }
 .cue-list { padding:0; margin:22px 0; list-style:none; display:grid; gap:8px; }
+.cue-list > li { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr); gap:6px; }
 .cue-list button { width:100%; text-align:left; display:grid; grid-template-columns:34px minmax(0,1fr); gap:12px; padding:14px 12px; }
 .cue-number { color:var(--muted); font-size:18px; }
 .cue-title { display:block; line-height:1.45; }
@@ -83,3 +84,11 @@ summary { cursor:pointer; font-size:12px; padding:5px 0; }
 .output-setup button { background:var(--signal); color:var(--surface); border-color:var(--signal); }
 @media(max-width:850px) { .operator-header { padding:14px 18px; flex-wrap:wrap; gap:12px; } .independent { flex-basis:calc(100% - 200px); } .desk { grid-template-columns:minmax(200px,34%) minmax(0,1fr); } .rundown { padding:20px 14px; } .playout { padding:20px; } .transport { grid-template-columns:1fr 1fr; } .go { font-size:32px; } .go span { font-size:12px; } .two-fields { grid-template-columns:1fr; gap:0; } }
 @media(max-width:580px) { .desk { display:flex; flex-direction:column-reverse; } .rundown { border-right:0; border-top:1px solid var(--line); } .operator-header button { width:100%; } .independent { flex-basis:100%; } .now-panel { min-height:180px; } .input-action { flex-direction:column; } }
+
+.cue-list .cue-drag { touch-action:none; user-select:none; display:block; padding:8px; text-align:center; font-size:25px; cursor:grab; color:var(--muted); }
+.cue-list .cue-drag:active { cursor:grabbing; }
+.cue-list .cue-drag:disabled { cursor:not-allowed; }
+.cue-list .is-dragging { opacity:0.45; }
+.cue-list .drop-before::before,.cue-list .drop-after::after { content:''; position:absolute; left:0; right:0; height:3px; background:var(--signal); pointer-events:none; }
+.cue-list .drop-before::before { top:-6px; }
+.cue-list .drop-after::after { bottom:-6px; }

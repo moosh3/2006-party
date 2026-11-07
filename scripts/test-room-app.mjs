@@ -33,6 +33,7 @@ function fixture({ show = rundown(), files, lock = true, durations = {} } = {}) 
   const messages = [], requests = [], timers = new Map();
   let timerId = 0, now = 0, uuid = 0;
   let saved = copy(show);
+  let failSave = false;
   const library = { directory:'/room-media', files:files ?? [
     { path:'Scene.mp4', kind:'video', size:100 },
     { path:'Highway.mp4', kind:'video', size:100 },
@@ -90,9 +91,11 @@ function fixture({ show = rundown(), files, lock = true, durations = {} } = {}) 
     querySelectorAll(selector) {
       const descendants = (element) => element.children.flatMap((child) => [child, ...descendants(child)]);
       const tag = selector.split('[')[0].toUpperCase();
-      return descendants(this).filter((child) => child.tagName === tag);
+      return descendants(this).filter((child) => child.tagName === tag && (!selector.includes('[data-drag-cue]') || child.dataset.dragCue));
     }
-    closest() { return ['INPUT','TEXTAREA','SELECT','BUTTON','SUMMARY'].includes(this.tagName) ? this : null; }
+    setPointerCapture() {}
+    closest(selector) { if (selector === 'li') return this.tagName === 'LI' ? this : this.parentElement?.closest(selector);  return ['INPUT','TEXTAREA','SELECT','BUTTON','SUMMARY'].includes(this.tagName) ? this : null; }
+    getBoundingClientRect() { return {top:0, height:100}; }
     focus() { document.activeElement = this; }
     select() {}
     click() { return this.disabled ? { done:Promise.resolve() } : this.dispatch('click'); }
@@ -147,6 +150,7 @@ function fixture({ show = rundown(), files, lock = true, durations = {} } = {}) 
       requests.push({path, ...options});
       assert.ok(['/api/show','/api/library'].includes(path), `Operator used unexpected network path ${path}`);
       if (path === '/api/show') {
+        if (options.method === 'POST' && failSave) return {ok:false,json:async () => ({error:'Local disk write failed'})};
         if (options.method === 'POST') saved = JSON.parse(options.body);
         return { ok:true, json:async () => copy(saved) };
       }
@@ -156,8 +160,10 @@ function fixture({ show = rundown(), files, lock = true, durations = {} } = {}) 
   vm.runInContext(source, context, {filename:'app.mjs'});
   return {
     elements, document, messages, requests,
+    hit(row) { document.elementFromPoint = () => row; },
     state:() => copy(vm.runInContext('state', context)),
     saved:() => copy(saved),
+    failSaves:() => { failSave = true; },
     pads:() => {
       const descendants = (element) => element.children.flatMap((child) => [child, ...descendants(child)]);
       return descendants(elements['sound-pads']).filter((element) => element.tagName === 'BUTTON');
@@ -500,6 +506,104 @@ await check('a second operator cannot access the soundboard or send cues', async
   assert.equal(room.soundCommands().length,0);
   assert.equal(room.cueCommands().length,0);
   assert.match(room.elements['notice'].textContent,/another operator/iu);
+});
+
+
+function dragCue(room, from, to, after = false) {
+  const rows = room.elements['cue-list'].children;
+  rows[from].children[0].dispatch('pointerdown', {pointerId:1, button:0, clientX:10, clientY:10});
+  room.hit(rows[to]);
+  const point = {pointerId:1,clientX:50,clientY:after ? 90 : 10};
+  room.document.dispatch('pointermove', point);
+  room.document.dispatch('pointerup', point);
+}
+
+await check('dragging a cue saves order without selecting it or starting playback', async () => {
+  const room = fixture(); await flush(); room.armed(); await flush();
+  const before = room.state();
+  dragCue(room, 0, 1, true); await flush();
+  assert.deepEqual(room.saved().cues.map(cue => cue.id), ['live-two','video-one']);
+  assert.deepEqual(room.state(), before);
+  assert.equal(room.cueCommands().filter(message => message.action === 'play').length, 0);
+  assert.equal(room.document.activeElement.dataset.dragCue, 'video-one');
+  dragCue(room, 1, 0); await flush();
+  assert.deepEqual(room.saved().cues.map(cue => cue.id), ['video-one','live-two']);
+});
+
+await check('cancelled and same-position drags do not write a rundown', async () => {
+  const room = fixture(); await flush();
+  const row = room.elements['cue-list'].children[0];
+  row.children[0].dispatch('pointerdown', {pointerId:1,button:0,clientX:10,clientY:10});
+  room.document.dispatch('pointercancel');
+  room.document.dispatch('pointerup', {pointerId:1,clientX:50,clientY:90});
+  dragCue(room, 0, 0); await flush();
+  assert.equal(room.requests.filter(request => request.method === 'POST').length, 0);
+});
+
+await check('GO during a drag cancels the reorder and preserves playback', async () => {
+  const room = fixture(); await flush(); room.armed(); await flush();
+  const rows = room.elements['cue-list'].children;
+  rows[0].children[0].dispatch('pointerdown', {pointerId:1,button:0,clientX:10,clientY:10});
+  room.elements['go'].click(); await flush();
+  room.document.dispatch('pointerup', {pointerId:1,clientX:50,clientY:90}); await flush();
+  assert.deepEqual(room.saved().cues.map(cue => cue.id), ['video-one','live-two']);
+  assert.equal(room.state().status, 'loading');
+  assert.equal(room.elements['cue-list'].children[0].children[0].disabled, true);
+});
+
+await check('keyboard reorder keeps next cue and returns focus to its handle', async () => {
+  const room = fixture(); await flush();
+  const before = room.state().nextCueId;
+  room.elements['cue-list'].children[0].children[0].dispatch('keydown', {altKey:true,key:'ArrowDown'});
+  await flush();
+  assert.deepEqual(room.saved().cues.map(cue => cue.id), ['live-two','video-one']);
+  assert.equal(room.state().nextCueId, before);
+  assert.equal(room.document.activeElement.dataset.dragCue, 'video-one');
+});
+
+
+await check('switching cues saves edited name and file before opening the next editor', async () => {
+  const room = fixture(); await flush();
+  room.elements['cue-label'].value = 'Updated opening';
+  room.elements['cue-file'].value = 'Highway.mp4';
+  await room.elements['cue-list'].children[1].children[1].click().done; await flush();
+  assert.equal(room.saved().cues[0].label, 'Updated opening');
+  assert.equal(room.saved().cues[0].file, 'Highway.mp4');
+  assert.equal(room.elements['cue-label'].value, 'Live performance');
+  assert.equal(room.state().nextCueId, 'live-two');
+  assert.equal(room.cueCommands().filter(message => message.action === 'play').length, 0);
+});
+await check('failed save keeps the edited cue selected and its draft intact', async () => {
+  const room = fixture(); await flush(); room.failSaves();
+  room.elements['cue-label'].value = 'Do not lose this';
+  await room.elements['cue-list'].children[1].children[1].click().done; await flush();
+  assert.equal(room.elements['cue-label'].value, 'Do not lose this');
+  assert.equal(room.saved().cues[0].label, 'Room video');
+  assert.equal(room.state().nextCueId, 'video-one');
+  assert.match(room.elements['cue-save-status'].textContent, /Not saved/);
+});
+await check('incomplete edits prevent a switch and explain how to save', async () => {
+  const room = fixture(); await flush();
+  room.elements['cue-file'].value = '';
+  await room.elements['cue-list'].children[1].children[1].click().done; await flush();
+  assert.equal(room.state().nextCueId, 'video-one');
+  assert.match(room.elements['cue-save-status'].textContent, /Choose a local file/);
+  assert.equal(room.requests.filter(request => request.method === 'POST').length, 0);
+});
+await check('moving a cue preserves its unsaved editor fields', async () => {
+  const room = fixture(); await flush();
+  room.elements['cue-label'].value = 'Draft title';
+  await room.elements['move-down'].click().done; await flush();
+  assert.equal(room.elements['cue-label'].value, 'Draft title');
+  await room.elements['cue-form'].dispatch('submit').done; await flush();
+  assert.equal(room.saved().cues[1].label, 'Draft title');
+});
+await check('hold file selection persists and reports a successful save', async () => {
+  const room = fixture(); await flush();
+  room.elements['hold-file'].value = 'Scene.mp4';
+  await room.elements['hold-file'].dispatch('change').done; await flush();
+  assert.equal(room.saved().hold.file, 'Scene.mp4');
+  assert.match(room.elements['notice'].textContent, /Holding screen saved/);
 });
 
 process.stdout.write(`Room operator: ${checks} checks passed.\n`);

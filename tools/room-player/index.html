@@ -17,7 +17,7 @@
   <main class="desk">
     <section class="rundown" aria-labelledby="rundown-heading">
       <div class="section-heading"><h1 id="rundown-heading">Rundown</h1><span id="cue-count"></span></div>
-      <p class="hint">Select a cue to put it next. Nothing plays until GO.</p>
+      <p class="hint">Select a cue to put it next. Nothing plays until GO. Drag the grip to reorder while holding, or use Move up / Move down in the cue editor.</p>
       <ol id="cue-list" class="cue-list"></ol>
       <button id="add-cue" class="wide">Add cue</button>
     </section>
@@ -64,6 +64,7 @@
       <details class="setup cue-editor" open>
         <summary>Edit selected cue</summary>
         <form id="cue-form">
+          <p id="cue-save-status" class="hint" role="status" aria-live="polite"></p>
           <label for="cue-label">Cue name</label><input id="cue-label" required maxlength="180">
           <div class="two-fields"><div><label for="cue-kind">Room action</label><select id="cue-kind"><option value="live">Live scene — hold and wait</option><option value="video">Play local video</option><option value="image">Show local image</option></select></div><div><label for="cue-file">File</label><select id="cue-file"><option value="">Choose a file</option></select></div></div>
           <label for="cue-notes">Operator notes</label><textarea id="cue-notes" rows="2" maxlength="2000"></textarea>

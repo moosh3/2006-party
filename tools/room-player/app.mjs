@@ -5,6 +5,8 @@ const channel = new BroadcastChannel('2006-room-player');
 const outputs = new Map();
 let show, state, library = { directory: '', files: [], warnings: [] };
 let selectedId = null;
+let cueDrag = null;
+let dragScrollTimer;
 let busy = false;
 let preflightRunning = false;
 let controller = false;
@@ -146,6 +148,10 @@ function renderPlayout() {
   $('restart').disabled = busy || !outputReady() || !current || state.status === 'loading';
   $('close-output').disabled = !fresh;
   const safe = isEditingSafe();
+  for (const handle of $('cue-list').querySelectorAll('button[data-drag-cue]')) {
+    handle.disabled = !safe;
+  }
+  if (!safe) clearCueDrag();
   for (const id of ['add-cue','directory','hold-file','captions','import-show','move-up','move-down','delete-cue','confirm-delete','cue-label','cue-kind','cue-file','cue-notes','cue-end']) $(id).disabled = !safe;
   $('directory-form').querySelector('button').disabled = !safe;
   $('cue-form').querySelector('button[type="submit"]').disabled = !safe || !selectedId;
@@ -156,11 +162,100 @@ function renderPlayout() {
   renderSoundControls();
 }
 
+function clearCueDrag() {
+  clearInterval(dragScrollTimer);
+  cueDrag = null;
+  for (const row of $('cue-list').querySelectorAll('li')) {
+    row.classList.toggle('is-dragging', false);
+    row.classList.toggle('drop-before', false);
+    row.classList.toggle('drop-after', false);
+  }
+}
+
+function updateCueDrag() {
+  if (!cueDrag?.active || !isEditingSafe()) return;
+  const hit = document.elementFromPoint(cueDrag.x, cueDrag.y)?.closest('li');
+  const rows = Array.from($('cue-list').querySelectorAll('li'));
+  const target = rows.includes(hit) ? hit : null;
+  const bounds = target?.getBoundingClientRect();
+  cueDrag.targetId = target?.dataset.cueId || null;
+  cueDrag.after = Boolean(bounds && cueDrag.y > bounds.top + bounds.height / 2);
+  for (const row of rows) {
+    row.classList.toggle('is-dragging', row.dataset.cueId === cueDrag.id);
+    row.classList.toggle('drop-before', row === target && !cueDrag.after && row.dataset.cueId !== cueDrag.id);
+    row.classList.toggle('drop-after', row === target && cueDrag.after && row.dataset.cueId !== cueDrag.id);
+  }
+}
+
+document.addEventListener('pointermove', event => {
+  if (!cueDrag || event.pointerId !== cueDrag.pointerId) return;
+  if (!isEditingSafe()) return clearCueDrag();
+  cueDrag.x = event.clientX; cueDrag.y = event.clientY;
+  if (Math.hypot(cueDrag.x - cueDrag.startX, cueDrag.y - cueDrag.startY) > 6) cueDrag.active = true;
+  if (cueDrag.active) { event.preventDefault(); updateCueDrag(); }
+}, {passive:false});
+document.addEventListener('pointerup', event => {
+  if (!cueDrag || event.pointerId !== cueDrag.pointerId) return;
+  cueDrag.x = event.clientX; cueDrag.y = event.clientY; updateCueDrag();
+  const drag = cueDrag;
+  clearCueDrag();
+  if (drag.active && drag.targetId) void reorderCue(drag.id, drag.targetId, drag.after);
+});
+document.addEventListener('pointercancel', clearCueDrag);
+document.addEventListener('keydown', event => { if (event.key === 'Escape') clearCueDrag(); });
+window.addEventListener('blur', clearCueDrag);
+
+async function reorderCue(id, targetId, after = false) {
+  if (!isEditingSafe() || id === targetId) return;
+  const moving = getCue(id);
+  if (!moving || !getCue(targetId)) return;
+  const cues = show.cues.filter(cue => cue.id !== id);
+  const target = cues.findIndex(cue => cue.id === targetId) + (after ? 1 : 0);
+  cues.splice(target, 0, moving);
+  if (cues.every((cue, index) => cue.id === show.cues[index].id)) return;
+  if (await saveShow({ ...show, cues })) {
+    notice(`${moving.label} moved to position ${target + 1}. Your next cue is unchanged.`);
+    const handle = Array.from($('cue-list').querySelectorAll('button[data-drag-cue]')).find(button => button.dataset.dragCue === id);
+    handle?.focus();
+  }
+}
+
 function renderRundown() {
   if (!show) return;
+  clearCueDrag();
   const fragment = document.createDocumentFragment();
   show.cues.forEach((cue, index) => {
-    const li = document.createElement('li');
+    const li = document.createElement('li'); li.dataset.cueId = cue.id;
+    const handle = document.createElement('button');
+    handle.type = 'button'; handle.className = 'cue-drag'; handle.dataset.dragCue = cue.id;
+    handle.textContent = '⠿'; handle.disabled = !isEditingSafe();
+    handle.setAttribute('aria-label', `Move ${cue.label}`);
+    handle.title = 'Drag to reorder. Or focus here and press Alt + Up / Down.';
+    handle.addEventListener('keydown', event => {
+      if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      const target = show.cues[index + (event.key === 'ArrowUp' ? -1 : 1)];
+      if (target) void reorderCue(cue.id, target.id, event.key === 'ArrowDown');
+    });
+    handle.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || !isEditingSafe()) return;
+      clearCueDrag();
+      handle.setPointerCapture(event.pointerId);
+      cueDrag = {id:cue.id, pointerId:event.pointerId, startX:event.clientX, startY:event.clientY, x:event.clientX, y:event.clientY, active:false, targetId:null, after:false};
+      dragScrollTimer = setInterval(() => {
+        if (!cueDrag?.active) return;
+        const scroller = $('cue-list').closest('.rundown');
+        const bounds = scroller.getBoundingClientRect();
+        if (cueDrag.x < bounds.left || cueDrag.x > bounds.right) return;
+        const top = Math.max(0, bounds.top), bottom = Math.min(window.innerHeight, bounds.bottom);
+        const amount = cueDrag.y < top + 40 ? -14 : cueDrag.y > bottom - 40 ? 14 : 0;
+        if (amount) {
+          if (scroller.scrollHeight > scroller.clientHeight) scroller.scrollTop += amount;
+          else window.scrollBy(0, amount);
+          updateCueDrag();
+        }
+      }, 40);
+    });
     const button = document.createElement('button');
     button.type = 'button';
     button.classList.toggle('is-next', cue.id === state.nextCueId);
@@ -172,12 +267,14 @@ function renderRundown() {
     const detail = document.createElement('span'); detail.className = 'cue-detail';
     detail.textContent = [cue.id === state.nextCueId ? 'NEXT' : cue.id === state.activeCueId ? 'CURRENT' : '', cue.kind === 'live' ? 'Live / hold' : cue.file || 'File not assigned', cue.kind === 'video' && cue.endAction === 'next' ? 'Auto-follow' : ''].filter(Boolean).join(' · ');
     text.append(title, detail); button.append(number, text);
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
+      if (busy) return;
       if (state.status === 'loading') return notice('Wait for the current cue to start before changing the next cue.', true);
+      if (cue.id !== selectedId && cueEditsPending() && !await saveCueEdits()) return;
       selectedId = cue.id;
       apply(selectCue(state, cue.id)); renderEditor();
     });
-    li.append(button); fragment.append(li);
+    li.append(handle, button); fragment.append(li);
   });
   $('cue-list').replaceChildren(fragment);
   $('cue-count').textContent = `${show.cues.length} cues`;
@@ -198,6 +295,39 @@ function renderLibrary() {
   $('captions').checked = show.captions;
   renderSoundboard();
 }
+function editedCue() {
+  const cue = getCue(selectedId);
+  if (!cue) return null;
+  const kind = $('cue-kind').value;
+  const updated = { ...cue, label:$('cue-label').value.trim(), kind, file:kind === 'live' ? '' : $('cue-file').value, notes:$('cue-notes').value.trim(), endAction:kind === 'video' ? $('cue-end').value : 'hold' };
+  if (kind !== 'video') delete updated.captionFile;
+  return updated;
+}
+function cueEditsPending() {
+  return Boolean(selectedId && JSON.stringify(editedCue()) !== JSON.stringify(getCue(selectedId)));
+}
+function renderCueSaveStatus(message) {
+  $('cue-save-status').textContent = message || (cueEditsPending() ? 'Unsaved changes. Save cue, or select another cue to save these edits first.' : 'Cue saved locally.');
+}
+async function saveCueEdits() {
+  if (!isEditingSafe() || !selectedId) return false;
+  const updated = editedCue();
+  if (!updated.label || (updated.kind !== 'live' && !updated.file)) {
+    const message = !updated.label ? 'Enter a cue name before saving.' : 'Choose a local file, or select Live scene, before saving.';
+    renderCueSaveStatus(message); notice(message, true); return false;
+  }
+  renderCueSaveStatus('Saving cue…');
+  if (!await saveShow({ ...show, cues:show.cues.map(cue => cue.id === updated.id ? updated : cue) })) {
+    renderCueSaveStatus('Not saved. Your edits are still here; check the error above and try Save cue again.'); return false;
+  }
+  renderCueSaveStatus(); return true;
+}
+$('cue-form').addEventListener('input', () => renderCueSaveStatus());
+$('cue-form').addEventListener('change', () => renderCueSaveStatus());
+window.addEventListener('beforeunload', event => {
+  if (cueEditsPending() || busy) { event.preventDefault(); event.returnValue = ''; }
+});
+
 function renderEditor() {
   const cue = getCue(selectedId);
   $('delete-confirm').hidden = true;
@@ -206,6 +336,7 @@ function renderEditor() {
   $('cue-notes').value = cue?.notes || '';
   $('cue-end').value = cue?.endAction || 'hold';
   renderFileChoice(cue?.file || '');
+  renderCueSaveStatus();
   renderPlayout();
 }
 function renderFileChoice(file = '') {
@@ -310,8 +441,11 @@ $('directory-form').addEventListener('submit', async (event) => {
 });
 $('hold-file').addEventListener('change', async () => {
   if (!isEditingSafe()) return;
-  await saveShow({ ...show, hold:{file:$('hold-file').value} }); renderLibrary();
-  if (['holding','live','ended','error'].includes(state.status)) apply(hold(state));
+  const saved = await saveShow({ ...show, hold:{file:$('hold-file').value} }); renderLibrary();
+  if (saved) {
+    notice('Holding screen saved locally.');
+    if (['holding','live','ended','error'].includes(state.status)) apply(hold(state));
+  }
 });
 $('captions').addEventListener('change', async () => { await saveShow({ ...show, captions:$('captions').checked }); renderLibrary(); });
 $('sound-form').addEventListener('submit', async (event) => {
@@ -324,15 +458,12 @@ $('sound-form').addEventListener('submit', async (event) => {
 });
 $('cue-kind').addEventListener('change', () => renderFileChoice());
 $('cue-form').addEventListener('submit', async (event) => {
-  event.preventDefault(); if (!isEditingSafe() || !selectedId) return;
-  const kind = $('cue-kind').value;
-  const updated = { ...getCue(selectedId), label:$('cue-label').value.trim(), kind, file:kind === 'live' ? '' : $('cue-file').value, notes:$('cue-notes').value.trim(), endAction:kind === 'video' ? $('cue-end').value : 'hold' };
-  if (kind !== 'video') delete updated.captionFile;
-  if (kind !== 'live' && !updated.file) return notice('Choose a local file for this cue, or select Live scene.', true);
-  if (await saveShow({ ...show, cues:show.cues.map((cue) => cue.id === selectedId ? updated : cue) })) { renderEditor(); notice('Cue saved locally.'); }
+  event.preventDefault();
+  if (await saveCueEdits()) notice('Cue saved locally.');
 });
 $('add-cue').addEventListener('click', async () => {
   if (!isEditingSafe()) return;
+  if (cueEditsPending() && !await saveCueEdits()) return;
   const cue = { id:crypto.randomUUID(), label:'New cue', kind:'live', file:'', notes:'', endAction:'hold' };
   if (await saveShow({ ...show, cues:[...show.cues, cue] })) { selectedId = cue.id; apply(selectCue(state, cue.id)); renderEditor(); $('cue-label').focus(); $('cue-label').select(); }
 });
@@ -341,7 +472,7 @@ async function moveCue(direction) {
   const index = show.cues.findIndex((cue) => cue.id === selectedId), target = index + direction;
   if (index < 0 || target < 0 || target >= show.cues.length) return;
   const cues = [...show.cues]; [cues[index],cues[target]] = [cues[target],cues[index]];
-  if (await saveShow({ ...show, cues })) renderEditor();
+  await saveShow({ ...show, cues });
 }
 $('move-up').addEventListener('click', () => moveCue(-1));
 $('move-down').addEventListener('click', () => moveCue(1));
