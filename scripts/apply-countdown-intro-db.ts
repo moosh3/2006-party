@@ -44,7 +44,13 @@ const statement = apply ? `BEGIN;
     to_regclass('public.current_stream') IS NOT NULL AS stream_exists,
     to_regclass('public.video_queue') IS NOT NULL AS queue_exists,
     to_regclass('public.audience_doors') IS NOT NULL AS admission_exists,
-    to_regprocedure('public.save_countdown_cue(uuid,jsonb,text,uuid,text)') IS NOT NULL AS queue_prerequisite_installed;`;
+    to_regprocedure('public.save_countdown_cue(uuid,jsonb,text,uuid,text)') IS NOT NULL AS queue_prerequisite_installed,
+    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='current_stream' AND column_name='countdown') AS stream_countdown_installed,
+    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='video_queue' AND column_name='countdown') AS queue_countdown_installed,
+    to_regprocedure('public.playout_intro_remaining(public.current_stream,timestamptz)') IS NOT NULL AS countdown_intro_installed;`;
 console.log(JSON.stringify({ project: expectedRef, mode: apply ? 'install-countdown-title-cards-only' : 'read-only-preflight',
   migrationSha256: createHash('sha256').update(migration).digest('hex') }));
-execFileSync('npx', ['--yes', 'supabase', 'db', 'query', '--linked', '--project-ref', expectedRef, statement], { stdio: 'inherit' });
+// Hosted SQL requires an explicit execution mode. The default is enforced read-only;
+// --apply opts into the hosted confirmation flag for this guarded migration only.
+execFileSync('npx', ['--yes', 'supabase', 'db', 'query', `--remote=${expectedRef}`,
+  apply ? '--yes' : '--read-only', statement], { stdio: 'inherit' });

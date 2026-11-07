@@ -7,7 +7,7 @@ Updated November 7, 2026. This document covers the work requested in this chat, 
 | Request | Tracking | Implementation status |
 | --- | --- | --- |
 | “Rules Of Life” with interactive cast avatars, catchphrases, profiles, and a polls/superlatives introduction | [Issue #2](https://github.com/moosh3/2006-party/issues/2) | Tracked and scoped; not implemented |
-| “And now time for video #N” before videos | [Issue #3](https://github.com/moosh3/2006-party/issues/3) | Brief synchronized title cards implemented, tested, committed, and pushed; production activation not verified |
+| “And now time for video #N” before videos | [Issue #3](https://github.com/moosh3/2006-party/issues/3) | Brief synchronized title cards implemented, tested, committed, and pushed; migration 027 applied to production November 7; deployed UI activation not verified |
 | Clippy/essay improvements: “STUDY BREAK!”, an essay participation prompt, and different things for Clippy to say | [Issue #4](https://github.com/moosh3/2006-party/issues/4) | Implemented, tested, committed, and pushed; MK’s final copy/presentation review and exact show cue timing remain |
 
 All three GitHub issues were checked and remain open as of this handoff. Implementation and verification details were added as issue comments; their original issue-body checklists have not been marked complete.
@@ -148,11 +148,13 @@ This work applies to the online website/shared queue. It does not add title card
 
 ## Release status and database update
 
-Both feature commits have been pushed. This chat did **not** run migration 027 against production or perform a manual Vercel deployment. A Git push may trigger a configured automatic deployment; the deployed version and live database state were not checked for this handoff. Do not describe production activation as verified.
+Both feature commits have been pushed. At the user’s subsequent request, migration **027 was applied successfully to the 2006-party production database on November 7, 2026**. No manual Vercel deployment was performed. A Git push may trigger a configured automatic deployment; the deployed website version and guest-facing title-card activation have not been checked. Database installation is verified; full production UI activation is not.
 
-Before enabling/saving title cards in production, verify and install **027 after 026**. The application returns an actionable save error when the required column is absent instead of silently discarding a requested card.
+The production preflight confirmed that the 026 countdown prerequisites were installed and 027 was absent. The guarded 027 installation then succeeded, including its before/after show-and-audience state comparison. It preserved the active cue, queue, library, doors, viewers, votes, audit records and command records. Existing cues were not changed to add title cards. The application’s missing-column save error remains a safeguard for other environments.
 
-The available commands are documented here for the next release task; creating this handoff does not execute them:
+Installation evidence: migration SHA-256 `4be3985344bcf189e1e4b29fdb5bd0ae3e40314e7b338dc13fb68b07a8029421`. Read-only catalog verification confirmed the new non-null numeric column, exact source-body matches for all ten migration functions, blocked anonymous operation access, and allowed service-role operation access. The installed CLI required updating the runner to use `--remote`, enforced `--read-only` for preflight, and an explicit hosted `--yes` only when `--apply` is supplied. Isolated runner checks verified both modes, the fixed-project restriction and rejection of unknown arguments without executing database writes.
+
+The commands used are retained here for maintenance; 027 has already been applied to production:
 
 ```sh
 # Read-only preflight against the configured 2006 database
@@ -231,7 +233,7 @@ Keep captions and controls usable, support phones and keyboards, preserve origin
 ## Suggested continuation
 
 1. Read this handoff and `AGENTS.md`, check the working tree, and preserve any new unrelated edits. The five room-player files listed above are now included in the separate authorized follow-up commit.
-2. Verify actual deployment/database state before claiming either feature is live. Complete migration/release verification when undertaking that task.
+2. Verify the actual deployed website version and guest-facing behavior before claiming either feature is live. Migration 027 is now installed and catalog-verified; verify deployment and any deliberately edited countdown cues without using production votes or playback as test fixtures.
 3. Have MK review Clippy copy, the meaning and timing of “STUDY BREAK!”, and the title-card presentation/duration. Decide whether the earlier countdown ranks also need support.
 4. Use issue #2 to resolve the “Rules Of Life” content and presentation decisions, then implement it using the existing cast/profile/game foundations.
 5. Keep the GitHub issues updated and close them when their remaining acceptance/release work is satisfied.
