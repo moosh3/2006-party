@@ -27,5 +27,7 @@ assert.equal(RULES_TOUR[0].presenter, 'lip', 'Sprite Lip opens the tour');
 assert.ok(RULES_TOUR.every(step => SPRITES.some(sprite => sprite.art === step.presenter)), 'Every presenter is a Sprite');
 assert.equal(new Set(RULES_TOUR.map(step => step.id)).size, RULES_TOUR.length);
 assert.deepEqual(RULES_TOUR.filter(step => step.action).map(step => step.action!.target), ['superlative', 'trl', 'essay']);
+assert.ok(RULES_TOUR.every(step => !step.highlight || step.pointer), 'Every highlighted control is also named in the step text');
+assert.deepEqual(RULES_TOUR.map(step => step.highlight ?? null), ['cast', 'vote', 'vote', 'essay', null]);
 assert.ok(SPRITES.every(sprite => sprite.catchphrase === undefined || sprite.catchphrase.trim().length > 0), 'No blank catchphrases');
 console.log('PASS: scene ids, lengths, the shared Sprite roster and the Rules of the Game tour.');

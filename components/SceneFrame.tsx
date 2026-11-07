@@ -74,6 +74,14 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
   const presenter = current ? SPRITES.find(sprite => sprite.art === current.presenter) : null;
 
   useEffect(() => () => { audio.current?.pause(); }, []);
+  // Light up the page controls this step is about (see scene-frame.css).
+  const highlight = current?.highlight;
+  useEffect(() => {
+    if (!highlight) return;
+    const root = document.documentElement;
+    root.dataset.tourTarget = highlight;
+    return () => { if (root.dataset.tourTarget === highlight) delete root.dataset.tourTarget; };
+  }, [highlight]);
   const stopAudio = () => { audio.current?.pause(); audio.current = null; };
   const play = (src: string) => {
     stopAudio();
@@ -86,7 +94,7 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
   return (
     <section className="scene-frame scene-frame-audience" aria-label={title}>
       <h2>{title}</h2>
-      <ul className="scene-lineup">
+      <ul className="scene-lineup" data-tour="cast">
         {SPRITES.map(sprite => (
           <li key={sprite.art} data-presenting={presenter?.art === sprite.art || undefined}>
             <button type="button" aria-expanded={openArt === sprite.art} aria-controls={bubbleId}
@@ -127,6 +135,7 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
             <p className="scene-tour-meta">Sprite {presenter.name} · {step! + 1} of {RULES_TOUR.length}</p>
             <p className="scene-tour-title">{current.title}</p>
             <p>{current.body}</p>
+            {current.pointer && <p className="scene-tour-pointer">{current.pointer}</p>}
           </div>
           <div className="scene-actions">
             {current.action && <button type="button" disabled={!actions} onClick={() => actions?.open(current.action!.target)}>{current.action.label}</button>}

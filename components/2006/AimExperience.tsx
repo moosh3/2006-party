@@ -438,7 +438,7 @@ function MacDock({
         </span><small>Mail</small>
         <span className="mac2006-dock-badge" aria-label="1 unread message">1</span>
       </button>
-      <button type="button" className={activeWindow === 'textedit' && textEditOpen ? 'active' : ''} onClick={() => openWindow('textedit')}>
+      <button type="button" className={activeWindow === 'textedit' && textEditOpen ? 'active' : ''} onClick={() => openWindow('textedit')} data-tour="essay">
         <span className="mac2006-app-icon" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/2006/icons/textedit.png" width="48" height="48" alt="" draggable={false} />
@@ -1089,7 +1089,8 @@ export default function AimExperience({
                 {([
                   ['watch', 'Watch'], ['game', 'Vote & Trivia'], ['chat', 'Chat'], ['extras', 'Extras'],
                 ] as const).map(([panel, label]) => (
-                  <button key={panel} type="button" aria-pressed={mobilePanel === panel} onClick={() => selectMobilePanel(panel)}>{label}</button>
+                  <button key={panel} type="button" aria-pressed={mobilePanel === panel} onClick={() => selectMobilePanel(panel)}
+                    data-tour={panel === 'game' ? 'vote' : panel === 'extras' ? 'essay' : undefined}>{label}</button>
                 ))}
               </nav>
             </header>
@@ -1123,10 +1124,10 @@ export default function AimExperience({
               <nav className="mac2006-bookmarks" aria-label="Safari bookmarks bar">
                 <button type="button" onClick={() => navigate('home')}>iPod</button>
                 <button type="button" onClick={() => scrollToShowSection('video')}>Watch Show</button>
-                <button type="button" onClick={() => scrollToShowSection('game')}>Vote &amp; Trivia</button>
+                <button type="button" onClick={() => scrollToShowSection('game')} data-tour="vote">Vote &amp; Trivia</button>
                 <button type="button" onClick={() => openShowBuddy(0)}>2006ers</button>
                 <button type="button" onClick={() => openShowBuddy(6)}>SmarterChild</button>
-                <button type="button" onClick={openMail}>Essay due!</button>
+                <button type="button" onClick={openMail} data-tour="essay">Essay due!</button>
               </nav>
 
               <div className="mac2006-safari-page" data-audience-layout={commercialLayout ? 'commercial' : 'program'}>
@@ -1176,7 +1177,7 @@ export default function AimExperience({
                   }} />
 
                 <div className="mac2006-tabs">
-                  <button type="button" onClick={() => scrollToShowSection('game')}>Vote, Trivia &amp; Superlatives</button>
+                  <button type="button" onClick={() => scrollToShowSection('game')} data-tour="vote">Vote, Trivia &amp; Superlatives</button>
                 </div>
                 <div className="mac2006-extra-panel" ref={showGameRef} tabIndex={-1} role="region" aria-label="Show game">
                   <ErrorBoundary fallback={<p>The show game is temporarily unavailable.</p>}><GameBoard screenName={viewer.displayName}

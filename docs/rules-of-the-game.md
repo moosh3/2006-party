@@ -76,6 +76,7 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
   4. **Sprite Yongoo: Write the essay.** Points to the essay and explains that submitted essays can show up in Let’s Check Our Scores (segment 7). Wording depends on the essay submission work in `docs/run-of-show-alignment.md`.
   5. **Sprite Alec: You can come back.** Points to the Rules of the Game desktop icon.
 - The presenting Sprite’s avatar appears beside each step’s text.
+- Each step lights up the page control it is about, with a glowing outline (static with reduced motion) and a line of text naming it: step 1 the lineup; steps 2–3 the **Vote & Trivia** bookmark, the **Vote, Trivia & Superlatives** button and the phone **Vote & Trivia** tab; step 4 the TextEdit Dock icon, the **Essay due!** bookmark and the phone **Extras** tab. Targets are marked with `data-tour`; the highlight clears when the tour ends.
 - Because the tour starts on its own, it must not steal focus from a guest who is already typing in chat or the essay; it takes focus only once the guest interacts with it.
 - Next / Back / Skip are buttons; Escape skips. Focus moves to each step and returns to the **Show me around** button at the end. Step text is announced to assistive technology.
 - Tour progress is per-viewer and local. Finishing or skipping it does not change any vote, admission or playback state.

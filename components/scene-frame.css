@@ -138,3 +138,21 @@
 @media (max-width: 700px) {
   .scores-board-audience .scores-panels { grid-template-columns: 1fr; }
 }
+
+/* Tour spotlight: the control the current step is about glows. */
+html[data-tour-target='cast'] [data-tour~='cast'],
+html[data-tour-target='vote'] [data-tour~='vote'],
+html[data-tour-target='essay'] [data-tour~='essay'] {
+  outline: 3px solid #ffd652;
+  outline-offset: 2px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 5px rgba(255, 214, 82, 0.35), 0 0 18px 6px rgba(255, 214, 82, 0.55);
+  animation: scene-tour-glow 1.6s ease-in-out infinite;
+}
+@keyframes scene-tour-glow {
+  50% { box-shadow: 0 0 0 9px rgba(255, 214, 82, 0.15), 0 0 26px 10px rgba(255, 214, 82, 0.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-tour-target] [data-tour] { animation: none !important; }
+}
+.scene-tour-pointer { font-style: italic; color: #5a4a00; }
