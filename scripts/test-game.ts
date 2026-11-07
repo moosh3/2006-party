@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { castScores, leaders, type GamePrompt } from "../lib/game-types";
+import { castScores, leaders, trlCountdown, type GamePrompt } from "../lib/game-types";
 
 async function main() {
   const db = new PGlite();
@@ -169,6 +169,18 @@ async function main() {
     0,
     "Empty categories award no points",
   );
+  const trlVote = {
+    id: "trl", show_id: s, kind: "trl", question: "Videos", status: "closed", results_visible: false,
+    options: [3, 9, 1, 5, 5, 0, 2].map((count, i) => ({ id: String(i), label: `Video ${i}`, count })),
+  } as GamePrompt;
+  const order = trlCountdown(trlVote);
+  assert.deepEqual(order.map((o) => [o.rank, o.label]),
+    [[1, "Video 1"], [2, "Video 3"], [3, "Video 4"], [4, "Video 0"], [5, "Video 6"]],
+    "Countdown order ranks the top five by votes");
+  assert.deepEqual(order.map((o) => o.tied), [false, true, true, false, false],
+    "Ties are flagged for the operator");
+  assert.equal(trlCountdown({ ...trlVote, options: trlVote.options.map((o) => ({ ...o, count: o.id === "6" ? 1 : o.count })) })[4].tied,
+    true, "A tie at the cut-off with an excluded video is flagged");
   await q("SELECT game_suggest($1,$2,$3)", [
     s,
     a,

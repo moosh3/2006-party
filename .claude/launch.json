@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview:playout"],
       "port": 3116
+    },
+    {
+      "name": "game-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview:game"],
+      "port": 3106
     }
   ]
 }

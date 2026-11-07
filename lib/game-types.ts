@@ -56,6 +56,21 @@ export function castScores(
   );
 }
 
+// TRL voting closes before the show; the operator builds countdown cues #5–#1
+// from the closed round. Ranks are suggestions: a tie with a neighbour is
+// flagged so the operator decides the order rather than the sort.
+export function trlCountdown(prompt: GamePrompt, size = 5) {
+  const ranked = prompt.options
+    .map((o) => ({ id: o.id, label: o.label, count: o.count || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, size);
+  return ranked.map((o, i) => ({
+    ...o,
+    rank: i + 1,
+    tied: prompt.options.filter((x) => (x.count || 0) === o.count).length > 1,
+  }));
+}
+
 export function leaders(scores: GameScore[]) {
   const max = Math.max(0, ...scores.map((s) => s.score));
   return max ? scores.filter((s) => s.score === max) : [];

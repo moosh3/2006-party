@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GameKind, GameState, leaders } from "@/lib/game-types";
+import { GameKind, GameState, leaders, trlCountdown } from "@/lib/game-types";
 import "@/components/game/game.css";
 
 type AdminState = GameState & {
@@ -365,6 +365,23 @@ export default function GameAdmin() {
                       </li>
                     ))}
                   </ul>
+                  {p.kind === "trl" && p.status === "closed" && (
+                    <div className="game-trl-countdown">
+                      <h4>Countdown order from this vote</h4>
+                      <ol>
+                        {trlCountdown(p).map((o) => (
+                          <li key={o.id}>
+                            #{o.rank} {o.label} — {o.count} vote{o.count === 1 ? "" : "s"}
+                            {o.tied ? " · tied, you choose the order" : ""}
+                          </li>
+                        ))}
+                      </ol>
+                      <p className="game-help">
+                        Build the queue’s countdown cues #5–#1 from this list in
+                        /admin. Nothing is queued automatically.
+                      </p>
+                    </div>
+                  )}
                   {active && (
                     <div className="game-admin-actions">
                       {p.kind === "trl" && (
@@ -434,9 +451,19 @@ export default function GameAdmin() {
                         (p.kind !== "trivia" || p.status === "closed") && (
                           <button
                             disabled={busy}
-                            onClick={() =>
-                              void act({ action: "reveal", id: p.id })
-                            }
+                            onClick={() => {
+                              // Revealing a TRL round mid-show shows guests the
+                              // winner before the countdown reaches #1.
+                              if (
+                                p.kind === "trl" &&
+                                !p.results_visible &&
+                                !window.confirm(
+                                  "Revealing TRL results shows guests the winning video before the countdown. Reveal anyway?",
+                                )
+                              )
+                                return;
+                              void act({ action: "reveal", id: p.id });
+                            }}
                           >
                             {p.results_visible ? "Hide" : "Reveal"} results
                           </button>

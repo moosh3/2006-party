@@ -26,11 +26,23 @@ The migration creates private game tables and functions and removes permissive p
 1. Create a show with a unique title/date. Only one show can be active. Earlier nights remain available in the admin show selector.
 2. Save the cast roster, one name per line (2–30 people). Suggested names are taken from the existing AIM cast list; edit them to match tonight’s eligible cast. Creating the first superlative locks that night’s roster.
 3. Prepare TRL polls and trivia questions with choices, and select each trivia question’s correct answer. All new rounds start as private drafts; edit or discard them before opening. Cast superlatives automatically use the saved roster. Each show supports up to 200 rounds.
-4. Mark the decisive video round **Use for TRL Winner**. Earlier video rounds do not decide the final title.
+4. Mark the decisive video round **Use for TRL Winner**. Earlier video rounds do not decide the final title. TRL voting happens before the show; see **TRL before the show** below.
 5. Open a draft on cue. Opening trivia triggers a dismissible popup for participating viewers; the question also remains in the Trivia tab. Only one trivia question may be open. Submitted trivia answers lock immediately; TRL and cast votes can change until closing.
 6. Close trivia to calculate scores. Reveal its answer afterward if desired. For TRL and superlatives, totals can be shown during voting or kept hidden. Changes reach viewers within roughly five seconds, and their own submissions refresh immediately.
 7. Review the private suggestion inbox. Edit, approve as a draft, or reject. Approval never publishes immediately; open the resulting draft to start voting. Only cast choices are used. Viewers can submit at most ten suggestions per night, at least 30 seconds apart. Basic profanity and link filtering also applies to suggestions and new game names; human review is the primary protection.
 8. End the show to close all open rounds, then reveal the final awards when ready. Ending a show is intentionally irreversible; start a new show for the next performance.
+
+## TRL before the show
+
+MK’s run of show closes TRL voting before the show starts: Welcome announces **VOTING IS NOW CLOSED**, and the countdown (#5 → #1) reveals the results.
+
+1. Before doors, create the show and the TRL round (the music-video choices) and mark it **Use for TRL Winner**. Keep its results hidden.
+2. Open TRL voting when guests can arrive (doors open, pre-show loop). The pre-show loop reminds people to vote.
+3. Close TRL voting at Welcome. Guests then see the round as **Voting closed** with “Watch the countdown for the results”, and the game board opens on superlatives or trivia when one is open.
+4. The closed round shows a **Countdown order from this vote** list on the game desk: the top five by votes, with ties flagged for you to order. Build the countdown cues #5–#1 in `/admin` from it before video #5 (after Ads 2). Nothing is queued automatically.
+5. Keep TRL results hidden until the countdown has played. **Reveal results** on a TRL round asks for confirmation because guests would see the winning video early. The end-of-show reveal still announces the TRL Winner.
+
+Superlatives stay open during the show, and trivia runs during ad breaks.
 
 ## Awards and ties
 

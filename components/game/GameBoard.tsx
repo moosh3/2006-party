@@ -16,9 +16,11 @@ function Question({
   prompt,
   disabled,
   vote,
+  showActive = true,
 }: {
   prompt: GamePrompt;
   disabled: boolean;
+  showActive?: boolean;
   vote: (id: string, option: string) => void;
 }) {
   const total = prompt.options.reduce((n, o) => n + (o.count || 0), 0);
@@ -28,7 +30,7 @@ function Question({
     <article className={`game-question game-question-${prompt.kind}`}>
       <div className="game-eyebrow">
         {labels[prompt.kind]} ·{" "}
-        {prompt.status === "open" ? "Open now" : "Closed"}
+        {prompt.status === "open" ? "Open now" : prompt.kind === "trl" ? "Voting closed" : "Closed"}
       </div>
       <h3>{prompt.question}</h3>
       <div className="game-options">
@@ -66,7 +68,9 @@ function Question({
         ))}
       </div>
       <p className="game-help">
-        {prompt.status === "closed"
+        {prompt.status === "closed" && prompt.kind === "trl" && showActive
+          ? "Voting closed before the show. Watch the countdown for the results."
+          : prompt.status === "closed"
           ? locked ? "Your answer is saved. This round is complete." : "This round is complete."
           : locked
           ? "Answer locked. Your score updates when this question closes."
@@ -107,6 +111,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   const dialog = useRef<HTMLDialogElement>(null);
   const requestVersion = useRef(0);
   const appliedCue = useRef<string | null>(null);
+  const initialTab = useRef(false);
 
   const refresh = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -150,6 +155,18 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
       setPopup(active.id);
     }
   }, [state, onOpenTrivia, autoTriviaPopup]);
+
+  useEffect(() => {
+    if (!state?.show || initialTab.current) return;
+    initialTab.current = true;
+    // TRL voting closes before the show, so after doors guests land on
+    // whatever is open instead of a finished vote.
+    const open = (k: GameKind) => state.prompts.some(p => p.kind === k && p.status === "open");
+    if (!open("trl")) {
+      if (open("superlative")) setTab("superlative");
+      else if (open("trivia")) setTab("trivia");
+    }
+  }, [state]);
 
   useEffect(() => {
     if (!cueRequest || appliedCue.current === cueRequest.key) return;
@@ -213,6 +230,9 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
     );
   const canVote =
     !!state.viewer && !state.viewer.blocked && state.show.status === "active";
+  const trlPrompts = state.prompts.filter(p => p.kind === "trl");
+  const trlClosed = state.show.status === "active" && trlPrompts.length > 0
+    && trlPrompts.every(p => p.status === "closed");
   return (
     <section className="game-board" aria-label="2006 show game">
       <header className="game-heading">
@@ -355,7 +375,9 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
       <div id={`${boardId}-panel`} role="tabpanel" tabIndex={0} aria-labelledby={`${boardId}-tab-${tab}`}>
         <div className={`game-category-intro game-category-intro-${tab}`}>
           <h3>{categoryCopy[tab].title}</h3>
-          <p>{categoryCopy[tab].body}</p>
+          <p>{tab === "trl" && trlClosed
+            ? "Voting closed before the show. Watch the countdown to see where your pick landed."
+            : categoryCopy[tab].body}</p>
         </div>
         {!state.viewer && state.show.status === "active" && <p className="game-help">Join above to vote and keep your trivia score.</p>}
         {state.prompts.filter((p) => p.kind === tab).length === 0 && (
@@ -379,6 +401,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
               prompt={p}
               disabled={busy || !canVote}
               vote={vote}
+              showActive={state.show!.status === "active"}
             />
           ))}
         {tab === "superlative" && state.show.suggestions_open && canVote && (
