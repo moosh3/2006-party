@@ -13,6 +13,7 @@ import { ClippyAssistant, ESSAY_PROMPTS, MailApp, StudyBreakInvitation, TextEdit
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
+import { SPRITES } from '@/lib/cast';
 import ShowBuddyStrip, { type ShowBuddy } from '@/components/2006/ShowBuddyStrip';
 import { useCastRun, type CastRunOrigin } from '@/hooks/useCastRun';
 import type { CastRunId } from '@/lib/cast-runs';
@@ -93,9 +94,7 @@ const BUDDIES: Buddy[] = [
   },
 ];
 
-const CAST_ART: CastRunId[] = ['mk', 'jen', 'lip', 'yongwoo', 'emma', 'alec'];
-const CAST_NAMES = ['MK', 'Jen', 'Lip', 'Yongwoo', 'Emma', 'Alec'];
-const SHOW_BUDDIES: ShowBuddy[] = CAST_ART.map((art, index) => ({ art, name: CAST_NAMES[index], screenName: BUDDIES[index].screenName, index }));
+const SHOW_BUDDIES: readonly ShowBuddy[] = SPRITES;
 
 function ShowLinks() {
   return (
@@ -1069,6 +1068,7 @@ export default function AimExperience({
                         playbackPosition={streamData.playbackPosition} playbackUpdatedAt={streamData.playbackUpdatedAt} playbackElapsedMs={streamData.playbackElapsedMs}
                         activeSlotId={streamData.activeSlotId} captionUrl={streamData.captionUrl} captionLabel={streamData.captionLabel}
                         captionLanguage={streamData.captionLanguage} onPlaybackError={refreshStream}
+                        sceneInteractive onOpenBuddy={openShowBuddy}
                       />
                     </ErrorBoundary>
                   ) : (

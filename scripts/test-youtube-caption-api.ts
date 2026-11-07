@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createContext, Script } from 'node:vm';
 import ts from 'typescript';
 import * as youtube from '../lib/youtube';
+import * as scenes from '../lib/scenes';
 import * as youtubeVideo from '../lib/youtube-video';
 
 const PROJECT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,6 +79,7 @@ function evaluateRoute(path: string, environment: Environment): { GET?: Route; P
       if (name === '@/lib/session') return { getSession: async () => environment.session };
       if (name === '@/lib/supabase-admin') return { supabaseAdmin: environment.db };
       if (name === '@/lib/youtube') return youtube;
+      if (name === '@/lib/scenes') return scenes;
       if (name === '@/lib/youtube-video') return youtubeVideo;
       if (name === '@/lib/mux') return {
         hasMuxApiCredentials: () => { throw new Error('Mux credentials are out of scope'); },

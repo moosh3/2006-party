@@ -12,6 +12,7 @@ import ts from 'typescript';
 import * as constants from '../lib/constants';
 import * as playbackSync from '../lib/playback-sync';
 import * as youtube from '../lib/youtube';
+import * as scenes from '../lib/scenes';
 
 type Node = { type: unknown; props: Record<string, any> };
 type Props = Parameters<typeof import('../components/VideoPlayer').default>[0];
@@ -178,6 +179,7 @@ function evaluate(code: string, environment: Environment, react?: Record<string,
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'fragment' },
     '@mux/mux-player-react': { default: 'fixture-mux-player' },
     '@/components/CountdownFrame': { default: 'fixture-countdown-frame' },
+    '@/components/SceneFrame': { default: 'fixture-scene-frame' }, '@/lib/scenes': scenes,
     '@/components/YouTubeVideoPlayer': { default: 'fixture-youtube-player' },
     '@/lib/youtube-iframe': {}, '@/lib/supabase': { supabase: environment.supabase },
     '@/hooks/useRealtimeHealth': { useRealtimeHealth: () => 'healthy' },

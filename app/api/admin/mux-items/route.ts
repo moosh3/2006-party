@@ -16,6 +16,7 @@ import {
   parseYouTubePlaylistPlaybackId,
   type MediaSourceType,
 } from '@/lib/youtube';
+import { SCENE_SOURCE_TYPE } from '@/lib/scenes';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,7 +32,8 @@ export async function GET(_request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: 'Failed to fetch media items' }, { status: 500, headers: NO_STORE });
     }
-    return NextResponse.json({ items: data || [] }, { headers: NO_STORE });
+    // Scene cues are timed queue entries, not reusable library media.
+    return NextResponse.json({ items: (data || []).filter((item) => item.source_type !== SCENE_SOURCE_TYPE) }, { headers: NO_STORE });
   } catch (error) {
     console.error('Error fetching media items:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_STORE });

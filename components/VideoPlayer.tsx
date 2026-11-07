@@ -32,6 +32,8 @@ import {
   parseYouTubeVideoPlaybackId,
   type MediaSourceType,
 } from '@/lib/youtube';
+import { SCENE_SOURCE_TYPE, parseScenePlaybackId } from '@/lib/scenes';
+import SceneFrame from '@/components/SceneFrame';
 
 interface VideoPlayerProps {
   playbackId: string;
@@ -66,6 +68,9 @@ interface VideoPlayerProps {
   onPlaybackError?: () => void;
   onStreamRefresh?: () => void;
   onReconnectReady?: (reconnect: (() => void) | null) => void;
+  /** Online audience view of a timed scene; stage and monitor show a card. */
+  sceneInteractive?: boolean;
+  onOpenBuddy?: (index: number) => void;
 }
 
 const SIDELOADED_CAPTION_TRACK_ID = 'after-party-sideloaded-captions';
@@ -349,6 +354,12 @@ function YouTubePlaylistPlayer({
 }
 
 export default function VideoPlayer(props: VideoPlayerProps) {
+  if (props.sourceType === SCENE_SOURCE_TYPE && !props.isHoldScreen && props.playoutMode !== 'schedule') {
+    return <SceneFrame sceneId={parseScenePlaybackId(props.playbackId)} interactive={Boolean(props.sceneInteractive)}
+      playbackState={props.playbackState} playbackPositionSeconds={props.playbackPositionSeconds}
+      playbackDurationSeconds={props.playbackDurationSeconds} snapshotReceivedAt={props.snapshotReceivedAt}
+      onStreamRefresh={props.onStreamRefresh} onOpenBuddy={props.onOpenBuddy} />;
+  }
   const cue = !props.isHoldScreen && props.playoutMode !== 'schedule' ? props.countdown : null;
   return cue ? <CountdownFrame cue={cue} separateFooter={props.sourceType === YOUTUBE_VIDEO_SOURCE_TYPE} sessionId={props.playbackSessionId} playbackStartDelaySeconds={props.playbackStartDelaySeconds} snapshotReceivedAt={props.snapshotReceivedAt} snapshotRoundTripMs={props.snapshotRoundTripMs} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;
 }

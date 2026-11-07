@@ -54,6 +54,9 @@
     "test:countdown-api": "node --import tsx scripts/test-countdown-api.ts",
     "db:countdown-intro": "node --import tsx scripts/apply-countdown-intro-db.ts",
     "test:countdown-intro": "node --import tsx scripts/test-countdown-intro.ts",
+    "test:scene-cues": "node --import tsx scripts/test-scene-cues.ts",
+    "test:scene-cues-db": "node --import tsx scripts/test-scene-cues-db.ts",
+    "db:scene-cues": "node --import tsx scripts/apply-scene-cues-db.ts",
     "db:countdown": "node --import tsx scripts/apply-countdown-db.ts"
   },
   "dependencies": {

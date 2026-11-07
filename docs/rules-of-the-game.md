@@ -102,6 +102,12 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ## Technical approach
 
+### Status (November 7, 2026)
+
+The scene cue type is built: migration `sql/028_scene_cues.sql`, the guarded installer `npm run db:scene-cues` (read-only preflight; `-- --apply` installs), **Add Rules of the Game scene** in the `/admin` queue, the `/stage` and operator-monitor card, and a first `/event` scene showing the six Sprites; clicking one opens Buddy Info. Cast data is shared in `lib/cast.ts`. Not built yet: catchphrase bubbles and audio, the guided tour, and the after-cue desktop icon. Tests: `npm run test:scene-cues`, `npm run test:scene-cues-db`. **028 is not installed in production**; install it after 027 before queuing a scene there. Never replay 022, 025, 026 or 027 after 028.
+
+Each queued scene is its own hidden library row (`source_type = 'scene'`, `playback_id = scene:rules-of-the-game:<uuid>`) holding that cue’s exact length, so the existing queue, clock, pause/hold, auto-advance and session guards apply unchanged. Scene rows are filtered out of the media library; removing a scene from the queue leaves its hidden row behind, which is harmless.
+
 ### Queue and database
 
 - Add a new queue source type (working name `scene`, with a scene id `rules-of-the-game`) to `mux_items.source_type` and `current_stream.source_type`, alongside `mux`, `youtube_video` and `youtube_playlist` (see `sql/025_youtube_video_queue.sql`). Keep the type general: Welcome and People We Know may become Sprite scenes later (tracked separately).

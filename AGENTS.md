@@ -58,7 +58,7 @@ It must remain independent of Supabase, Mux, the website's queue, cloud credenti
 | Program snapshots and recovery | `app/api/current/route.ts`, `lib/program-stream.ts`, `hooks/useProgramStream.ts`, `lib/playback-sync.ts` |
 | Video renderers | `components/VideoPlayer.tsx`, `components/YouTubeVideoPlayer.tsx` |
 | Schedule and working rundown | `lib/showtime.ts`, `showtime.yaml`, `lib/run-of-show.ts` |
-| Privileged playback mutations | `app/api/admin/`, `sql/022_playout_hardening.sql`, `sql/023_playout_clock.sql`, `sql/025_youtube_video_queue.sql` |
+| Privileged playback mutations | `app/api/admin/`, `sql/022_playout_hardening.sql`, `sql/023_playout_clock.sql`, `sql/025_youtube_video_queue.sql`, `sql/028_scene_cues.sql` |
 | Audience shell, art and chat | `components/2006/`, `components/Chat.tsx`, `hooks/useChatMessages.ts`, `lib/chat-message-state.ts` |
 | Admission and identity | `lib/audience-*.ts`, `hooks/useAudienceDoors.ts`, `app/api/audience/`, `sql/024_audience_doors.sql` |
 | Games and awards | `components/game/`, `lib/game-server.ts`, `lib/game-types.ts`, `app/api/game/`, `app/api/admin/game/`, `sql/021_show_game.sql` |
@@ -77,6 +77,7 @@ Run checks appropriate to the change:
 - Operator reliability: `node --import tsx scripts/test-admin-playback-stability.ts`.
 - Playback: `npm run test:playout-db`, `npm run test:playback-sync`, `npm run test:mux-seek-recovery`, `npm run test:youtube-player`, `npm run test:countdown-intro`.
 - Queue media/library: `npm run test:youtube-admin`, `npm run test:youtube-queue-db`.
+- Scene cues: `npm run test:scene-cues`, `npm run test:scene-cues-db`.
 - Games: `npm run test:game`; game API checks require their local fixture.
 - Admission: `npm run test:audience-access`, `npm run test:audience-doors-hook`, `npm run test:audience-doors-db`.
 - Chat: `npm run test:chat-message-state`, `npm run test:chat-messages-hook`.

@@ -5,11 +5,13 @@ import CountdownEditor from './CountdownEditor';
 import type { CountdownCue } from '@/lib/countdown';
 import type { ProgramStream } from '@/lib/program-stream';
 import { MUX_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
+import { SCENES, SCENE_SOURCE_TYPE, sceneLengthError } from '@/lib/scenes';
 
 function mediaSourceLabel(sourceType?: string) {
   if (!sourceType || sourceType === MUX_SOURCE_TYPE) return 'Mux';
   if (sourceType === YOUTUBE_VIDEO_SOURCE_TYPE) return 'YouTube Video';
   if (sourceType === YOUTUBE_PLAYLIST_SOURCE_TYPE) return 'YouTube Playlist';
+  if (sourceType === SCENE_SOURCE_TYPE) return 'Interactive scene';
   return 'Unknown source';
 }
 
@@ -71,6 +73,10 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
   const orderBusy = useRef(false);
   const queueRequest = useRef(0);
   const nextCommand = useRef<{ commandId: string; expectedSessionId?: string } | null>(null);
+  const [sceneFormOpen, setSceneFormOpen] = useState(false);
+  const [sceneLength, setSceneLength] = useState('');
+  // Reused until the server answers, so a retried request cannot queue twice.
+  const sceneCommand = useRef<{ commandId: string; lengthSeconds: number } | null>(null);
 
   useEffect(() => {
     loadQueue();
@@ -168,6 +174,37 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
     } finally {
       setLoading(false);
       setTimeout(() => setMessage(null), 3000);
+    }
+  }
+
+  async function handleQueueScene() {
+    const lengthSeconds = Number(sceneLength);
+    const invalid = sceneLength.trim() === '' ? sceneLengthError(NaN) : sceneLengthError(lengthSeconds);
+    if (invalid) { setMessage({ type: 'error', text: invalid }); return; }
+    if (sceneCommand.current?.lengthSeconds !== lengthSeconds) sceneCommand.current = { commandId: crypto.randomUUID(), lengthSeconds };
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/admin/queue/scene', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneId: 'rules-of-the-game', ...sceneCommand.current }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        sceneCommand.current = null;
+        setSceneFormOpen(false);
+        setSceneLength('');
+        setMessage({ type: 'success', text: `${SCENES['rules-of-the-game'].label} added to the end of the queue. Playback is unchanged.` });
+        await loadQueue();
+      } else {
+        if (response.status < 500) sceneCommand.current = null;
+        setMessage({ type: 'error', text: data.error || 'Failed to queue the scene' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Network error occurred' });
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -442,7 +479,23 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
           </span>
         </h3>
         <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} onClick={() => setCountdownEditor('new')}>Add countdown cue</button>
+        <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} aria-expanded={sceneFormOpen} onClick={() => setSceneFormOpen(open => !open)}>Add {SCENES['rules-of-the-game'].label} scene</button>
         </div>
+
+        {sceneFormOpen && (
+          <form className="mb-4 rounded border border-twitch-border p-3 space-y-2" onSubmit={event => { event.preventDefault(); void handleQueueScene(); }}>
+            <p className="text-sm font-semibold text-twitch-text">{SCENES['rules-of-the-game'].label} (interactive scene)</p>
+            <p className="text-xs text-twitch-text-alt">Online guests get the clickable cast lineup in the player; the stage shows a title card. It plays for exactly this length on the show clock, like a video. Adding it never starts it.</p>
+            <label className="block text-sm font-medium">Length (seconds)
+              <input type="number" inputMode="decimal" min="0.001" max="7200" step="any" required value={sceneLength}
+                onChange={event => setSceneLength(event.target.value)} className="twitch-input w-full mt-2" />
+            </label>
+            <div className="flex gap-2">
+              <button type="submit" className="min-h-[44px] px-4 rounded bg-twitch-purple text-white font-semibold" disabled={loading}>Add to end of queue</button>
+              <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-border" disabled={loading} onClick={() => { setSceneFormOpen(false); setSceneLength(''); }}>Cancel</button>
+            </div>
+          </form>
+        )}
 
         {message && (
           <div role="status" aria-live="polite" className={`rounded p-3 mb-3 text-sm ${
