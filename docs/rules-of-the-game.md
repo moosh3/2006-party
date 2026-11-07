@@ -104,7 +104,9 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ### Status (November 7, 2026)
 
-The scene cue type is built: migration `sql/028_scene_cues.sql`, the guarded installer `npm run db:scene-cues` (read-only preflight; `-- --apply` installs), **Add Rules of the Game scene** in the `/admin` queue, the `/stage` and operator-monitor card, and a first `/event` scene showing the six Sprites; clicking one opens Buddy Info. Cast data is shared in `lib/cast.ts`. Not built yet: catchphrase bubbles and audio, the guided tour, and the after-cue desktop icon. Tests: `npm run test:scene-cues`, `npm run test:scene-cues-db`. **028 is not installed in production**; install it after 027 before queuing a scene there. Never replay 022, 025, 026 or 027 after 028.
+The scene cue type is built: migration `sql/028_scene_cues.sql`, the guarded installer `npm run db:scene-cues` (read-only preflight; `-- --apply` installs), **Add Rules of the Game scene** in the `/admin` queue, the `/stage` and operator-monitor card, and a first `/event` scene showing the six Sprites; clicking one opens Buddy Info. Cast data is shared in `lib/cast.ts`. Not built yet: catchphrase bubbles and audio, the guided tour, and the after-cue desktop icon. Tests: `npm run test:scene-cues`, `npm run test:scene-cues-db`.
+
+**028 was applied to production after 027 on November 7, 2026** using the guarded installer. The transaction preserved the active cue, queue, library, doors, viewers, votes, audit records and command records. Read-only catalog checks confirmed exact source-body matches for all six functions, all four scene/source constraints validated, anonymous/authenticated scene-queue access blocked, and service-role access allowed. The isolated database regression suite passed. Migration SHA-256: `264dbf5bcfe0c73a794b556a9d9a96eb328bf4f1efa89ada1b0812671e2649db`. No scene was queued or started for verification; production UI rehearsal remains separate. Never replay 022, 025, 026 or 027 after 028.
 
 Each queued scene is its own hidden library row (`source_type = 'scene'`, `playback_id = scene:rules-of-the-game:<uuid>`) holding that cue’s exact length, so the existing queue, clock, pause/hold, auto-advance and session guards apply unchanged. Scene rows are filtered out of the media library; removing a scene from the queue leaves its hidden row behind, which is harmless.
 
@@ -152,7 +154,7 @@ Each queued scene is its own hidden library row (`source_type = 'scene'`, `playb
 - [ ] Pause, hold, restart, auto-advance on/off and Schedule interplay behave as for an equal-length video cue.
 - [ ] Phones (320px+), keyboard, visible focus, reduced motion all checked.
 - [ ] No interaction in the scene writes votes, admission or playback state.
-- [ ] Migration 028 installs after 027 via a guarded installer; existing queue, doors, votes and library are preserved.
+- [x] Migration 028 installs after 027 via a guarded installer; existing queue, doors, votes and library are preserved (production installation and catalog verification, November 7, 2026).
 - [ ] Tests: queue interactions, playout DB, playback sync, and a new scene test alongside `npm run test:countdown-intro`; rehearsed in `npm run preview:playout`.
 
 ## Open inputs (MK / production)

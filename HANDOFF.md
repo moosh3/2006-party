@@ -6,7 +6,7 @@ Updated November 7, 2026. This document covers the work requested in this chat, 
 
 | Request | Tracking | Implementation status |
 | --- | --- | --- |
-| “Rules Of Life” with interactive cast avatars, catchphrases, profiles, and a polls/superlatives introduction | [Issue #2](https://github.com/moosh3/2006-party/issues/2) | Tracked and scoped; not implemented |
+| “Rules Of Life” with interactive cast avatars, catchphrases, profiles, and a polls/superlatives introduction | [Issue #2](https://github.com/moosh3/2006-party/issues/2) | Now named Rules of the Game; timed scene cue and initial Sprite/Buddy Info UI built in `fd03c73`; migration 028 applied to production November 7. Catchphrases, tour and desktop icon remain; see `docs/rules-of-the-game.md` |
 | “And now time for video #N” before videos | [Issue #3](https://github.com/moosh3/2006-party/issues/3) | Brief synchronized title cards implemented, tested, committed, and pushed; migration 027 applied to production November 7; deployed UI activation not verified |
 | Clippy/essay improvements: “STUDY BREAK!”, an essay participation prompt, and different things for Clippy to say | [Issue #4](https://github.com/moosh3/2006-party/issues/4) | Implemented, tested, committed, and pushed; MK’s final copy/presentation review and exact show cue timing remain |
 
@@ -166,7 +166,7 @@ npm run db:countdown-intro -- --apply
 
 Read the installer and `AGENTS.md` first. It is restricted to the existing project and wraps installation plus state checks in one transaction. It compares show/audience state, normalizes the new field for comparison, and rolls back if existing state changes. It does not seed media, reorder the queue, open doors, reset votes, or deploy the website.
 
-**Do not replay 022, 025, or 026 after 027.** Those migrations replace timing functions needed by title cards.
+**028 is now installed: do not replay 022, 025, 026 or 027 afterward.** Those migrations replace timing functions needed by scenes and title cards.
 
 For a release, verify the current Vercel project and database compatibility, then check deployment readiness, aliases, basic health, and the changed behavior. A local CLI deployment uploads uncommitted source, so inspect any new working-tree changes and preserve the exclusions for room-player tools, local settings and media. Follow `AGENTS.md` rather than treating this document as a deployment command.
 
@@ -208,32 +208,22 @@ Title-card rehearsal covered the real operator form and saved metadata without s
 
 Temporary browser scripts/screenshots were kept outside the repository under `/private/tmp`; they are not durable project test assets. The committed regression tests and preview scripts are the reproducible starting point. The rehearsal servers and browser instances started for this work were stopped.
 
-## Remaining: “Rules Of Life” (#2)
+## In progress: Rules of the Game (#2)
 
-No feature implementation has started. The issue preserves MK’s original note and a proposed acceptance checklist.
+MK’s original “Rules Of Life” segment is now named **Rules of the Game**. The timed scene cue, operator queue action, stage/monitor card and initial six-Sprite lineup with Buddy Info are built in `fd03c73`. Catchphrase text/audio, the guided tour and the after-cue desktop icon remain. See `docs/rules-of-the-game.md` and `docs/run-of-show-alignment.md` for the current decisions and open inputs.
 
-Existing pieces to reuse:
+### Migration 028 installed
 
-- `components/2006/ShowBuddyStrip.tsx`: cast lineup and avatar interactions.
-- `components/2006/AimExperience.tsx`: AIM Buddy Info, profiles, and participation navigation.
-- `lib/run-of-show.ts`: working show sequence; not approval of production timing.
-- `docs/show-cues.md` and the audience cue system: timed invitations, currently unarmed in production configuration.
-- Existing game UI and administration for polls and cast superlatives.
+Applied `sql/028_scene_cues.sql` to production project `zrzhdmdyxzkcwilftkjy` on November 7, 2026 using `npm run db:scene-cues -- --apply`. Preflight confirmed 027 was present, 028 was absent and there were no unexpected source types. The guarded transaction succeeded and preserved the active cue, queue, library, doors, viewers, votes, audit records and command records.
 
-Production/product inputs still needed:
+Migration SHA-256: `264dbf5bcfe0c73a794b556a9d9a96eb328bf4f1efa89ada1b0812671e2649db`. Read-only catalog verification confirmed exact source-body matches for all six migration functions, all four scene/source constraints validated, the title-card helper still present, anonymous/authenticated scene-queue access blocked and service-role access allowed. `npm run test:scene-cues-db` passed against its isolated database, including repeated installation, state preservation, queue validation, timing, pause/hold/restart and access checks.
 
-1. Where the segment belongs in the show and what starts/ends it.
-2. Whether “in the video player” means an interactive scene, a video overlay, or a different player-area presentation.
-3. Approved catchphrases, completed profile copy, avatar order, and any intro script/media.
-4. Whether catchphrases are text, audio, or both.
-5. Which polls/superlatives to open and what to show while voting is closed.
-
-Keep captions and controls usable, support phones and keyboards, preserve original cast artwork and reduced-motion behavior, and do not alter playback or cast votes through decorative interactions.
+No production scene was queued or started for verification. No website deployment or production UI rehearsal was performed as part of the migration. Never replay 022, 025, 026 or 027 after 028.
 
 ## Suggested continuation
 
 1. Read this handoff and `AGENTS.md`, check the working tree, and preserve any new unrelated edits. The five room-player files listed above are now included in the separate authorized follow-up commit.
-2. Verify the actual deployed website version and guest-facing behavior before claiming either feature is live. Migration 027 is now installed and catalog-verified; verify deployment and any deliberately edited countdown cues without using production votes or playback as test fixtures.
+2. Verify the actual deployed website version and guest-facing behavior before claiming either feature is live. Migrations 027 and 028 are installed and catalog-verified; verify deployment and any deliberately edited countdown cues without using production votes or playback as test fixtures.
 3. Have MK review Clippy copy, the meaning and timing of “STUDY BREAK!”, and the title-card presentation/duration. Decide whether the earlier countdown ranks also need support.
-4. Use issue #2 to resolve the “Rules Of Life” content and presentation decisions, then implement it using the existing cast/profile/game foundations.
+4. Use issue #2 and `docs/rules-of-the-game.md` to finish the remaining Rules of the Game content and interactions.
 5. Keep the GitHub issues updated and close them when their remaining acceptance/release work is satisfied.
