@@ -1,6 +1,8 @@
 'use client';
 import { useRef, useState } from 'react';
-import { COUNTDOWN_BANNERS, COUNTDOWN_LENGTHS, countdownError, type CountdownCue } from '@/lib/countdown';
+import { COUNTDOWN_BANNERS, COUNTDOWN_LENGTHS, COUNTDOWN_PRESENTERS, countdownError, type CountdownCue } from '@/lib/countdown';
+import { SPRITES } from '@/lib/cast';
+import type { CastRunId } from '@/lib/cast-runs';
 
 type Media = { id: string; label: string; duration_seconds?: number | string | null; kind: string; source_type?: string };
 export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
@@ -14,6 +16,8 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
   const [start, setStart] = useState(String(initial?.countdown?.startSeconds || 0));
   const [length, setLength] = useState(String(initial?.countdown?.durationSeconds || 15));
   const [banner, setBanner] = useState(initial?.countdown?.bannerUrl || '');
+  // New cues start with MK's presenter for the rank; existing cues keep theirs (or none).
+  const [presenter, setPresenter] = useState<CastRunId | ''>(initial ? initial.countdown?.presenter || '' : COUNTDOWN_PRESENTERS[5]);
   const [artwork, setArtwork] = useState<'show' | 'number' | 'custom'>(() => {
     if (!initial) return 'show';
     const existing = initial.countdown?.bannerUrl;
@@ -25,7 +29,8 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
   const videos = media.filter(m => m.kind !== 'live' && ['mux', 'youtube_video'].includes(m.source_type || 'mux') && Number(m.duration_seconds) > 0);
   const duration = Number(videos.find(m => m.id === mediaId)?.duration_seconds || 0);
   const cue: CountdownCue = { rank, introSeconds: intro.trim() ? Number(intro) : NaN, startSeconds: rank === 1 ? 0 : start.trim() ? Number(start) : NaN,
-    durationSeconds: rank === 1 ? duration : length.trim() ? Number(length) : NaN, bannerUrl: artwork === 'show' ? COUNTDOWN_BANNERS[rank].video : artwork === 'custom' ? banner.trim() || null : null };
+    durationSeconds: rank === 1 ? duration : length.trim() ? Number(length) : NaN, bannerUrl: artwork === 'show' ? COUNTDOWN_BANNERS[rank].video : artwork === 'custom' ? banner.trim() || null : null,
+    ...(presenter ? { presenter } : {}) };
   const validation = artwork === 'custom' && !banner.trim() ? 'Enter a custom banner URL, or choose the show banner.' : countdownError(cue, duration);
   const input = 'block w-full mt-1 min-h-[44px] rounded border border-twitch-border bg-white text-twitch-text px-3';
   async function save() {
@@ -46,7 +51,7 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
     <h4 className="font-semibold">{initial ? 'Edit upcoming countdown cue' : 'Add countdown cue'}</h4>
     <p className="text-sm text-twitch-text-alt">Assign a song to a numbered slot. Your custom videos can go between slots. Moving a cue keeps its number, timing and banner together.</p>
     <fieldset disabled={busy} className="space-y-3">
-      <label className="block text-sm">Countdown position<select autoFocus className={input} value={rank} onChange={e => { const value = Number(e.target.value); setRank(value); setLength(String(COUNTDOWN_LENGTHS[value] || duration)); setBanner(''); setArtwork(current => current === 'number' ? 'number' : 'show'); }}>
+      <label className="block text-sm">Countdown position<select autoFocus className={input} value={rank} onChange={e => { const value = Number(e.target.value); setRank(value); setLength(String(COUNTDOWN_LENGTHS[value] || duration)); setBanner(''); setArtwork(current => current === 'number' ? 'number' : 'show'); setPresenter(current => current ? COUNTDOWN_PRESENTERS[value] : ''); }}>
         {[5,4,3,2,1].map(n => <option key={n} value={n}>#{n}{n === 1 ? ' — full video' : ` — ${COUNTDOWN_LENGTHS[n]} seconds${n === 5 ? '' : ' (editable)'}`}</option>)}
       </select></label>
       <label className="block text-sm">Music video<select className={input} value={mediaId} onChange={e => setMediaId(e.target.value)}><option value="">Choose from the library</option>{videos.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
@@ -57,6 +62,11 @@ export default function CountdownEditor({ media, initial, onSaved, onCancel }: {
       {mediaId && <p className="text-sm" role="status">{validation || (rank === 1 ? `Plays the full ${duration}-second video.` : `Plays ${cue.startSeconds}s–${Number((cue.startSeconds + cue.durationSeconds).toFixed(3))}s of the original video.`)}</p>}
       <label className="block text-sm">Title card before video (seconds)<input className={input} type="number" min="0" max="10" step="0.5" value={intro} onChange={e => setIntro(e.target.value)} /></label>
       <p className="text-sm text-twitch-text-alt">{cue.introSeconds ? `“And now time for video #${rank}” appears for ${cue.introSeconds} seconds, then the music video begins. This time is added to the cue.` : 'No title card. Set a length above zero to add one.'}</p>
+      <label className="block text-sm">Presented by<select className={input} value={presenter} onChange={e => setPresenter(e.target.value as CastRunId | '')}>
+        <option value="">No presenter</option>
+        {SPRITES.map(sprite => <option key={sprite.art} value={sprite.art}>Sprite {sprite.name}{COUNTDOWN_PRESENTERS[rank] === sprite.art ? ' (run of show)' : ''}</option>)}
+      </select></label>
+      <p className="text-xs text-twitch-text-alt">{presenter ? `The title card shows ${SPRITES.find(s => s.art === presenter)?.name}’s Sprite with “Sprite ${SPRITES.find(s => s.art === presenter)?.name} presents”.${cue.introSeconds ? '' : ' Add a title card length to show it.'}` : 'The title card shows no presenter.'} Changing rank switches to that rank’s run-of-show presenter.</p>
       <label className="block text-sm">Footer artwork<select className={input} value={artwork} onChange={e => setArtwork(e.target.value as 'show' | 'number' | 'custom')}>
         <option value="show">Show banner · #{rank}</option><option value="number">Number only</option><option value="custom">Custom artwork</option>
       </select></label>

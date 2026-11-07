@@ -7,6 +7,7 @@ import { createContext, Script } from 'node:vm';
 import ts from 'typescript';
 import * as youtube from '../lib/youtube';
 import * as scenes from '../lib/scenes';
+import * as cast from '../lib/cast';
 
 type Node = { type: unknown; key?: string; props: Record<string, any> };
 type Harness = { react: Record<string, any>; component: (props: any) => Node; output: Node; mount(props: any): Node; flush(): Node; unmount(): void };
@@ -87,6 +88,7 @@ function evaluate(code: string, environment: Environment, react?: Record<string,
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'fragment' };
       if (name === '@/lib/youtube') return youtube;
       if (name === '@/lib/scenes') return scenes;
+      if (name === '@/lib/cast') return cast;
       if (name === './PlaybackControls') return { default: 'playback-controls-fixture' };
       throw new Error(`Unexpected import ${name}; live providers are forbidden`);
     },

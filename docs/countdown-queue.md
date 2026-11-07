@@ -18,6 +18,12 @@ Requires **027 after 026**, before saving cues with title cards. `npm run db:cou
 
 Run `npm run test:countdown-intro` alongside the existing countdown, Mux, YouTube, audience-cue and shared-clock tests. The isolated playout preview includes 027 automatically.
 
+## Presenter Sprites
+
+MK’s run of show has a Sprite present each video (“VIDEO NUMBER FIVE: Sprite Emma Presents”). In the countdown editor, **Presented by** chooses one of the six Sprites or none. New cues start with the run of show’s presenter for their rank (#5 Emma, #4 Yongwoo, #3 Jen, #2 MK, #1 Lip), and changing rank switches to that rank’s presenter unless you chose none. The title card then shows the Sprite with “Sprite Jen presents…” above “And now time for video #3”; the queue row notes the presenter. With no title card (0 seconds), the presenter is not shown. Timing is unchanged.
+
+Requires **031 after 030**: `npm run db:countdown-presenters` (read-only preflight), then `-- --apply`. Saving a presenter on an older database returns an install message instead of silently dropping it. Cues saved earlier keep working without a presenter. Never replay 022 or 025–030 after 031. Test: `npm run test:countdown-presenter-db`.
+
 ## Installation and verification
 
 Requires `sql/026_countdown_queue.sql` after 025. Install the database migration before using countdown cues. Install 027 afterward for title cards. It adds nullable cue metadata and replaces queue/playback functions; it does not seed media, alter running playback, reorder the queue, change audience doors or deploy anything. Do not rerun older playback migrations after 026 because they replace these functions.

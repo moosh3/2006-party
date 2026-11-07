@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { COUNTDOWN_BANNERS, type CountdownCue } from '@/lib/countdown';
+import { SPRITES } from '@/lib/cast';
 import './countdown-introduction.css';
 
 /** Fullscreen the composition, so the numbered artwork stays with the picture. */
@@ -33,6 +34,7 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
   const [imageFailed, setImageFailed] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [reducedMotion, setReducedMotion] = useState(true);
+  const presenter = SPRITES.find(sprite => sprite.art === cue.presenter) || null;
   const isVideo = !!cue.bannerUrl && /\.(mp4|webm|mov)(?:[?#]|$)/i.test(cue.bannerUrl);
   const bundled = cue.bannerUrl === COUNTDOWN_BANNERS[cue.rank]?.video;
   const poster = bundled ? COUNTDOWN_BANNERS[cue.rank].poster : undefined;
@@ -53,8 +55,18 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
   return <div ref={frame} className="countdown-frame relative bg-black w-full">
     <div className={`countdown-picture relative w-full${separateFooter ? ' countdown-picture--footer' : ''}`}>
     <div className="countdown-source" style={{ visibility: introActive ? 'hidden' : undefined }} aria-hidden={introActive || undefined}>{children}</div>
-    {introActive && <div className="countdown-introduction" role="status" aria-label={`And now time for video #${cue.rank}`}>
+    {introActive && <div className="countdown-introduction" role="status"
+      aria-label={`${presenter ? `Sprite ${presenter.name} presents. ` : ''}And now time for video #${cue.rank}`}>
       <span className="countdown-introduction-label">2006 · TRL</span>
+      {presenter && <div className="countdown-presenter">
+        <picture>
+          <source media="(prefers-reduced-motion: reduce)" srcSet={`/2006/cast/${presenter.art}.png`} />
+          {/* Original Sprite art; the still frame is used while paused or with reduced motion. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/2006/cast/${presenter.art}.${paused ? 'png' : 'gif'}`} alt="" width={32} height={48} />
+        </picture>
+        <span>Sprite {presenter.name} presents…</span>
+      </div>}
       <p>And now time for <strong>video #{cue.rank}</strong></p>
       {paused && <span className="countdown-introduction-paused">Paused</span>}
     </div>}

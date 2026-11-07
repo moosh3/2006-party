@@ -18,11 +18,16 @@ export async function POST(request: NextRequest) {
     const { error } = await supabaseAdmin.from('current_stream').select('countdown_intro_remaining_seconds').eq('id',1).single();
     if (error) return NextResponse.json({ error: 'Install countdown title-card support (database update 027) before saving this cue.' }, { status: 503, headers });
   }
+  if (body.countdown.presenter !== undefined) {
+    const { error } = await supabaseAdmin.rpc('countdown_presenter_supported');
+    if (error) return NextResponse.json({ error: 'Install countdown presenter support (database update 031) before saving a presenter.' }, { status: 503, headers });
+  }
   const { data: media, error: mediaError } = await supabaseAdmin.from('mux_items').select('duration_seconds').eq('id', body.muxItemId).single();
   if (mediaError || !media) return NextResponse.json({ error: 'Library video not found.' }, { status: 404, headers });
   const cue: CountdownCue = { rank: body.countdown.rank, startSeconds: body.countdown.startSeconds,
     durationSeconds: body.countdown.durationSeconds, bannerUrl: body.countdown.bannerUrl || null,
-    ...(body.countdown.introSeconds !== undefined ? { introSeconds: body.countdown.introSeconds } : {}) };
+    ...(body.countdown.introSeconds !== undefined ? { introSeconds: body.countdown.introSeconds } : {}),
+    ...(body.countdown.presenter !== undefined ? { presenter: body.countdown.presenter } : {}) };
   const validation = countdownError(cue, Number(media.duration_seconds));
   if (validation) return NextResponse.json({ error: validation }, { status: 400, headers });
   const { data, error } = await supabaseAdmin.rpc('save_countdown_cue', {

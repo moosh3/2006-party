@@ -6,6 +6,7 @@ import type { CountdownCue } from '@/lib/countdown';
 import type { ProgramStream } from '@/lib/program-stream';
 import { MUX_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
 import { SCENES, SCENE_SOURCE_TYPE, sceneLengthError, type SceneId } from '@/lib/scenes';
+import { SPRITES } from '@/lib/cast';
 
 function mediaSourceLabel(sourceType?: string) {
   if (!sourceType || sourceType === MUX_SOURCE_TYPE) return 'Mux';
@@ -623,7 +624,7 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
                       <span className="min-w-0">
                         {index === 0 && <span className="block text-xs font-bold text-twitch-purple">UP NEXT</span>}
                         <span className="block font-medium text-sm text-twitch-text break-words">{muxItem?.label || 'Unknown'}</span>
-                        <span className="block text-xs text-twitch-text-alt mt-1">{item.countdown ? `TRL #${item.countdown.rank}${item.countdown.introSeconds ? ` · ${item.countdown.introSeconds}s title card` : ''} · ${item.countdown.rank === 1 ? 'Full video' : `${item.countdown.durationSeconds}s from ${item.countdown.startSeconds}s`} · ${item.countdown.bannerUrl ? 'Banner set' : 'Number only'}` : `${mediaSourceLabel(muxItem?.source_type)}${duration !== null ? ` · ${formatDuration(duration)}` : ''}`}</span>
+                        <span className="block text-xs text-twitch-text-alt mt-1">{item.countdown ? `TRL #${item.countdown.rank}${item.countdown.introSeconds ? ` · ${item.countdown.introSeconds}s title card` : ''}${item.countdown.presenter ? ` · presented by ${SPRITES.find(s => s.art === item.countdown!.presenter)?.name || item.countdown.presenter}` : ''} · ${item.countdown.rank === 1 ? 'Full video' : `${item.countdown.durationSeconds}s from ${item.countdown.startSeconds}s`} · ${item.countdown.bannerUrl ? 'Banner set' : 'Number only'}` : `${mediaSourceLabel(muxItem?.source_type)}${duration !== null ? ` · ${formatDuration(duration)}` : ''}`}</span>
                       </span>
                     </button>
                     <div className="flex gap-2 ml-auto">

@@ -32,7 +32,7 @@ const migrations = [
   '014_showtime_playout_and_queue', '015_youtube_playlist_sources',
   '016_open_answer_polls', '017_video_playlist_shelf', '018_message_reactions',
   '019_lock_down_admin_tables', '020_2006_initial_state', '021_show_game',
-  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions', '028_scene_cues', '029_essay_submissions', '030_check_our_scores',
+  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions', '028_scene_cues', '029_essay_submissions', '030_check_our_scores', '031_countdown_presenters',
 ];
 const tables = new Set([
   'current_stream', 'mux_items', 'video_queue', 'admin_actions', 'messages', 'chat_throttle',
@@ -49,7 +49,7 @@ const rpcArguments: Record<string, string[]> = {
   set_playout_mode: ['mode', 'admin_user_id', 'command_id'],
   delete_mux_item: ['item_id', 'admin_user_id'],
   enqueue_video: ['mux_item_id', 'admin_user_id'],
-  save_countdown_cue: ['media_id', 'cue', 'actor', 'queue_id', 'command_id'],
+  save_countdown_cue: ['media_id', 'cue', 'actor', 'queue_id', 'command_id'], countdown_presenter_supported: [],
   queue_scene_cue: ['scene_id', 'length_seconds', 'actor', 'command_id'],
   essay_submit: ['v', 'prompt_idx', 'prompt_text', 'essay'], essay_set_hidden: ['essay_id', 'hide', 'actor'],
   reorder_queue: ['items', 'admin_user_id'],
