@@ -381,6 +381,7 @@ function MacWindow({
       style={style}
       aria-label={`${title} window`}
       aria-hidden={!visible}
+      data-tour={name === 'aim' ? 'chat' : undefined}
       onPointerDown={onFocus}
     >
       <div className="mac2006-titlebar" {...dragHandlers}>
@@ -425,7 +426,7 @@ function MacDock({
           <img src="/2006/icons/safari.png" width="48" height="48" alt="" draggable={false} />
         </span><small>Safari</small>
       </button>
-      <button type="button" className={activeWindow === 'aim' && aimOpen ? 'active' : ''} onClick={() => openWindow('aim')}>
+      <button type="button" className={activeWindow === 'aim' && aimOpen ? 'active' : ''} onClick={() => openWindow('aim')} data-tour="chat">
         <span className="mac2006-app-icon" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/2006/icons/aim.png" width="48" height="48" alt="" draggable={false} />
@@ -1090,7 +1091,7 @@ export default function AimExperience({
                   ['watch', 'Watch'], ['game', 'Vote & Trivia'], ['chat', 'Chat'], ['extras', 'Extras'],
                 ] as const).map(([panel, label]) => (
                   <button key={panel} type="button" aria-pressed={mobilePanel === panel} onClick={() => selectMobilePanel(panel)}
-                    data-tour={panel === 'game' ? 'vote' : panel === 'extras' ? 'essay' : undefined}>{label}</button>
+                    data-tour={panel === 'game' ? 'vote' : panel === 'extras' ? 'essay' : panel === 'chat' ? 'chat' : undefined}>{label}</button>
                 ))}
               </nav>
             </header>

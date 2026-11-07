@@ -4,10 +4,10 @@ import type { CastRunId } from './cast-runs';
  * Info entry in AimExperience; SmarterChild (index 6) is not a Sprite. */
 export type Sprite = {
   art: CastRunId; name: string; screenName: string; index: number;
-  /** Approved by MK. Leave unset rather than inventing a line. */
-  catchphrase?: string;
-  /** Recorded clip under /2006/, played only on request. */
-  catchphraseAudio?: string;
+  /** Three lines from MK, said in turn each time a guest clicks the Sprite. */
+  lines?: readonly string[];
+  /** Optional recording for each line (same order), under /2006/. Played on the click that says it. */
+  lineAudio?: readonly (string | undefined)[];
 };
 
 export const SPRITES: readonly Sprite[] = [
@@ -18,3 +18,9 @@ export const SPRITES: readonly Sprite[] = [
   { art: 'emma', name: 'Emma', screenName: 'EmmaIsNine', index: 4 },
   { art: 'alec', name: 'Alec', screenName: 'bbulldogs48', index: 5 },
 ];
+
+/** Placeholder lines until MK sends each Sprite's three; replace via `lines`. */
+export function spriteLines(sprite: Sprite): readonly string[] {
+  return sprite.lines?.length ? sprite.lines
+    : [`Hi! I’m ${sprite.name}.`, 'Welcome to 2006!', `Find me on AIM: ${sprite.screenName}.`];
+}

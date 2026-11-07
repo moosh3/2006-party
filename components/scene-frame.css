@@ -23,11 +23,6 @@
   font-size: clamp(14px, 2.4vw, 36px);
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
-.scene-frame-audience h2 {
-  margin: 0;
-  font-size: clamp(20px, 4vw, 44px);
-  text-shadow: 0 2px 0 #0a246a, 0 4px 12px rgba(0, 0, 0, 0.4);
-}
 .scene-lineup {
   display: flex;
   flex-wrap: wrap;
@@ -69,45 +64,87 @@
   font-weight: 700;
 }
 
-/* The audience scene may grow past 16:9 on phones so the tour never covers the lineup. */
+/* Rules of the Game: the Sprites on the sky, the setup wizard on the grass.
+   The audience scene may grow past 16:9 on phones so nothing overlaps. */
 .scene-frame-audience { overflow: visible; align-content: center; }
-.scene-lineup li[data-presenting] button { border-color: #ffd652; background: rgba(255, 214, 82, 0.25); }
-.scene-bubble,
-.scene-tour {
-  max-width: min(100%, 560px);
-  border: 1px solid #0a246a;
-  border-radius: 6px;
+/* Sized to the player (cqw), not the browser window, so it fits the 16:9 picture. */
+.scene-rules { container-type: inline-size; place-content: stretch; grid-template-rows: auto auto; align-content: space-between; gap: clamp(6px, 1.5cqw, 16px); padding: clamp(6px, 2cqw, 24px); }
+.scene-stage { position: relative; display: grid; justify-items: center; padding-top: clamp(40px, 8cqw, 96px); }
+/* Clip only while walking in from the left edge; bubbles may overflow afterwards. */
+.scene-stage[data-entering] { overflow: hidden; }
+.scene-rules .scene-lineup { flex-wrap: nowrap; gap: 0; }
+/* Gathered together, slightly overlapping and staggered, like a group photo. */
+.scene-rules .scene-lineup li { position: relative; margin: 0 clamp(-10px, -1cqw, -3px); }
+.scene-rules .scene-lineup li:nth-child(even) { top: clamp(3px, 1cqw, 8px); }
+.scene-rules .scene-lineup button { padding: 2px; }
+.scene-rules .scene-lineup img { width: clamp(30px, 7.5cqw, 90px); }
+.scene-stage[data-entering] .scene-lineup li {
+  animation: scene-walk-in 2.4s cubic-bezier(0.22, 0.7, 0.35, 1) both;
+  animation-delay: calc(var(--i) * 0.3s);
+}
+.scene-stage[data-entering] .scene-lineup img { animation: scene-step 0.32s steps(2, jump-none) infinite; }
+@keyframes scene-walk-in {
+  from { transform: translateX(-110vw); }
+  to { transform: translateX(0); }
+}
+@keyframes scene-step { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .scene-stage[data-entering] .scene-lineup li,
+  .scene-stage[data-entering] .scene-lineup img { animation: none; }
+}
+.scene-bubble {
+  border: 2px solid #0a246a;
+  border-radius: 12px;
   background: #fffbe0;
   color: #1a1a1a;
   padding: 8px 12px;
-  font-size: clamp(12px, 1.6vw, 15px);
+  font-size: clamp(11px, 2.4cqw, 17px);
   text-align: left;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
 }
-.scene-bubble p,
-.scene-tour p { margin: 0 0 4px; line-height: 1.35; }
-.scene-bubble-name,
-.scene-tour-meta { color: #555; font-size: 0.85em; }
-.scene-bubble-line,
-.scene-tour-title { font-weight: 700; color: #0a246a; }
-.scene-tour { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: start; }
-.scene-tour-presenter img { width: clamp(32px, 6vw, 56px); height: auto; image-rendering: pixelated; }
-.scene-tour .scene-actions { grid-column: 1 / -1; }
-.scene-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.scene-actions button,
-.scene-tour-start {
+.scene-bubble p { margin: 0; line-height: 1.35; }
+.scene-welcome { position: absolute; top: clamp(4px, 2cqw, 20px); left: 50%; transform: translateX(-50%); margin: 0; font-weight: 700; font-size: clamp(13px, 3cqw, 24px); white-space: nowrap; }
+/* A line pops up above the Sprite who says it, kept inside the frame at the ends. */
+.scene-line { position: absolute; bottom: calc(100% + 6px); z-index: 3; width: max-content; max-width: min(260px, 45cqw); display: grid; gap: 4px; }
+.scene-lineup li[data-align='center'] .scene-line { left: 50%; transform: translateX(-50%); }
+.scene-lineup li[data-align='start'] .scene-line { left: 0; }
+.scene-lineup li[data-align='end'] .scene-line { right: 0; }
+.scene-line button { justify-self: start; min-height: 32px; border: 0; background: none; color: #0a246a; padding: 0; font: inherit; font-size: 0.85em; text-decoration: underline; cursor: pointer; }
+.scene-rules .scene-lineup li:nth-child(even) .scene-line { margin-bottom: 6px; }
+
+/* Windows XP style setup wizard, paced by the guest. */
+.scene-wizard { justify-self: center; width: min(100%, 620px, 78cqw); text-align: left; color: #1a1a1a; }
+.scene-wizard > :is(.scene-wizard-title, .scene-wizard-body, .scene-wizard-footer) { margin: 0; }
+.scene-wizard-title { display: flex; justify-content: space-between; gap: 8px; border: 1px solid #0831d9; border-bottom: 0; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #0a5fdd, #0039b6); color: #fff; padding: 3px 10px; font-size: clamp(10px, 1.9cqw, 13px); font-weight: 700; }
+.scene-wizard-body { display: grid; gap: 3px; border-inline: 1px solid #0831d9; background: #fff; padding: clamp(6px, 1.4cqw, 12px) 12px; font-size: clamp(11px, 2.2cqw, 15px); }
+.scene-wizard-body p { margin: 0; line-height: 1.4; }
+.scene-wizard-heading { font-weight: 700; color: #0a246a; font-size: 1.1em; }
+.scene-wizard-dots { display: flex; gap: 6px; align-items: center; margin: 0 auto 0 0; padding: 0; list-style: none; }
+.scene-wizard-dots li { width: 8px; height: 8px; border-radius: 50%; background: #c9c9c9; }
+.scene-wizard-dots li[data-done] { background: #7aa0d8; }
+.scene-wizard-dots li[data-current] { background: #0a5fdd; }
+.scene-wizard-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; border: 1px solid #0831d9; border-top: 1px solid #c9c9c9; border-radius: 0 0 6px 6px; background: #ece9d8; padding: 5px 10px; }
+.scene-wizard-footer button, .scene-wizard-action, .scene-tour-start {
   min-height: 44px;
   border: 1px solid #003c74;
   border-radius: 3px;
   background: linear-gradient(180deg, #fff, #ece9d8);
   color: #1a1a1a;
-  padding: 4px 12px;
+  padding: 2px 14px;
+  font-size: clamp(11px, 2cqw, 14px);
   font: inherit;
   cursor: pointer;
 }
-.scene-actions button:disabled { cursor: default; opacity: 0.55; }
-.scene-actions button:focus-visible,
-.scene-tour-start:focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
+.scene-wizard-action { justify-self: start; margin-top: 4px; font-weight: 700; }
+.scene-wizard-footer button:disabled, .scene-wizard-action:disabled { cursor: default; opacity: 0.55; }
+.scene-wizard :is(button):focus-visible, .scene-tour-start:focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
+.scene-tour-start { justify-self: center; }
+/* Narrow players (phones): room for a bubble above the Sprites, touch-size links, full-width wizard. */
+@container (max-width: 520px) {
+  .scene-stage { padding-top: 104px; }
+  .scene-line button { min-height: 44px; }
+  .scene-wizard { width: 100%; }
+}
 
 /* Let's Check Our Scores: a Mario Party style scoreboard in the program frame. */
 .scores-board { align-content: start; justify-items: stretch; gap: clamp(6px, 1.5vw, 16px); background: linear-gradient(160deg, #2a0f6b 0%, #5b1fa8 45%, #e0457b 100%); }
@@ -140,9 +177,9 @@
 }
 
 /* Tour spotlight: the control the current step is about glows. */
-html[data-tour-target='cast'] [data-tour~='cast'],
 html[data-tour-target='vote'] [data-tour~='vote'],
-html[data-tour-target='essay'] [data-tour~='essay'] {
+html[data-tour-target='essay'] [data-tour~='essay'],
+html[data-tour-target='chat'] [data-tour~='chat'] {
   outline: 3px solid #ffd652;
   outline-offset: 2px;
   border-radius: 6px;

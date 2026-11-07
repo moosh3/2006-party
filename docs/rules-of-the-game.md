@@ -14,7 +14,7 @@ Run of show, segment 2:
 
 ## Summary
 
-Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While Lip preps the room in person, online guests get an interactive scene in the program player. The cast avatars (“Sprites”) stand in a lineup; each reveals a catchphrase and links to their Buddy Info profile. Sprite Lip opens a short tour, and other Sprites present the later steps, pointing guests at cast superlatives (open) and TRL voting (closed since Welcome). After the cue, the scene stays reachable from the desktop.
+Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While Lip preps the room in person, online guests get an interactive scene in the program player. The cast avatars (“Sprites”) walk in, gather and greet guests, who can click each one for its lines. Below them, a self-paced setup wizard walks through superlatives (open), TRL (closed since Welcome), the essay and the chat. After the cue, the scene stays reachable from the desktop.
 
 **Sprites** are the cast members’ existing avatar art on the website, not separate recorded media.
 
@@ -34,7 +34,7 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 | Participation intro | Guided tour with Next / Back / Skip that **starts automatically** when the scene starts. **Sprite Lip** presents the first step; later steps are presented by other Sprites (see Guided tour). |
 | Superlatives | Open during the show. The tour links into the existing superlatives voting. |
 | TRL voting | Closed before this segment (“VOTING IS NOW CLOSED” at Welcome). Shown so guests know it exists, clearly marked closed. Results arrive through the countdown. |
-| After the cue | A **Rules of the Game** desktop icon/window appears **after the segment has aired** and stays, so latecomers can browse the lineup and catchphrases. The tour is replayable from there. |
+| After the cue | A **Rules of the Game** desktop icon/window appears **after the segment has aired** and stays, so latecomers can play with the Sprites and reopen the wizard. The tour is replayable from there. |
 | Content storage | In code, alongside the existing buddy profiles in `components/2006/AimExperience.tsx`. Changes ship by deploy. |
 
 ## Cast
@@ -50,37 +50,21 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ## Guest experience (`/event`)
 
-### Scene
+Revised November 7, 2026 after the first look: two separate things happen at once. The Sprites greet guests and can be played with; below them, a self-paced setup wizard shows the rest of the site.
 
-- Fills the player area at its normal aspect ratio and inside composition fullscreen. Uses the 2006 desktop visual language (`DESIGN.md`), not a generic card grid.
-- Heading **Rules of the Game**, then the lineup of Sprites with screen names visible under each. Sprite Lip is visually marked as the host of the segment.
-- Every avatar is a real `<button>` labeled with name and screen name. Visible focus, 44px minimum touch target, arrow-key movement along the lineup is a nice-to-have on top of normal Tab order.
-- Phones: the lineup wraps or scrolls horizontally inside the player area; the catchphrase bubble and tour steps stack below the lineup instead of floating over it. Check at 320px.
-- Original cast artwork only. Any idle animation is one-shot or pausable and is off under `prefers-reduced-motion`.
+### Sprites (top half)
 
-### Catchphrase and profile
+- No on-screen heading; the scene is still named “Rules of the Game” for assistive technology.
+- When the scene starts, the six Sprites walk in from the left one after another (0.3 s apart), gather in the middle slightly overlapping, and a “Welcome to 2006!” bubble appears for a few seconds. They use their still frames throughout: they walk and stand, they never spin. With reduced motion they are already gathered.
+- Clicking a Sprite pops a speech bubble above it with one of its three lines; each click says the next line, and after the third it starts again. Each Sprite keeps its own place. Only one bubble shows at a time; Escape closes it. A small **Buddy Info** link opens the existing profile.
+- Lines live in `lib/cast.ts` (`lines`, three per Sprite) with an optional recording per line (`lineAudio`), played on the click that says it. Until MK sends them, each Sprite has three placeholder lines.
+- Sized to the player (container units), so it fits the 16:9 picture on desktop; narrow players get more room above the Sprites and 44 px touch targets.
 
-- Clicking an avatar opens its bubble; only one bubble is open at a time. Escape or clicking the avatar again closes it.
-- The bubble shows the catchphrase text, a **Play** button when an audio clip exists, and **View profile**.
-- **Play** plays the clip once at modest volume. There is no program audio during the scene to duck. Text is the caption; no clip-only content.
-- **View profile** opens the existing Buddy Info window for that buddy. Profiles that are still empty show the existing empty treatment until MK supplies copy.
-- These interactions are local to the viewer and never write to the server.
+### Setup wizard (bottom half)
 
-### Guided tour
-
-- Starts automatically when the scene starts. Guests can Skip at any time and explore the lineup; a **Show me around** button presented by Sprite Lip restarts it.
-- Steps (presenters for steps 2–5 are a suggested pairing; MK may change them):
-  1. **Sprite Lip: Meet the cast.** Click a buddy to see their catchphrase and open their profile.
-  2. **Sprite Jen: Cast superlatives are open.** Points to the existing superlatives entry point; **Vote now** opens it.
-  3. **Sprite MK: TRL voting is closed.** Points to TRL voting; shows **Voting closed before the show — watch the countdown for results.** No vote action is offered. The step must read as closed through text, not only grey styling.
-  4. **Sprite Yongoo: Write the essay.** Points to the essay and explains that submitted essays can show up in Let’s Check Our Scores (segment 7). Wording depends on the essay submission work in `docs/run-of-show-alignment.md`.
-  5. **Sprite Alec: You can come back.** Points to the Rules of the Game desktop icon.
-- The presenting Sprite’s avatar appears beside each step’s text.
-- Each step lights up the page control it is about, with a glowing outline (static with reduced motion) and a line of text naming it: step 1 the lineup; steps 2–3 the **Vote & Trivia** bookmark, the **Vote, Trivia & Superlatives** button and the phone **Vote & Trivia** tab; step 4 the TextEdit Dock icon, the **Essay due!** bookmark and the phone **Extras** tab. Targets are marked with `data-tour`; the highlight clears when the tour ends.
-- Because the tour starts on its own, it must not steal focus from a guest who is already typing in chat or the essay; it takes focus only once the guest interacts with it.
-- Next / Back / Skip are buttons; Escape skips. Focus moves to each step and returns to the **Show me around** button at the end. Step text is announced to assistive technology.
-- Tour progress is per-viewer and local. Finishing or skipping it does not change any vote, admission or playback state.
-- If the cue ends mid-tour, the tour closes with the scene; the desktop window offers it again.
+- A Windows XP style “Getting started” wizard, separate from the Sprites and paced by the guest: **< Back**, **Next >**, **Finish**, **Skip**, step dots, and Escape to close. It is there from the start but never moves focus; **Show me around** restarts it, and finishing or skipping is remembered per cue.
+- Steps (`lib/rules-of-the-game.ts`, draft copy): Welcome · Vote in the cast superlatives (**Vote now**) · TRL voting is closed (**See TRL**) · Write your 2006 essay (**Open essay**) · Chat with everyone watching · You’re all set.
+- Each step lights up the page control it is about (glowing outline, static with reduced motion) and names it in text: Vote & Trivia bookmark, button and phone tab; TextEdit Dock icon, Essay due! bookmark and phone Extras tab; the AIM window, its Dock icon and the phone Chat tab. Targets are marked with `data-tour`.
 
 ### After the cue
 
@@ -105,7 +89,7 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ### Status (November 7, 2026)
 
-The scene cue type is built: migration `sql/028_scene_cues.sql`, the guarded installer `npm run db:scene-cues` (read-only preflight; `-- --apply` installs), **Add Rules of the Game scene** in the `/admin` queue, the `/stage` and operator-monitor card, and the `/event` scene: the six Sprites, a catchphrase bubble per Sprite (line and **Play catchphrase** appear once `catchphrase` / `catchphraseAudio` are set in `lib/cast.ts`; until then the bubble offers **View profile**), and the auto-starting tour (`lib/rules-of-the-game.ts`, draft copy for MK). The tour never moves focus by itself, Escape skips it, **Show me around** restarts it, and finishing or skipping it is remembered per cue for the browser tab. **Vote now** / **See TRL** open the game on that category and **Open essay** opens TextEdit. After the segment has aired, a **Rules of the Game** Dock icon (Sprite Lip) and a phone **Extras** button open the same lineup, bubbles and tour in a Mac window; there the tour waits for **Show me around**. “Aired” means a Rules of the Game cue started since the doors last opened (`/api/scenes`, read from the queue audit log, cached 15 seconds at the CDN), or this page saw it play; the icon stays hidden while the scene itself is on. Tour step 5 is a sign-off; MK may want it to mention the icon. Tests: `npm run test:scene-cues`, `npm run test:scene-cues-db`.
+The scene cue type is built: migration `sql/028_scene_cues.sql`, the guarded installer `npm run db:scene-cues` (read-only preflight; `-- --apply` installs), **Add Rules of the Game scene** in the `/admin` queue, the `/stage` and operator-monitor card, and the `/event` scene described above (walk-in Sprites with three cycling lines each, and the setup wizard). After the segment has aired, a **Rules of the Game** Dock icon (Sprite Lip) and a phone **Extras** button open the same Sprites (already gathered) and wizard in a Mac window; there the wizard waits for **Show me around**. “Aired” means a Rules of the Game cue started since the doors last opened (`/api/scenes`, read from the queue audit log, cached 15 seconds at the CDN), or this page saw it play; the icon stays hidden while the scene itself is on. Tests: `npm run test:scene-cues`, `npm run test:scene-cues-db`.
 
 **028 was applied to production after 027 on November 7, 2026** using the guarded installer. The transaction preserved the active cue, queue, library, doors, viewers, votes, audit records and command records. Read-only catalog checks confirmed exact source-body matches for all six functions, all four scene/source constraints validated, anonymous/authenticated scene-queue access blocked, and service-role access allowed. The isolated database regression suite passed. Migration SHA-256: `264dbf5bcfe0c73a794b556a9d9a96eb328bf4f1efa89ada1b0812671e2649db`. No scene was queued or started for verification; production UI rehearsal remains separate. Never replay 022, 025, 026 or 027 after 028 (or 028 after 030).
 
@@ -129,9 +113,9 @@ Each queued scene is its own hidden library row (`source_type = 'scene'`, `playb
 
 ### Content
 
-- Move the shared cast data out of `AimExperience.tsx` into a small module used by the buddy strip, Buddy Info, this scene and the presenter avatars on countdown title cards. Add the cast member’s real name (for “Sprite Lip”), `catchphrase: string` and `catchphraseAudio?: string`.
+- Move the shared cast data out of `AimExperience.tsx` into a small module used by the buddy strip, Buddy Info, this scene and the presenter avatars on countdown title cards. Add the cast member’s real name, three `lines` and optional `lineAudio`.
 - Audio clips live under `public/2006/` with provenance added to `public/2006/SHOW-ART.md`. Format: something every target browser plays (AAC/M4A or MP3); check during rehearsal.
-- Tour copy lives next to the scene component as a typed constant, with the presenter Sprite per step.
+- Wizard copy lives in `lib/rules-of-the-game.ts` as a typed constant.
 
 ### Where to start
 
@@ -148,8 +132,8 @@ Each queued scene is its own hidden library row (`source_type = 'scene'`, `playb
 
 - [ ] Operator can queue a Rules of the Game scene with an exact length; selecting or moving it never starts it.
 - [ ] `/event` shows the interactive lineup for exactly the cue’s duration, synchronized with other viewers; late arrivals and reconnects join mid-cue.
-- [ ] Each avatar shows its catchphrase and opens its Buddy Info profile. Optional audio plays only on request.
-- [ ] Tour starts automatically with Sprite Lip, reaches open superlatives and clearly closed TRL voting, with Next / Back / Skip, keyboard and screen-reader support.
+- [ ] Sprites walk in and gather; each click says the Sprite’s next line, looping after three. Optional audio plays only on the click.
+- [ ] The setup wizard is present from the start without taking focus, reaches open superlatives, clearly closed TRL voting, the essay and chat, highlights each control, with Back / Next / Skip, keyboard and screen-reader support.
 - [ ] Rules of the Game remains reachable from the desktop after the cue.
 - [ ] `/stage` and the operator monitor show the branded card and correct status.
 - [ ] Pause, hold, restart, auto-advance on/off and Schedule interplay behave as for an equal-length video cue.
@@ -162,15 +146,15 @@ Each queued scene is its own hidden library row (`source_type = 'scene'`, `playb
 
 Answered with MK on November 7, 2026: cast mapping, lineup (includes Alec), tour auto-start, icon timing, `/stage` wording, and that every Sprite gets recorded audio. Still open:
 
-1. **Catchphrase text for each Sprite.** MK will send.
-2. **Catchphrase recordings** for all six Sprites.
+1. **Three lines for each Sprite** (said in turn on each click), and the group welcome line. MK will send.
+2. **Recordings** of each line, if wanted (optional per line).
 3. **Missing profiles:** Jen (`SBconfetti`), Yongoo (`neodafunky`), Emma (`EmmaIsNine`) and Alec (`bbulldogs48`) have empty profiles; Emma’s away message is a placeholder.
-4. **Tour script** wording, and confirmation of the suggested presenters for steps 2–5.
+4. **Wizard wording** for the six steps (no presenters any more).
 5. **Cue length,** set after rehearsal.
 
 ## Out of scope
 
 - The offline room player.
-- Admin-editable catchphrases or profiles.
+- Admin-editable lines or profiles.
 - Opening, closing or changing any poll, superlative or TRL round from the scene.
 - Sprite scenes for Welcome and People We Know (tracked in `docs/run-of-show-alignment.md`).
