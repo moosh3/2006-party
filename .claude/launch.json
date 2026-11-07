@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "playout-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview:playout"],
+      "port": 3116
     }
   ]
 }

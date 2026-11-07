@@ -7,30 +7,33 @@ export type RunOfShowCue = {
   performerCue: string;
 };
 
-// Sequence transcribed from the production document. Exact durations and media
-// identifiers remain production inputs and are not guessed here.
+// Sequence transcribed from MK's run-of-show document (November 2026). Exact
+// durations and media identifiers remain production inputs and are not guessed
+// here. "Sprite" means the cast member's avatar on the website.
 export const RUN_OF_SHOW: RunOfShowCue[] = [
-  { id: 'intro-supercut', label: '2006 super cut', surface: 'online-and-room', performerCue: 'Opening montage into the VJ introduction' },
-  { id: 'welcome', label: 'Welcome', surface: 'online-and-room', performerCue: 'Welcome the room and remind the audience to vote' },
-  { id: 'ad-spots-1', label: 'Ad spots', surface: 'all', performerCue: 'Caption and reset for the next live segment' },
-  { id: 'game-of-2006', label: 'The game of being a kid in 2006', surface: 'online-and-room', performerCue: 'Explain the rules and begin the CD-burning task' },
-  { id: 'videos-10-9', label: 'Countdown videos #10 and #9', surface: 'all', performerCue: 'Reset for the Clippy check-in' },
-  { id: 'clippy-check-in', label: 'Does anyone need any help?', surface: 'online-and-room', performerCue: 'Check audience tasks and introduce Clippy' },
-  { id: 'video-8-ads', label: 'Video #8 and ads', surface: 'all', performerCue: 'Move to the family computer for live AIM' },
-  { id: 'live-aim', label: 'Live AIM message check', surface: 'live', performerCue: 'Answer audience messages; watch the visible computer clock' },
-  { id: 'videos-7-6', label: 'Countdown videos #7 and #6', surface: 'all', performerCue: 'Reset for People We Know' },
-  { id: 'people-we-know', label: 'People We Know', surface: 'online-and-room', performerCue: 'Share stories with supporting images on screen' },
-  { id: 'ads-video-4', label: 'Ads and video #4', surface: 'all', performerCue: 'Prepare the remote correspondent feed' },
-  { id: 'remote-correspondent', label: 'Remote correspondent', surface: 'online-and-room', performerCue: 'Follow the correspondent feed outside the room' },
-  { id: 'ads-video-5', label: 'Ads and video #5', surface: 'all', performerCue: 'Reset for the keep-going sequence' },
-  { id: 'keep-going', label: 'And we gotta just keep going', surface: 'online-and-room', performerCue: 'Move through the live sequence into the Nerf beat' },
-  { id: 'video-3', label: 'Video #3', surface: 'all', performerCue: 'Prepare the quick comeback' },
-  { id: 'awkward-comeback', label: 'Awkward quick comeback', surface: 'online-and-room', performerCue: 'Clippy checks the audience tasks' },
-  { id: 'video-2', label: 'Video #2', surface: 'all', performerCue: 'Set for the full-group performance' },
-  { id: 'when-you-were-young', label: 'When You Were Young', surface: 'online-and-room', performerCue: 'Full-group performance into the winning video' },
-  { id: 'winning-video', label: 'Winning video', surface: 'all', performerCue: 'Play the complete #1 video' },
-  { id: 'wrap', label: 'Wrap it up', surface: 'live', performerCue: 'Final VJ monologue and handoff into karaoke' },
-  { id: 'online-karaoke', label: 'Online karaoke handoff', surface: 'online-only', performerCue: 'Send online viewers to the full playlist' },
+  { id: 'pre-show-loop', label: 'Pre-show loop', surface: 'all', performerCue: 'Long intro loop that reminds people to vote several times' },
+  { id: 'welcome', label: 'Welcome', surface: 'online-and-room', performerCue: 'Jen welcomes the room while Sprite Jen welcomes home viewers: voting is now closed' },
+  { id: 'ads-1', label: 'Ads 1', surface: 'all', performerCue: "We'll Be Right Back #1, Ellen, Booty Booty Booty Booty" },
+  { id: 'rules-of-the-game', label: 'Rules of the Game', surface: 'online-and-room', performerCue: 'Lip preps the rules in the room while Sprite Lip sets up online viewers to click around' },
+  { id: 'ads-2', label: 'Ads 2', surface: 'all', performerCue: "We'll Be Right Back #2, First Gorillas Cut, Commercials, First Yongoo Cut" },
+  { id: 'video-5', label: 'Video #5', surface: 'all', performerCue: 'Sprite Emma presents' },
+  { id: 'clippy', label: 'Clippy', surface: 'online-and-room', performerCue: 'Clippy encourages a brave attendee to try the essay; virtual Clippy online' },
+  { id: 'ads-3', label: 'Ads 3', surface: 'all', performerCue: "We'll Be Right Back #3, Second Yongoo Cut, MK Ring Tones One, insert, Second Gorillas Cut" },
+  { id: 'video-4', label: 'Video #4', surface: 'all', performerCue: 'Sprite Yongoo presents' },
+  { id: 'people-we-know', label: 'People We Know', surface: 'online-and-room', performerCue: 'Watch and react as the Sprites present our information' },
+  { id: 'ads-4', label: 'Ads 4', surface: 'all', performerCue: "We'll Be Right Back #4, Third Gorillas, Last Yongoo, insert" },
+  { id: 'video-3', label: 'Video #3', surface: 'all', performerCue: 'Sprite Jen presents' },
+  { id: 'foreign-correspondent', label: 'Emma, our foreign correspondent', surface: 'online-and-room', performerCue: 'Emma takes one person on a journey while the Emma and Jen version plays on screens and at home' },
+  { id: 'ads-5', label: 'Ads 5', surface: 'all', performerCue: 'Crazy Post Emma Ads #1, Fourth Gorillas, Crazy Post Emma Ads #2, MK Ring Tones Two, Crazy Post Emma Ads #3' },
+  { id: 'something-went-wrong', label: 'Something went wrong', surface: 'all', performerCue: 'Error screen and sound, then cut to Life Is A Highway' },
+  { id: 'life-is-a-highway', label: 'Life Is A Highway', surface: 'online-and-room', performerCue: 'Lip-sync to the edit from opposite sides of the room; flashlight on whoever is talking' },
+  { id: 'ads-6', label: 'Ads 6', surface: 'all', performerCue: 'Urgent News Bulletin: news mash-up with silly adult commercials' },
+  { id: 'video-2', label: 'Video #2', surface: 'all', performerCue: 'Sprite MK presents' },
+  { id: 'check-our-scores', label: "Let's Check Our Scores", surface: 'online-and-room', performerCue: 'Scores window opens online; attendee reads their essay, then Alec reads audience submissions if time allows' },
+  { id: 'ads-7', label: 'Ads 7', surface: 'all', performerCue: "We'll Be Right Back with your #1 Video, Last Gorillas, inserts" },
+  { id: 'video-1', label: 'Video #1', surface: 'all', performerCue: 'Sprite Lip presents' },
+  { id: 'when-we-were-young', label: 'When We Were Young', surface: 'online-and-room', performerCue: 'Same video in both places; performed live in the room' },
+  { id: 'ending-loop', label: 'Ending loop', surface: 'all', performerCue: 'Ending loop video' },
 ];
 
 export function getRunOfShowCue(id?: string | null) {
