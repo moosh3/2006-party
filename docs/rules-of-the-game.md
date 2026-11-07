@@ -1,6 +1,6 @@
 # Rules of the Game
 
-Draft spec, November 7, 2026. Tracks [issue #2](https://github.com/moosh3/2006-party/issues/2), filed as “Rules Of Life” from MK’s first note. MK’s run of show names the segment **Rules of the Game**, and that is the on-screen name. Decisions below were made by the production team in chat; items under **Open inputs** are not decided and must not be guessed in implementation. See `docs/run-of-show-alignment.md` for how this fits the whole show.
+Draft spec, November 7, 2026; MK’s answers recorded the same day. Tracks [issue #2](https://github.com/moosh3/2006-party/issues/2), filed as “Rules Of Life” from MK’s first note. MK’s run of show names the segment **Rules of the Game**, and that is the on-screen name. Decisions below were made by the production team in chat; items under **Open inputs** are not decided and must not be guessed in implementation. See `docs/run-of-show-alignment.md` for how this fits the whole show.
 
 ## MK’s notes
 
@@ -26,16 +26,27 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 | Rundown slot | Segment 2: after Ads 1, before Ads 2 / video #5. |
 | Presentation | Interactive scene in place of the video. No media plays underneath. |
 | Trigger | New operator queue cue type, queued and reordered like any other cue. |
-| Duration | Fixed, operator-entered positive length in seconds. Auto-advance treats it like a video cue. |
+| Duration | Fixed, operator-entered positive length in seconds. Auto-advance treats it like a video cue. MK sets the length after rehearsal. |
 | Surfaces | `/event` shows the interactive scene. `/stage` shows a static branded card while Lip runs the room live. The operator monitor shows the same card plus cue status. The offline room player is unchanged. |
-| Lineup | Same people and order as `ShowBuddyStrip` / the Buddy List, excluding SmarterChild. |
+| Lineup | Six Sprites: MK, Jen, Lip, Yongoo, Emma and Alec, in Buddy List order. SmarterChild is excluded. |
 | Avatar click | Catchphrase speech bubble with a **View profile** action that opens the existing AIM Buddy Info window. |
-| Catchphrase format | Text always. Optional recorded clip with a play button; never autoplays. |
-| Participation intro | Guided tour with Next / Back / Skip. **Sprite Lip** presents the first step; each later step is presented by a different Sprite. |
+| Catchphrase format | Text always, plus a recorded clip for every Sprite with a play button. Clips never autoplay. Until a clip arrives, that Sprite shows text only. |
+| Participation intro | Guided tour with Next / Back / Skip that **starts automatically** when the scene starts. **Sprite Lip** presents the first step; later steps are presented by other Sprites (see Guided tour). |
 | Superlatives | Open during the show. The tour links into the existing superlatives voting. |
 | TRL voting | Closed before this segment (“VOTING IS NOW CLOSED” at Welcome). Shown so guests know it exists, clearly marked closed. Results arrive through the countdown. |
-| After the cue | A **Rules of the Game** desktop icon/window remains so latecomers can browse the lineup and catchphrases. The tour is replayable from there. |
+| After the cue | A **Rules of the Game** desktop icon/window appears **after the segment has aired** and stays, so latecomers can browse the lineup and catchphrases. The tour is replayable from there. |
 | Content storage | In code, alongside the existing buddy profiles in `components/2006/AimExperience.tsx`. Changes ship by deploy. |
+
+## Cast
+
+| Sprite | Screen name | Role |
+| --- | --- | --- |
+| MK | `mkashe9` | Writer/Performer/Editor/Tech |
+| Jen | `SBconfetti` | Writer/Performer/Editor |
+| Lip | `x0x_BlueShellVictim_x0x` | Writer/Performer/Editor |
+| Yongoo | `neodafunky` | Writer/Performer/Editor |
+| Emma | `EmmaIsNine` | Writer/Performer |
+| Alec | `bbulldogs48` | Tech |
 
 ## Guest experience (`/event`)
 
@@ -57,14 +68,15 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ### Guided tour
 
-- Starts with a visible **Show me around** button presented by Sprite Lip. It does not auto-start over a guest’s exploration; if MK wants it to auto-start at cue start, that is an open input.
-- Steps (presenters after step 1 are an open input):
+- Starts automatically when the scene starts. Guests can Skip at any time and explore the lineup; a **Show me around** button presented by Sprite Lip restarts it.
+- Steps (presenters for steps 2–5 are a suggested pairing; MK may change them):
   1. **Sprite Lip: Meet the cast.** Click a buddy to see their catchphrase and open their profile.
-  2. **Cast superlatives are open.** Points to the existing superlatives entry point; **Vote now** opens it.
-  3. **TRL voting is closed.** Points to TRL voting; shows **Voting closed before the show — watch the countdown for results.** No vote action is offered. The step must read as closed through text, not only grey styling.
-  4. **Write the essay.** Points to the essay and explains that submitted essays can show up in Let’s Check Our Scores (segment 7). Wording depends on the essay submission work in `docs/run-of-show-alignment.md`.
-  5. **You can come back.** Points to the Rules of the Game desktop icon.
+  2. **Sprite Jen: Cast superlatives are open.** Points to the existing superlatives entry point; **Vote now** opens it.
+  3. **Sprite MK: TRL voting is closed.** Points to TRL voting; shows **Voting closed before the show — watch the countdown for results.** No vote action is offered. The step must read as closed through text, not only grey styling.
+  4. **Sprite Yongoo: Write the essay.** Points to the essay and explains that submitted essays can show up in Let’s Check Our Scores (segment 7). Wording depends on the essay submission work in `docs/run-of-show-alignment.md`.
+  5. **Sprite Alec: You can come back.** Points to the Rules of the Game desktop icon.
 - The presenting Sprite’s avatar appears beside each step’s text.
+- Because the tour starts on its own, it must not steal focus from a guest who is already typing in chat or the essay; it takes focus only once the guest interacts with it.
 - Next / Back / Skip are buttons; Escape skips. Focus moves to each step and returns to the **Show me around** button at the end. Step text is announced to assistive technology.
 - Tour progress is per-viewer and local. Finishing or skipping it does not change any vote, admission or playback state.
 - If the cue ends mid-tour, the tour closes with the scene; the desktop window offers it again.
@@ -73,11 +85,11 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 - When the queue advances, the player shows the next cue (Ads 2) as usual.
 - A **Rules of the Game** desktop icon (and mobile equivalent in the existing participation area) opens a window with the same lineup, bubbles, profile links and tour. It must not cover the player or captions by default.
-- Default: the icon appears after the cue first airs in the current playback session. Showing it from doors-open is an open input.
+- The icon appears after the cue first airs in the current playback session, not from doors-open.
 
 ## Stage (`/stage`) and operator monitor
 
-- `/stage` shows a static branded card: **Rules of the Game**, with a smaller line such as “happening online”. No interactivity, no lineup. Wording is an open input.
+- `/stage` shows a static branded card: **Rules of the Game**, with a smaller line such as “happening online”. No interactivity, no lineup.
 - The cue clock and next-cue display keep working from the shared snapshot.
 - The `/admin` monitor shows the same card and the normal Playing / Paused / Holding status and remaining time.
 
@@ -128,7 +140,7 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 - [ ] Operator can queue a Rules of the Game scene with an exact length; selecting or moving it never starts it.
 - [ ] `/event` shows the interactive lineup for exactly the cue’s duration, synchronized with other viewers; late arrivals and reconnects join mid-cue.
 - [ ] Each avatar shows its catchphrase and opens its Buddy Info profile. Optional audio plays only on request.
-- [ ] Tour opens with Sprite Lip, reaches open superlatives and clearly closed TRL voting, with Next / Back / Skip, keyboard and screen-reader support.
+- [ ] Tour starts automatically with Sprite Lip, reaches open superlatives and clearly closed TRL voting, with Next / Back / Skip, keyboard and screen-reader support.
 - [ ] Rules of the Game remains reachable from the desktop after the cue.
 - [ ] `/stage` and the operator monitor show the branded card and correct status.
 - [ ] Pause, hold, restart, auto-advance on/off and Schedule interplay behave as for an equal-length video cue.
@@ -139,14 +151,13 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ## Open inputs (MK / production)
 
-1. **Cast mapping:** which screen name is Jen, Lip, Emma, Yongoo and MK (and whether `bbulldogs48` is Alec/Tech and belongs in the lineup).
-2. **Catchphrase for each cast member**, and who (if anyone) records audio.
-3. **Missing profiles:** SBconfetti, neodafunky, EmmaIsNine and bbulldogs48 have empty profiles; EmmaIsNine’s away message is a placeholder.
-4. **Tour script:** final wording for each step and which Sprite presents steps 2–5.
-5. **Length** of the cue.
-6. Whether the tour **auto-starts** at cue start or waits for **Show me around**.
-7. `/stage` card wording.
-8. Whether the desktop icon appears **only after the cue airs** or from doors-open.
+Answered with MK on November 7, 2026: cast mapping, lineup (includes Alec), tour auto-start, icon timing, `/stage` wording, and that every Sprite gets recorded audio. Still open:
+
+1. **Catchphrase text for each Sprite.** MK will send.
+2. **Catchphrase recordings** for all six Sprites.
+3. **Missing profiles:** Jen (`SBconfetti`), Yongoo (`neodafunky`), Emma (`EmmaIsNine`) and Alec (`bbulldogs48`) have empty profiles; Emma’s away message is a placeholder.
+4. **Tour script** wording, and confirmation of the suggested presenters for steps 2–5.
+5. **Cue length,** set after rehearsal.
 
 ## Out of scope
 
