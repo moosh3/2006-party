@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { LIVE_CLIPPY_LINES, TYPING_PAUSE_MS, countWords, shouldSpeak, type TypingState } from '@/lib/clippy-typing';
 import { ESSAY_PROMPTS, essayError, type PublishedEssay } from '@/lib/essays';
 import ClippyAnimation from './ClippyAnimation';
 
@@ -33,17 +34,49 @@ const CLIPPY_DIALOGUE = {
   },
 } satisfies Record<ClippyMode, { heading: string; lines: string[] }>;
 
-/** Guest-controlled copy changes, with no timer or changes to their writing. */
-function ClippyDialogue({ mode }: { mode: ClippyMode }) {
+type TypingLine = { text: string; key: number };
+
+/** Copy changes when the guest asks, or (in the essay helper) when typing
+ * pauses. Neither moves focus or touches their writing. */
+function ClippyDialogue({ mode, typingLine = null }: { mode: ClippyMode; typingLine?: TypingLine | null }) {
   const [line, setLine] = useState(0);
+  const [dismissedTyping, setDismissedTyping] = useState<number | null>(null);
   const content = CLIPPY_DIALOGUE[mode];
+  const showTyping = typingLine && typingLine.key !== dismissedTyping;
   return <>
     <div className="show2006-clippy-copy" role="status" aria-atomic="true">
       <strong>{content.heading}</strong>
-      <p>{content.lines[line % content.lines.length]}</p>
+      <p>{showTyping ? typingLine.text : content.lines[line % content.lines.length]}</p>
     </div>
-    <button type="button" className="show2006-clippy-another" onClick={() => setLine(value => (value + 1) % content.lines.length)}>What else, Clippy?</button>
+    <button type="button" className="show2006-clippy-another" onClick={() => {
+      if (showTyping) setDismissedTyping(typingLine.key);
+      setLine(value => (value + 1) % content.lines.length);
+    }}>What else, Clippy?</button>
   </>;
+}
+
+/** Live Clippy's catchphrases while the guest writes, paced by shouldSpeak. */
+function useTypingLines(draft: string, enabled: boolean): TypingLine | null {
+  const [typingLine, setTypingLine] = useState<TypingLine | null>(null);
+  const state = useRef<TypingState>({ lastSpokeAt: null, wordsAtLastLine: countWords(draft) });
+  const next = useRef(0);
+  const firstDraft = useRef(true);
+  useEffect(() => {
+    // A restored draft is not typing; only react to changes after opening.
+    if (firstDraft.current) { firstDraft.current = false; return; }
+    if (!enabled) return;
+    const timer = window.setTimeout(() => {
+      const words = countWords(draft);
+      const now = Date.now();
+      if (!shouldSpeak(state.current, now, words)) return;
+      const pool = LIVE_CLIPPY_LINES.length ? LIVE_CLIPPY_LINES : CLIPPY_DIALOGUE.essay.lines;
+      state.current = { lastSpokeAt: now, wordsAtLastLine: words };
+      setTypingLine({ text: pool[next.current % pool.length], key: now });
+      next.current += 1;
+    }, TYPING_PAUSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [draft, enabled]);
+  return typingLine;
 }
 
 /** Phone counterpart to the desktop helper, kept below the program picture. */
@@ -122,6 +155,7 @@ export function TextEditApp({
 }) {
   const [helperVisible, setHelperVisible] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const typingLine = useTypingLines(draft, helperVisible && !submission);
   const shown = submission ? submission.body : draft;
   const wordCount = shown.trim() ? shown.trim().split(/\s+/).length : 0;
   const draftProblem = essayError(draft);
@@ -160,7 +194,7 @@ export function TextEditApp({
       {helperVisible ? <aside className="show2006-essay-clippy" aria-label="Clippy essay helper">
         <ClippyAnimation reaction={saved ? 'spin' : 'curious'} paused={paused} active={active} />
         <div>
-          <ClippyDialogue mode={saved ? 'saved' : 'essay'} />
+          <ClippyDialogue mode={saved ? 'saved' : 'essay'} typingLine={saved ? null : typingLine} />
           <button type="button" className="mac2006-aqua-button" onClick={() => setHelperVisible(false)}>Hide Clippy</button>
         </div>
       </aside> : <button type="button" className="show2006-clippy-return" onClick={() => setHelperVisible(true)}>Bring back Clippy</button>}

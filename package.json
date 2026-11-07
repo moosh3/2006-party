@@ -37,6 +37,7 @@
     "test:cast-run-interaction": "node --import tsx scripts/test-cast-run-interaction.ts",
     "test:game": "tsx scripts/test-game.ts",
     "test:popup-placement": "node --import tsx scripts/test-popup-placement.ts",
+    "test:clippy-typing": "node --import tsx scripts/test-clippy-typing.ts",
     "test:game-api": "tsx scripts/test-game-api.ts",
     "preview:game": "tsx scripts/game-preview.ts",
     "db:game:verify": "tsx scripts/verify-game-db.ts",
