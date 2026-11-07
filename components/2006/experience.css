@@ -412,6 +412,9 @@
 .mac2006-window-aim { top: 84px; left: max(24px, calc(100vw - min(350px, 31vw) - 24px)); width: min(350px, 31vw); height: calc(100dvh - 172px); }
 .mac2006-window-mail { top: 68px; left: 11vw; width: min(720px, 62vw); height: min(570px, calc(100dvh - 150px)); }
 .mac2006-window-textedit { top: 88px; left: 17vw; width: min(680px, 64vw); height: min(560px, calc(100dvh - 168px)); }
+.mac2006-window-rules { top: 96px; left: 22vw; width: min(620px, 60vw); height: min(520px, calc(100dvh - 176px)); }
+/* The window scrolls its lineup and tour; start-aligned so nothing is cut off above. */
+.mac2006-window-rules .scene-frame { flex: 1 1 auto; aspect-ratio: auto; min-height: 0; overflow: auto; align-content: start; }
 .mac2006-window-safari.zoomed { height: calc(100dvh - 113px); max-height: calc(100dvh - 113px); }
 .mac2006-layout-toggle { border: 1px solid #8b99a8; border-radius: 3px; padding: 1px 8px; background: #e8eef5; color: #17314f; cursor: pointer; font: inherit; white-space: nowrap; }
 @media (min-width: 901px) {

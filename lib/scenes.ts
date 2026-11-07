@@ -24,3 +24,14 @@ export function sceneLengthError(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= MAX_SCENE_SECONDS
     ? null : 'Enter the scene length in seconds (more than 0, up to two hours).';
 }
+
+/** Scenes started by queue advances (newest first is fine); duplicates removed. */
+export function scenesAiredSince(actions: readonly { details?: unknown }[]): SceneId[] {
+  const aired = new Set<SceneId>();
+  for (const action of actions) {
+    const details = action.details && typeof action.details === 'object' ? action.details as Record<string, unknown> : null;
+    const scene = parseScenePlaybackId(typeof details?.to_playback_id === 'string' ? details.to_playback_id : null);
+    if (scene) aired.add(scene);
+  }
+  return [...aired];
+}

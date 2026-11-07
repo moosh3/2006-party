@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { SPRITES, type Sprite } from '@/lib/cast';
 import { RULES_TOUR, type RulesTourAction } from '@/lib/rules-of-the-game';
 import { SCENES, type SceneId } from '@/lib/scenes';
@@ -58,10 +58,14 @@ export default function SceneFrame({ sceneId, interactive, playbackSessionId, pl
   return <RulesOfTheGame title={title} sessionId={playbackSessionId} actions={actions} />;
 }
 
-function RulesOfTheGame({ title, sessionId, actions }: { title: string; sessionId?: string; actions?: SceneActions }) {
+/** The lineup and tour; also reopened from the desktop after the segment airs. */
+export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sessionId, actions, autoStartTour = true }: {
+  title?: string; sessionId?: string; actions?: SceneActions; autoStartTour?: boolean;
+}) {
+  const bubbleId = useId();
   const [openArt, setOpenArt] = useState<Sprite['art'] | null>(null);
   // The tour starts with the scene, once per cue; it never moves focus by itself.
-  const [step, setStep] = useState<number | null>(() => (tourDone(sessionId) ? null : 0));
+  const [step, setStep] = useState<number | null>(() => (autoStartTour && !tourDone(sessionId) ? 0 : null));
   const audio = useRef<HTMLAudioElement | null>(null);
   const open = SPRITES.find(sprite => sprite.art === openArt) || null;
   const current = step === null ? null : RULES_TOUR[step];
@@ -83,7 +87,7 @@ function RulesOfTheGame({ title, sessionId, actions }: { title: string; sessionI
       <ul className="scene-lineup">
         {SPRITES.map(sprite => (
           <li key={sprite.art} data-presenting={presenter?.art === sprite.art || undefined}>
-            <button type="button" aria-expanded={openArt === sprite.art} aria-controls="scene-bubble"
+            <button type="button" aria-expanded={openArt === sprite.art} aria-controls={bubbleId}
               onClick={() => { stopAudio(); setOpenArt(openArt === sprite.art ? null : sprite.art); }}>
               <picture>
                 <source media="(prefers-reduced-motion: reduce)" srcSet={`/2006/cast/${sprite.art}.png`} />
@@ -97,7 +101,7 @@ function RulesOfTheGame({ title, sessionId, actions }: { title: string; sessionI
       </ul>
 
       {open && (
-        <div id="scene-bubble" className="scene-bubble" role="group" aria-label={`${open.name} (${open.screenName})`}
+        <div id={bubbleId} className="scene-bubble" role="group" aria-label={`${open.name} (${open.screenName})`}
           onKeyDown={event => { if (event.key === 'Escape') { stopAudio(); setOpenArt(null); } }}>
           <p className="scene-bubble-name">{open.name} · {open.screenName}</p>
           {open.catchphrase && <p className="scene-bubble-line">“{open.catchphrase}”</p>}

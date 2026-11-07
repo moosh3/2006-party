@@ -13,6 +13,8 @@ import { ClippyAssistant, ESSAY_PROMPTS, MailApp, StudyBreakInvitation, TextEdit
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
+import { RulesOfTheGame } from '@/components/SceneFrame';
+import { SCENE_SOURCE_TYPE, parseScenePlaybackId } from '@/lib/scenes';
 import type { RulesTourAction } from '@/lib/rules-of-the-game';
 import type { GameKind } from '@/lib/game-types';
 import { SPRITES } from '@/lib/cast';
@@ -170,7 +172,7 @@ function TransitionClock({ nextTransitionAt }: { nextTransitionAt?: string | nul
   return <span>Next in {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>;
 }
 
-type MacWindowName = 'safari' | 'aim' | 'mail' | 'textedit';
+type MacWindowName = 'safari' | 'aim' | 'mail' | 'textedit' | 'rules';
 type MacWindowSize = { width: number; height: number };
 
 const MAC_WINDOW_MIN_SIZE: Record<MacWindowName, MacWindowSize> = {
@@ -178,6 +180,7 @@ const MAC_WINDOW_MIN_SIZE: Record<MacWindowName, MacWindowSize> = {
   aim: { width: 300, height: 420 },
   mail: { width: 520, height: 400 },
   textedit: { width: 480, height: 390 },
+  rules: { width: 360, height: 380 },
 };
 
 function MacMenuClock() {
@@ -200,7 +203,7 @@ function MacMenuClock() {
 }
 
 function MacMenuBar({ activeWindow, navigate, expanded, onToggleLayout }: { activeWindow: MacWindowName; navigate: (screen: ExperienceScreen) => void; expanded: boolean; onToggleLayout: () => void }) {
-  const appName: Record<MacWindowName, string> = { safari: 'Safari', aim: 'AIM', mail: 'Mail', textedit: 'TextEdit' };
+  const appName: Record<MacWindowName, string> = { safari: 'Safari', aim: 'AIM', mail: 'Mail', textedit: 'TextEdit', rules: 'Rules of the Game' };
 
   return (
     <nav className="mac2006-menubar" aria-label="Mac menu bar">
@@ -400,13 +403,15 @@ function MacWindow({
 }
 
 function MacDock({
-  activeWindow, safariOpen, aimOpen, mailOpen, textEditOpen, openWindow, showClippy, navigate,
+  activeWindow, safariOpen, aimOpen, mailOpen, textEditOpen, rulesAvailable, rulesOpen, openWindow, showClippy, navigate,
 }: {
   activeWindow: MacWindowName;
   safariOpen: boolean;
   aimOpen: boolean;
   mailOpen: boolean;
   textEditOpen: boolean;
+  rulesAvailable: boolean;
+  rulesOpen: boolean;
   openWindow: (name: MacWindowName) => void;
   showClippy: () => void;
   navigate: (screen: ExperienceScreen) => void;
@@ -438,6 +443,14 @@ function MacDock({
           <img src="/2006/icons/textedit.png" width="48" height="48" alt="" draggable={false} />
         </span><small>TextEdit</small>
       </button>
+      {rulesAvailable && (
+        <button type="button" className={activeWindow === 'rules' && rulesOpen ? 'active' : ''} onClick={() => openWindow('rules')}>
+          <span className="mac2006-app-icon" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/2006/cast/lip.png" width="32" height="48" alt="" draggable={false} />
+          </span><small>Rules of the Game</small>
+        </button>
+      )}
       <button type="button" onClick={showClippy}>
         <span className="mac2006-app-icon" aria-hidden="true">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -742,7 +755,7 @@ export default function AimExperience({
     target?.scrollIntoView({ block: 'start', behavior: 'instant' });
     target?.focus({ preventScroll: true });
   };
-  const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true, mail: false, textedit: false });
+  const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true, mail: false, textedit: false, rules: false });
   const [zoomedMacWindow, setZoomedMacWindow] = useState<MacWindowName | null>(null);
   const [clippyVisible, setClippyVisible] = useState(false);
   const [clippyMode, setClippyMode] = useState<ClippyMode>('mail');
@@ -884,6 +897,27 @@ export default function AimExperience({
   };
 
   const [gameTabRequest, setGameTabRequest] = useState<{ key: string; kind: GameKind } | null>(null);
+  // Rules of the Game stays reachable once it has aired: seen here, or
+  // reported by the server for guests who arrived after it.
+  const sceneNow = streamData?.sourceType === SCENE_SOURCE_TYPE && !streamData.isHoldScreen
+    ? parseScenePlaybackId(streamData.playbackId) : null;
+  const [rulesAired, setRulesAired] = useState(false);
+  useEffect(() => { if (sceneNow === 'rules-of-the-game') setRulesAired(true); }, [sceneNow]);
+  useEffect(() => {
+    if (rulesAired) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const response = await fetch('/api/scenes', { cache: 'no-store' });
+        const data = await response.json();
+        if (!cancelled && response.ok && Array.isArray(data.aired) && data.aired.includes('rules-of-the-game')) setRulesAired(true);
+      } catch { /* try again on the next check */ }
+    };
+    void check();
+    const timer = window.setInterval(check, 30_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [rulesAired]);
+  const rulesAvailable = rulesAired && sceneNow !== 'rules-of-the-game';
   // Rules of the Game tour actions open the same game and essay guests already use.
   const sceneActions = {
     openBuddy: (index: number) => openShowBuddy(index),
@@ -1141,6 +1175,7 @@ export default function AimExperience({
                 <button type="button" onClick={() => openShowBuddy(6)}>IM SmarterChild</button>
                 <button type="button" onClick={openMail}>Check Mail</button>
                 <button type="button" onClick={() => openMacWindow('textedit')}>Open essay</button>
+                {rulesAvailable && <button type="button" onClick={() => openMacWindow('rules')}>Rules of the Game</button>}
               </div>
               <ShowLinks />
             </section>
@@ -1203,6 +1238,22 @@ export default function AimExperience({
               />}
             </MacWindow>
 
+            {rulesAvailable && (
+              <MacWindow
+                name="rules"
+                title="Rules of the Game"
+                visible={macWindows.rules}
+                active={activeMacWindow === 'rules'}
+                zoomed={zoomedMacWindow === 'rules'}
+                onFocus={() => setActiveMacWindow('rules')}
+                onClose={() => hideMacWindow('rules')}
+                onMinimize={() => hideMacWindow('rules')}
+                onZoom={() => toggleMacZoom('rules')}
+              >
+                {macWindows.rules && <RulesOfTheGame sessionId="desktop" actions={sceneActions} autoStartTour={false} />}
+              </MacWindow>
+            )}
+
             {clippyVisible && !macWindows.textedit && (
               <ClippyAssistant
                 mode={clippyMode}
@@ -1219,6 +1270,8 @@ export default function AimExperience({
               aimOpen={macWindows.aim}
               mailOpen={macWindows.mail}
               textEditOpen={macWindows.textedit}
+              rulesAvailable={rulesAvailable}
+              rulesOpen={macWindows.rules}
               openWindow={openMacWindow}
               showClippy={() => {
                 if (macWindows.textedit) openMacWindow('textedit');
