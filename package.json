@@ -57,6 +57,8 @@
     "test:scene-cues": "node --import tsx scripts/test-scene-cues.ts",
     "test:scene-cues-db": "node --import tsx scripts/test-scene-cues-db.ts",
     "db:scene-cues": "node --import tsx scripts/apply-scene-cues-db.ts",
+    "test:essay-db": "node --import tsx scripts/test-essay-db.ts",
+    "db:essays": "node --import tsx scripts/apply-essay-db.ts",
     "db:countdown": "node --import tsx scripts/apply-countdown-db.ts"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ESSAY_PROMPTS, essayError, type PublishedEssay } from '@/lib/essays';
 import ClippyAnimation from './ClippyAnimation';
 
 export type ClippyMode = 'mail' | 'essay' | 'saved';
@@ -54,11 +55,7 @@ export function StudyBreakInvitation({ onOpenEssay, onDismiss }: { onOpenEssay: 
   </aside>;
 }
 
-export const ESSAY_PROMPTS = [
-  'Write about a song that made 2006 feel bigger than your bedroom.',
-  'Describe the first online space where you felt like yourself.',
-  'What did you think adulthood would look like in 2006?',
-] as const;
+export { ESSAY_PROMPTS };
 
 export function MailApp({ onStartEssay }: { onStartEssay: () => void }) {
   return (
@@ -105,6 +102,7 @@ export function MailApp({ onStartEssay }: { onStartEssay: () => void }) {
 
 export function TextEditApp({
   promptIndex, setPromptIndex, draft, setDraft, saved, saveError, onSave, paused = false, active = true,
+  screenName, submission = null, submitting = false, submitError = null, onSubmit,
 }: {
   promptIndex: number;
   setPromptIndex: (index: number) => void;
@@ -115,9 +113,18 @@ export function TextEditApp({
   onSave: () => void;
   paused?: boolean;
   active?: boolean;
+  screenName?: string;
+  /** Tonight's published essay; once set, the document is final. */
+  submission?: PublishedEssay | null;
+  submitting?: boolean;
+  submitError?: string | null;
+  onSubmit?: () => void;
 }) {
   const [helperVisible, setHelperVisible] = useState(true);
-  const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
+  const [confirming, setConfirming] = useState(false);
+  const shown = submission ? submission.body : draft;
+  const wordCount = shown.trim() ? shown.trim().split(/\s+/).length : 0;
+  const draftProblem = essayError(draft);
 
   return (
     <div className="mac2006-textedit-app">
@@ -125,12 +132,31 @@ export function TextEditApp({
       <div className="mac2006-textedit-toolbar">
         <label>
           <span>Essay prompt</span>
-          <select value={promptIndex} onChange={(event) => setPromptIndex(Number(event.target.value))}>
+          <select value={promptIndex} disabled={Boolean(submission)} onChange={(event) => setPromptIndex(Number(event.target.value))}>
             {ESSAY_PROMPTS.map((prompt, index) => <option value={index} key={prompt}>{index + 1}. {prompt}</option>)}
           </select>
         </label>
-        <button type="button" className="mac2006-aqua-button primary" onClick={onSave}>Save Draft</button>
+        {!submission && <button type="button" className="mac2006-aqua-button" onClick={onSave}>Save Draft</button>}
+        {onSubmit && !submission && (
+          <button type="button" className="mac2006-aqua-button primary" disabled={submitting} aria-expanded={confirming}
+            onClick={() => setConfirming(true)}>Submit essay</button>
+        )}
       </div>
+      {confirming && !submission && onSubmit && (
+        <div className="show2006-essay-submit" role="group" aria-label="Submit your essay">
+          {draftProblem ? <p>{draftProblem}</p> : (
+            <p>Submitting publishes your essay with your screen name{screenName ? ` (${screenName})` : ''} for everyone at the show. It may be read aloud. You can’t change or delete it afterward.</p>
+          )}
+          <div>
+            {!draftProblem && <button type="button" className="mac2006-aqua-button primary" disabled={submitting}
+              onClick={() => { onSubmit(); }}>{submitting ? 'Submitting…' : 'Submit for everyone'}</button>}
+            <button type="button" className="mac2006-aqua-button" disabled={submitting} onClick={() => setConfirming(false)}>{draftProblem ? 'OK' : 'Keep writing'}</button>
+          </div>
+        </div>
+      )}
+      {submission && (
+        <p className="show2006-essay-submitted" role="status">Submitted as {submission.screenName}. Your essay is published for tonight’s show and can’t be changed.</p>
+      )}
       {helperVisible ? <aside className="show2006-essay-clippy" aria-label="Clippy essay helper">
         <ClippyAnimation reaction={saved ? 'spin' : 'curious'} paused={paused} active={active} />
         <div>
@@ -142,12 +168,14 @@ export function TextEditApp({
       <div className="mac2006-document-wrap">
         <div className="mac2006-document">
           <h2>2006 Reflection</h2>
-          <p className="prompt">{ESSAY_PROMPTS[promptIndex]}</p>
-          <textarea value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Essay draft" placeholder="Start writing here…" />
+          <p className="prompt">{submission ? submission.prompt : ESSAY_PROMPTS[promptIndex]}</p>
+          <textarea value={shown} readOnly={Boolean(submission)} onChange={(event) => setDraft(event.target.value)}
+            aria-label={submission ? 'Submitted essay' : 'Essay draft'} placeholder="Start writing here…" />
         </div>
       </div>
       {saveError && <p className="show2006-save-error" role="alert">{saveError}</p>}
-      <div className="mac2006-app-status"><span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span><span>{saved ? 'Saved on this computer' : 'Not saved'}</span></div>
+      {submitError && <p className="show2006-save-error" role="alert">{submitError}</p>}
+      <div className="mac2006-app-status"><span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span><span>{submission ? 'Submitted' : saved ? 'Saved on this computer' : 'Not saved'}</span></div>
     </div>
   );
 }

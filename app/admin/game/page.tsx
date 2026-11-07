@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GameKind, GameState, leaders, trlCountdown } from "@/lib/game-types";
 import "@/components/game/game.css";
+import EssayModeration from "@/components/admin/EssayModeration";
 
 type AdminState = GameState & {
   shows: { id: string; title: string; status: string }[];
@@ -624,6 +625,8 @@ export default function GameAdmin() {
             </section>
           </>
         )}
+        {/* Essays belong to the doors-open night, not a game show. */}
+        <EssayModeration />
       </main>
     </div>
   );

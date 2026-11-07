@@ -29,6 +29,11 @@
 .mac2006-aim-menu button { border: 0; background: transparent; padding: 0; color: inherit; font: inherit; cursor: pointer; }
 .mac2006-aim-menu button:hover { text-decoration: underline; }
 .show2006-save-error { margin: 0; padding: 10px 12px; background: #fff0cd; color: #632f1a; font: 13px/1.5 Tahoma, Arial, sans-serif; }
+.show2006-essay-submit { display: grid; gap: 8px; margin: 0; padding: 10px 12px; border-bottom: 1px solid #c9c9c9; background: #fffbe0; font: 13px/1.5 'Lucida Grande', Tahoma, Arial, sans-serif; }
+.show2006-essay-submit p { margin: 0; }
+.show2006-essay-submit div { display: flex; flex-wrap: wrap; gap: 8px; }
+.show2006-essay-submit button, .mac2006-textedit-toolbar .mac2006-aqua-button { min-height: 44px; }
+.show2006-essay-submitted { margin: 0; padding: 10px 12px; background: #e7f6dd; color: #1f4d12; font: 13px/1.5 'Lucida Grande', Tahoma, Arial, sans-serif; }
 .mac2006-mail-app button:disabled { cursor: default; opacity: .5; }
 .xp2006-popwin { max-height: calc((100dvh - 24px) / var(--xp2006-zoom)); overflow-y: auto; }
 .xp2006-popwin .xp2006-im-log { max-height: calc(38dvh / var(--xp2006-zoom)); }

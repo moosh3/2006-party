@@ -78,6 +78,7 @@ Run checks appropriate to the change:
 - Playback: `npm run test:playout-db`, `npm run test:playback-sync`, `npm run test:mux-seek-recovery`, `npm run test:youtube-player`, `npm run test:countdown-intro`.
 - Queue media/library: `npm run test:youtube-admin`, `npm run test:youtube-queue-db`.
 - Scene cues: `npm run test:scene-cues`, `npm run test:scene-cues-db`.
+- Essays: `npm run test:essay-db`.
 - Games: `npm run test:game`; game API checks require their local fixture.
 - Admission: `npm run test:audience-access`, `npm run test:audience-doors-hook`, `npm run test:audience-doors-db`.
 - Chat: `npm run test:chat-message-state`, `npm run test:chat-messages-hook`.
@@ -100,7 +101,7 @@ Verify READY status, production aliases, basic HTTP health and the changed behav
 - `docs/youtube-queue.md`: finite YouTube cues, duration and caption limitations.
 - `docs/show-access.md`: audience identity, doors and access boundaries.
 - `docs/show-game.md`: scoring, moderation, TRL and end-of-show results.
-- `docs/aim-chat.md`, `docs/show-cues.md`, `docs/show-interactions.md`: audience interactions.
+- `docs/aim-chat.md`, `docs/show-cues.md`, `docs/show-interactions.md`, `docs/essays.md`: audience interactions.
 - `docs/offline-room-player.md`: independent room setup, operation and soundboard.
 - `public/2006/SHOW-ART.md`: show-art provenance; preserve original media and reduced-motion behavior.
 

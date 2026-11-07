@@ -17,6 +17,7 @@ import { RulesOfTheGame } from '@/components/SceneFrame';
 import { SCENE_SOURCE_TYPE, parseScenePlaybackId } from '@/lib/scenes';
 import type { RulesTourAction } from '@/lib/rules-of-the-game';
 import type { GameKind } from '@/lib/game-types';
+import type { PublishedEssay } from '@/lib/essays';
 import { SPRITES } from '@/lib/cast';
 import ShowBuddyStrip, { type ShowBuddy } from '@/components/2006/ShowBuddyStrip';
 import { useCastRun, type CastRunOrigin } from '@/hooks/useCastRun';
@@ -958,6 +959,36 @@ export default function AimExperience({
     }
   };
 
+  const [essaySubmission, setEssaySubmission] = useState<PublishedEssay | null>(null);
+  const [essaySubmitting, setEssaySubmitting] = useState(false);
+  const [essaySubmitError, setEssaySubmitError] = useState<string | null>(null);
+  useEffect(() => {
+    // A guest who already submitted tonight sees it as final after a reload.
+    let cancelled = false;
+    void fetch('/api/essays/mine', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled && data?.essay) setEssaySubmission(data.essay); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [viewer.id]);
+  const submitEssay = async () => {
+    setEssaySubmitting(true);
+    setEssaySubmitError(null);
+    try {
+      const response = await fetch('/api/essays', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promptIndex: essayPrompt, essay: essayDraft }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.essay) {
+        setEssaySubmission(data.essay);
+        saveEssay();
+      } else setEssaySubmitError(data.error || 'Could not submit your essay. Try again.');
+    } catch {
+      setEssaySubmitError('Could not reach the show. Your draft is still here; try again.');
+    } finally {
+      setEssaySubmitting(false);
+    }
+  };
+
   const openShowBuddy = (index: number) => {
     castRun.finishRun();
     showInteraction.current = true;
@@ -1235,6 +1266,11 @@ export default function AimExperience({
                 onSave={saveEssay}
                 paused={castAnimationsPaused}
                 active={activeMacWindow === 'textedit'}
+                screenName={viewer.displayName}
+                submission={essaySubmission}
+                submitting={essaySubmitting}
+                submitError={essaySubmitError}
+                onSubmit={submitEssay}
               />}
             </MacWindow>
 

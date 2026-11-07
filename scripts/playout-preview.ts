@@ -29,12 +29,12 @@ const migrations = [
   '014_showtime_playout_and_queue', '015_youtube_playlist_sources',
   '016_open_answer_polls', '017_video_playlist_shelf', '018_message_reactions',
   '019_lock_down_admin_tables', '020_2006_initial_state', '021_show_game',
-  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions', '028_scene_cues',
+  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions', '028_scene_cues', '029_essay_submissions',
 ];
 const tables = new Set([
   'current_stream', 'mux_items', 'video_queue', 'admin_actions', 'messages', 'chat_throttle',
   'polls', 'poll_options', 'poll_votes', 'message_reactions',
-  'game_shows', 'game_viewers', 'game_cast', 'game_prompts', 'game_votes', 'game_suggestions', 'audience_doors',
+  'game_shows', 'game_viewers', 'game_cast', 'game_prompts', 'game_votes', 'game_suggestions', 'audience_doors', 'essay_submissions',
 ]);
 const rpcArguments: Record<string, string[]> = {
   get_playout_snapshot: [],
@@ -48,6 +48,7 @@ const rpcArguments: Record<string, string[]> = {
   enqueue_video: ['mux_item_id', 'admin_user_id'],
   save_countdown_cue: ['media_id', 'cue', 'actor', 'queue_id', 'command_id'],
   queue_scene_cue: ['scene_id', 'length_seconds', 'actor', 'command_id'],
+  essay_submit: ['v', 'prompt_idx', 'prompt_text', 'essay'], essay_set_hidden: ['essay_id', 'hide', 'actor'],
   reorder_queue: ['items', 'admin_user_id'],
   delete_from_queue: ['queue_item_id', 'admin_user_id'],
   game_throttle: ['k', 'seconds'], game_totals: ['s'],
