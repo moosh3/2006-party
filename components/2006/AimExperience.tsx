@@ -1131,7 +1131,7 @@ export default function AimExperience({
 
               <div className="mac2006-safari-page" data-audience-layout={commercialLayout ? 'commercial' : 'program'}>
                 <div className="show2006-desktop-buddies"><ShowBuddyStrip origin="desktop" {...buddyStripProps} /></div>
-                <div className="mac2006-video" ref={showVideoRef} tabIndex={-1}>
+                <div className="mac2006-video" ref={showVideoRef} tabIndex={-1} data-program-player>
                   {streamData ? (
                     <ErrorBoundary fallback={<div className="mac2006-video-error">The video player stopped. Reload to reconnect.</div>}>
                       <VideoPlayer

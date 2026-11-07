@@ -44,6 +44,19 @@ MK’s run of show closes TRL voting before the show starts: Welcome announces *
 
 Superlatives stay open during the show, and trivia runs during ad breaks.
 
+## Trivia during ad breaks
+
+MK’s run of show puts trivia in the ad breaks, while the ads keep playing. Open a trivia draft when its ad block starts and close it before the block ends (closing scores it). Only one trivia question can be open at a time.
+
+Opening trivia pops up a small window for guests who are signed on and haven’t answered:
+
+- It never covers the program player or its captions. It sits in the largest free space beside, below or above the player (on phones, below it) and follows the player if a window is moved or resized. If there is no free space (for example, Safari zoomed so the video fills the screen), it shrinks to a “You’ve got trivia!” chip in the top-right corner; **Answer** expands it on request.
+- It is not modal: the page stays usable, it does not take keyboard focus, and Escape or × dismisses it. Screen readers hear the question through a status message.
+- Phones stay on Watch. **Keep watching · answer in Trivia** moves to the game panel only when the guest chooses it.
+- When the timed audience cues are armed, the cue bar handles invitations instead and the popup stays off (unchanged).
+
+Rehearse with `npm run preview:trivia`, which seeds an open trivia question with timed cues off, as in production.
+
 ## Awards and ties
 
 - **TRL Winner:** the leading video(s) in the designated final TRL round. Zero votes yields no winner. Ties display all joint winners.

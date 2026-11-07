@@ -21,6 +21,9 @@ const SAMPLE_ID = 'EcHgOK9coz5K4rjSwOkoE7Y7O01201YMIC200RI6lNxnhs';
 // summing its public HLS #EXTINF values, not by guessing or shortening the clip.
 const SAMPLE_DURATION = 249.86667;
 const audienceCueRehearsal = process.argv.includes('--audience-cues');
+// Seed the sample show plus an open trivia question, with timed cues off as in
+// production, to rehearse the automatic trivia popup beside the player.
+const triviaRehearsal = process.argv.includes('--trivia');
 const migrations = [
   '001_schema', '002_realtime_triggers', '003_enable_realtime', '004_synchronized_playback', '005_event_poster_mode',
   '006_video_queue', '007_poll_votes_user_name', '008_auto_advance_lock',
@@ -93,7 +96,7 @@ async function main() {
     hold_screen_enabled=false,auto_advance_enabled=false,last_playback_command='set_video',
     last_command_id=$2 WHERE id=1`, [SAMPLE_ID, randomUUID()]);
 
-  if (audienceCueRehearsal) {
+  if (audienceCueRehearsal || triviaRehearsal) {
     // Local-only clock control and sample poll, never read live credentials.
     await db.query(`UPDATE current_stream SET playback_position=41,playback_state='paused',
       playback_updated_at=clock_timestamp() WHERE id=1`);
@@ -105,6 +108,11 @@ async function main() {
     await db.query(`INSERT INTO game_prompts(id,show_id,kind,question,options,status)
       VALUES($1,$2,'superlative','Best AIM away message (rehearsal only)',$3,'open')`,
     ['c0000000-0000-4000-8000-000000000002', showId, JSON.stringify(cast)]);
+    if (triviaRehearsal) {
+      await db.query(`INSERT INTO game_prompts(id,show_id,kind,question,options,correct_option,status)
+        VALUES($1,$2,'trivia','Which happened in 2006? (rehearsal only)',$3,'0','open')`,
+      ['c0000000-0000-4000-8000-000000000005', showId, JSON.stringify([{ id: '0', label: 'Pluto was reclassified' }, { id: '1', label: 'The first iPod was released' }])]);
+    }
   }
 
   let databaseAvailable = true;

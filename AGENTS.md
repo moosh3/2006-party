@@ -80,7 +80,7 @@ Run checks appropriate to the change:
 - Scene cues: `npm run test:scene-cues`, `npm run test:scene-cues-db`.
 - Essays: `npm run test:essay-db`.
 - Scores window: `npm run test:scores`, `npm run test:scores-db`.
-- Games: `npm run test:game`; game API checks require their local fixture.
+- Games: `npm run test:game`, `npm run test:popup-placement`; game API checks require their local fixture.
 - Admission: `npm run test:audience-access`, `npm run test:audience-doors-hook`, `npm run test:audience-doors-db`.
 - Chat: `npm run test:chat-message-state`, `npm run test:chat-messages-hook`.
 - Offline player: `npm run test:room`; actual display placement, codecs, speakers and fullscreen still need rehearsal on the show laptop.

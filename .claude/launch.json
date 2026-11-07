@@ -36,6 +36,15 @@
         "preview:audience-cues"
       ],
       "port": 3116
+    },
+    {
+      "name": "trivia-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview:trivia"
+      ],
+      "port": 3116
     }
   ]
 }

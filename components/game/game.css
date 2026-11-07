@@ -325,3 +325,32 @@ body:has(.game-standalone) { background: oklch(0.87 0.055 245); }
     overflow-wrap: anywhere;
   }
 }
+
+/* Trivia popup: a non-modal floating window clear of the program player. */
+.game-board.game-popup-layer {
+  position: fixed;
+  z-index: 60;
+  right: 16px;
+  bottom: 96px;
+  width: min(380px, calc(100vw - 32px));
+  margin: 0;
+  padding: 0;
+  background: none;
+}
+.game-popup-layer .game-popup {
+  width: auto;
+  max-height: min(60vh, 520px);
+}
+.game-popup-layer .game-popup > button,
+.game-popup-layer .game-popup-title button { min-height: 44px; }
+@media (max-width: 900px) {
+  /* Phones: a bottom sheet below the player, which sits at the top of the page. */
+  .game-board.game-popup-layer { left: 0; right: 0; bottom: 0; width: auto; }
+  .game-popup-layer .game-popup { max-height: 45dvh; border-radius: 0; }
+}
+
+.game-popup-chip { display: flex; align-items: center; gap: 8px; }
+.game-popup-chip strong { flex: 1; }
+.game-popup-chip button { min-width: 44px; min-height: 44px; }
+/* No free space: a compact chip in the top-right, away from bottom captions. */
+.game-board.game-popup-layer[data-placement='collapsed'] { top: 44px; right: 16px; bottom: auto; left: auto; width: auto; }

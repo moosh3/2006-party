@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { GamePrompt, GameState, leaders, type GameKind } from "@/lib/game-types";
+import { placePopup, type Box, type Placement } from "@/lib/popup-placement";
 import "./game.css";
 import "./game-zine.css";
 
@@ -91,8 +93,45 @@ function Question({
 
 export type GameCueRequest = { key: string; promptId: string; kind: GameKind };
 
+const rect = (el: Element | null): Box | null => {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width && r.height ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : null;
+};
+
+/** Keeps the trivia popup clear of the program player ([data-program-player]).
+ * Windows can be dragged without a resize event, so it re-measures while open. */
+function usePopupPlacement(open: boolean): Placement | null {
+  const [placement, setPlacement] = useState<Placement | null>(null);
+  useEffect(() => {
+    if (!open) { setPlacement(null); return; }
+    const measure = () => {
+      const header = rect(document.querySelector(".mac2006-menubar")) || rect(document.querySelector(".mobile2006-header"));
+      const dock = rect(document.querySelector(".mac2006-dock"));
+      const viewport = {
+        left: 8, right: window.innerWidth - 8,
+        top: (header ? Math.max(0, header.bottom) : 0) + 8,
+        bottom: (dock && dock.top > window.innerHeight / 2 ? dock.top : window.innerHeight) - 8,
+      };
+      const next = placePopup(viewport, rect(document.querySelector("[data-program-player]")));
+      setPlacement((prev) => JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
+    };
+    measure();
+    const timer = window.setInterval(measure, 500);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [open]);
+  return placement;
+}
+
 export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = true, cueRequest, tabRequest }: {
   screenName: string;
+  /** The guest chose to answer in the Trivia tab (phones switch to the game panel). */
   onOpenTrivia?: () => void;
   autoTriviaPopup?: boolean;
   cueRequest?: GameCueRequest | null;
@@ -110,7 +149,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   const [joinName, setJoinName] = useState(screenName);
   const [popup, setPopup] = useState<string | null>(null);
   const seen = useRef(new Set<string>());
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [portalReady, setPortalReady] = useState(false);
   const requestVersion = useRef(0);
   const appliedCue = useRef<string | null>(null);
   const initialTab = useRef(false);
@@ -154,10 +193,11 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
     );
     if (active && state?.viewer && !seen.current.has(active.id)) {
       seen.current.add(active.id);
-      onOpenTrivia?.();
       setPopup(active.id);
     }
-  }, [state, onOpenTrivia, autoTriviaPopup]);
+  }, [state, autoTriviaPopup]);
+
+  useEffect(() => setPortalReady(true), []);
 
   useEffect(() => {
     if (!state?.show || initialTab.current) return;
@@ -192,11 +232,10 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   const popupPrompt = state?.prompts.find(
     (p) => p.id === popup && p.status === "open" && !p.answer,
   );
-  useEffect(() => {
-    if (popupPrompt && dialog.current && !dialog.current.open)
-      dialog.current.showModal();
-    if (!popupPrompt) dialog.current?.close();
-  }, [popupPrompt]);
+  const placement = usePopupPlacement(Boolean(popupPrompt));
+  // A guest may expand the collapsed chip even when no free space exists.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const collapsed = placement?.mode === "collapsed" && expandedId !== popupPrompt?.id;
 
   async function act(body: object) {
     setBusy(true);
@@ -453,48 +492,65 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
           </form>
         )}
       </div>
-      <dialog
-        ref={dialog}
-        className="game-popup"
-        onCancel={() => setPopup(null)}
-        aria-labelledby={`${boardId}-popup-title`}
-      >
-        <div className="game-popup-title">
-          <strong id={`${boardId}-popup-title`}>You’ve got trivia!</strong>
-          <button
-            type="button"
-            aria-label="Dismiss trivia popup"
-            onClick={() => {
-              setPopup(null);
-              dialog.current?.close();
-            }}
+      <p className="sr-only" role="status">{popupPrompt ? `Trivia question: ${popupPrompt.question}` : ""}</p>
+      {/* A small floating window outside the player: trivia often opens during
+          ad breaks, so it never dims, locks or covers the program video and
+          never takes keyboard focus. Rendered at the page level because the
+          Mac windows are transformed. */}
+      {portalReady && popupPrompt && placement && createPortal(
+        <div className="game-board game-popup-layer" data-placement={collapsed ? "collapsed" : placement.mode}
+          style={placement.mode === "floating" ? { left: placement.left, top: placement.top, width: placement.width, right: "auto", bottom: "auto" } : undefined}>
+          {collapsed ? (
+            <div className="game-popup game-popup-chip" role="dialog" aria-modal="false" aria-labelledby={`${boardId}-popup-title`}>
+              <strong id={`${boardId}-popup-title`}>You’ve got trivia!</strong>
+              <button type="button" onClick={() => setExpandedId(popupPrompt.id)}>Answer</button>
+              <button type="button" aria-label="Dismiss trivia popup" onClick={() => setPopup(null)}>×</button>
+            </div>
+          ) : (
+          <section
+            style={placement.mode === "floating" ? { maxHeight: placement.maxHeight } : undefined}
+            className="game-popup"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby={`${boardId}-popup-title`}
+            onKeyDown={(event) => { if (event.key === "Escape") setPopup(null); }}
           >
-            ×
-          </button>
-        </div>
-        {popupPrompt && (
-          <Question
-            prompt={popupPrompt}
-            disabled={busy || !canVote}
-            vote={vote}
-          />
-        )}
-        {error && (
-          <p role="alert" className="game-error">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setTab("trivia");
-            setPopup(null);
-            dialog.current?.close();
-          }}
-        >
-          Keep watching · answer in Trivia
-        </button>
-      </dialog>
+            <div className="game-popup-title">
+              <strong id={`${boardId}-popup-title`}>You’ve got trivia!</strong>
+              <button
+                type="button"
+                aria-label="Dismiss trivia popup"
+                onClick={() => setPopup(null)}
+              >
+                ×
+              </button>
+            </div>
+            <Question
+              prompt={popupPrompt}
+              disabled={busy || !canVote}
+              vote={vote}
+              showActive={state.show!.status === "active"}
+            />
+            {error && (
+              <p role="alert" className="game-error">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setTab("trivia");
+                setPopup(null);
+                onOpenTrivia?.();
+              }}
+            >
+              Keep watching · answer in Trivia
+            </button>
+          </section>
+          )}
+        </div>,
+        document.body,
+      )}
     </section>
   );
 }
