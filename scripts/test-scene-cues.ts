@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { MAX_SCENE_SECONDS, isSceneId, parseScenePlaybackId, sceneLengthError } from '../lib/scenes';
 import { SPRITES } from '../lib/cast';
+import { RULES_TOUR } from '../lib/rules-of-the-game';
 
 const id = 'scene:rules-of-the-game:0b5c7f8e-1d2a-4c3b-9e8f-7a6b5c4d3e2f';
 assert.equal(parseScenePlaybackId(id), 'rules-of-the-game');
@@ -16,4 +17,9 @@ assert.deepEqual(SPRITES.map(s => [s.name, s.screenName, s.index]), [
   ['MK', 'mkashe9', 0], ['Jen', 'SBconfetti', 1], ['Lip', 'x0x_BlueShellVictim_x0x', 2],
   ['Yongwoo', 'neodafunky', 3], ['Emma', 'EmmaIsNine', 4], ['Alec', 'bbulldogs48', 5],
 ], 'Sprite order matches the Buddy List and excludes SmarterChild');
-console.log('PASS: scene ids, lengths and the shared Sprite roster.');
+assert.equal(RULES_TOUR[0].presenter, 'lip', 'Sprite Lip opens the tour');
+assert.ok(RULES_TOUR.every(step => SPRITES.some(sprite => sprite.art === step.presenter)), 'Every presenter is a Sprite');
+assert.equal(new Set(RULES_TOUR.map(step => step.id)).size, RULES_TOUR.length);
+assert.deepEqual(RULES_TOUR.filter(step => step.action).map(step => step.action!.target), ['superlative', 'trl', 'essay']);
+assert.ok(SPRITES.every(sprite => sprite.catchphrase === undefined || sprite.catchphrase.trim().length > 0), 'No blank catchphrases');
+console.log('PASS: scene ids, lengths, the shared Sprite roster and the Rules of the Game tour.');

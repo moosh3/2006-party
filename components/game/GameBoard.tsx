@@ -91,11 +91,13 @@ function Question({
 
 export type GameCueRequest = { key: string; promptId: string; kind: GameKind };
 
-export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = true, cueRequest }: {
+export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = true, cueRequest, tabRequest }: {
   screenName: string;
   onOpenTrivia?: () => void;
   autoTriviaPopup?: boolean;
   cueRequest?: GameCueRequest | null;
+  /** A guest asked for a category elsewhere (e.g. the Rules of the Game tour). */
+  tabRequest?: { key: string; kind: GameKind } | null;
 }) {
   const boardId = useId();
   const [state, setState] = useState<GameState | null>(null);
@@ -112,6 +114,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   const requestVersion = useRef(0);
   const appliedCue = useRef<string | null>(null);
   const initialTab = useRef(false);
+  const appliedTab = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -167,6 +170,13 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
       else if (open("trivia")) setTab("trivia");
     }
   }, [state]);
+
+  useEffect(() => {
+    if (!tabRequest || appliedTab.current === tabRequest.key) return;
+    appliedTab.current = tabRequest.key;
+    initialTab.current = true;
+    setTab(tabRequest.kind);
+  }, [tabRequest]);
 
   useEffect(() => {
     if (!cueRequest || appliedCue.current === cueRequest.key) return;

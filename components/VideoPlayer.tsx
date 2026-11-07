@@ -33,7 +33,7 @@ import {
   type MediaSourceType,
 } from '@/lib/youtube';
 import { SCENE_SOURCE_TYPE, parseScenePlaybackId } from '@/lib/scenes';
-import SceneFrame from '@/components/SceneFrame';
+import SceneFrame, { type SceneActions } from '@/components/SceneFrame';
 
 interface VideoPlayerProps {
   playbackId: string;
@@ -70,7 +70,7 @@ interface VideoPlayerProps {
   onReconnectReady?: (reconnect: (() => void) | null) => void;
   /** Online audience view of a timed scene; stage and monitor show a card. */
   sceneInteractive?: boolean;
-  onOpenBuddy?: (index: number) => void;
+  sceneActions?: SceneActions;
 }
 
 const SIDELOADED_CAPTION_TRACK_ID = 'after-party-sideloaded-captions';
@@ -355,10 +355,10 @@ function YouTubePlaylistPlayer({
 
 export default function VideoPlayer(props: VideoPlayerProps) {
   if (props.sourceType === SCENE_SOURCE_TYPE && !props.isHoldScreen && props.playoutMode !== 'schedule') {
-    return <SceneFrame sceneId={parseScenePlaybackId(props.playbackId)} interactive={Boolean(props.sceneInteractive)}
+    return <SceneFrame sceneId={parseScenePlaybackId(props.playbackId)} interactive={Boolean(props.sceneInteractive)} playbackSessionId={props.playbackSessionId}
       playbackState={props.playbackState} playbackPositionSeconds={props.playbackPositionSeconds}
       playbackDurationSeconds={props.playbackDurationSeconds} snapshotReceivedAt={props.snapshotReceivedAt}
-      onStreamRefresh={props.onStreamRefresh} onOpenBuddy={props.onOpenBuddy} />;
+      onStreamRefresh={props.onStreamRefresh} actions={props.sceneActions} />;
   }
   const cue = !props.isHoldScreen && props.playoutMode !== 'schedule' ? props.countdown : null;
   return cue ? <CountdownFrame cue={cue} separateFooter={props.sourceType === YOUTUBE_VIDEO_SOURCE_TYPE} sessionId={props.playbackSessionId} playbackStartDelaySeconds={props.playbackStartDelaySeconds} snapshotReceivedAt={props.snapshotReceivedAt} snapshotRoundTripMs={props.snapshotRoundTripMs} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;

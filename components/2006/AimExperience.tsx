@@ -13,6 +13,8 @@ import { ClippyAssistant, ESSAY_PROMPTS, MailApp, StudyBreakInvitation, TextEdit
 import { ROOM_NAMES } from '@/lib/constants';
 import { clearViewerData } from '@/lib/viewer';
 import { getSmarterChildReply, type SmarterChildState } from '@/lib/smarter-child';
+import type { RulesTourAction } from '@/lib/rules-of-the-game';
+import type { GameKind } from '@/lib/game-types';
 import { SPRITES } from '@/lib/cast';
 import ShowBuddyStrip, { type ShowBuddy } from '@/components/2006/ShowBuddyStrip';
 import { useCastRun, type CastRunOrigin } from '@/hooks/useCastRun';
@@ -881,6 +883,18 @@ export default function AimExperience({
     setClippyVisible(false);
   };
 
+  const [gameTabRequest, setGameTabRequest] = useState<{ key: string; kind: GameKind } | null>(null);
+  // Rules of the Game tour actions open the same game and essay guests already use.
+  const sceneActions = {
+    openBuddy: (index: number) => openShowBuddy(index),
+    open: (target: RulesTourAction) => {
+      if (target === 'essay') { openEssay(); return; }
+      setGameTabRequest({ key: String(++cueRequestSequence.current), kind: target });
+      if (window.matchMedia('(max-width: 900px)').matches) selectMobilePanel('game');
+      else scrollToShowSection('game');
+    },
+  };
+
   const openAudienceTask = (cue: AudienceCue) => {
     if (cue.action.type === 'essay') {
       const index = cue.action.promptIndex;
@@ -1068,7 +1082,7 @@ export default function AimExperience({
                         playbackPosition={streamData.playbackPosition} playbackUpdatedAt={streamData.playbackUpdatedAt} playbackElapsedMs={streamData.playbackElapsedMs}
                         activeSlotId={streamData.activeSlotId} captionUrl={streamData.captionUrl} captionLabel={streamData.captionLabel}
                         captionLanguage={streamData.captionLanguage} onPlaybackError={refreshStream}
-                        sceneInteractive onOpenBuddy={openShowBuddy}
+                        sceneInteractive sceneActions={sceneActions}
                       />
                     </ErrorBoundary>
                   ) : (
@@ -1101,7 +1115,7 @@ export default function AimExperience({
                 </div>
                 <div className="mac2006-extra-panel" ref={showGameRef} tabIndex={-1} role="region" aria-label="Show game">
                   <ErrorBoundary fallback={<p>The show game is temporarily unavailable.</p>}><GameBoard screenName={viewer.displayName}
-                    onOpenTrivia={revealMobileTrivia} autoTriviaPopup={!audienceCues.armed} cueRequest={gameCueRequest} /></ErrorBoundary>
+                    onOpenTrivia={revealMobileTrivia} autoTriviaPopup={!audienceCues.armed} cueRequest={gameCueRequest} tabRequest={gameTabRequest} /></ErrorBoundary>
                   <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} hideWhenEmpty /></ErrorBoundary>
                   <ShowLinks />
                 </div>
