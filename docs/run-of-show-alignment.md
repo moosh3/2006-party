@@ -24,7 +24,7 @@ Working note, November 7, 2026. Compares MK’s run-of-show document (supplied i
 | 6 | Life Is A Highway | Cast lip-syncs to the recorded edit from opposite sides of the room; flashlight on whoever is talking | The edit plays |
 | — | Ads 6 | Urgent News Bulletin: news mash-up with silly adult commercials | Same |
 | — | **Video #2** | Sprite MK presents | Same |
-| 7 | Let’s Check Our Scores | Mario Party style. In-room attendee reads their essay; Alec reads audience submissions if time allows | A window pops open with superlative standings, the current video lineup, and links to submitted essays |
+| 7 | Let’s Check Our Scores | Built as a timed scene (`docs/check-our-scores.md`): live superlative totals, the countdown so far and tonight’s essays on `/event` and `/stage`. Migration 030 not yet installed in production | Mid-show “check our scores” window before the last round | Install 030; rehearse readability on the room TV |
 | — | Ads 7 | We’ll Be Right Back with your #1 Video, Last Gorillas, *insert here* ×2 | Same |
 | — | **Video #1** | Sprite Lip presents | Same |
 | 8 | When We Were Young | Performed live | Same video in both places |

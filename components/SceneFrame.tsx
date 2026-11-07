@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { SPRITES, type Sprite } from '@/lib/cast';
 import { RULES_TOUR, type RulesTourAction } from '@/lib/rules-of-the-game';
 import { SCENES, type SceneId } from '@/lib/scenes';
+import ScoresBoard from '@/components/ScoresBoard';
 import './scene-frame.css';
 
 export type SceneActions = {
@@ -47,6 +48,7 @@ export default function SceneFrame({ sceneId, interactive, playbackSessionId, pl
     return () => window.clearTimeout(timer);
   }, [onStreamRefresh, playbackState, playbackDurationSeconds, playbackPositionSeconds, snapshotReceivedAt]);
 
+  if (sceneId === 'check-our-scores') return <ScoresBoard interactive={interactive} />;
   if (!interactive || sceneId !== 'rules-of-the-game') {
     return (
       <div className="scene-frame scene-frame-card" role="img" aria-label={`${title}. ${scene?.stageLine || ''}`}>

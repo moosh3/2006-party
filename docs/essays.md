@@ -18,4 +18,4 @@ Guests write their 2006 essay in TextEdit (`/event`). **Save Draft** keeps it in
 - `GET/POST /api/admin/essays`: operator list (newest 300, including hidden) and hide/restore.
 - Prompts and text rules: `lib/essays.ts`. Test: `npm run test:essay-db`.
 
-Not built yet: the Let’s Check Our Scores window that links to these essays.
+Let’s Check Our Scores shows them to everyone: `docs/check-our-scores.md`.

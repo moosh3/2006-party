@@ -4,6 +4,7 @@ export const SCENE_SOURCE_TYPE = 'scene' as const;
 
 export const SCENES = {
   'rules-of-the-game': { label: 'Rules of the Game', stageLine: 'Happening online' },
+  'check-our-scores': { label: "Let's Check Our Scores", stageLine: '' },
 } as const;
 
 export type SceneId = keyof typeof SCENES;

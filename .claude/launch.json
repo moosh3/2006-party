@@ -4,20 +4,38 @@
     {
       "name": "after-party-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "playout-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview:playout"],
+      "runtimeArgs": [
+        "run",
+        "preview:playout"
+      ],
       "port": 3116
     },
     {
       "name": "game-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview:game"],
+      "runtimeArgs": [
+        "run",
+        "preview:game"
+      ],
       "port": 3106
+    },
+    {
+      "name": "audience-cues-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview:audience-cues"
+      ],
+      "port": 3116
     }
   ]
 }

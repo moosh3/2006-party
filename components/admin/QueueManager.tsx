@@ -5,7 +5,7 @@ import CountdownEditor from './CountdownEditor';
 import type { CountdownCue } from '@/lib/countdown';
 import type { ProgramStream } from '@/lib/program-stream';
 import { MUX_SOURCE_TYPE, YOUTUBE_VIDEO_SOURCE_TYPE, YOUTUBE_PLAYLIST_SOURCE_TYPE } from '@/lib/youtube';
-import { SCENES, SCENE_SOURCE_TYPE, sceneLengthError } from '@/lib/scenes';
+import { SCENES, SCENE_SOURCE_TYPE, sceneLengthError, type SceneId } from '@/lib/scenes';
 
 function mediaSourceLabel(sourceType?: string) {
   if (!sourceType || sourceType === MUX_SOURCE_TYPE) return 'Mux';
@@ -75,8 +75,9 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
   const nextCommand = useRef<{ commandId: string; expectedSessionId?: string } | null>(null);
   const [sceneFormOpen, setSceneFormOpen] = useState(false);
   const [sceneLength, setSceneLength] = useState('');
+  const [sceneId, setSceneId] = useState<SceneId>('rules-of-the-game');
   // Reused until the server answers, so a retried request cannot queue twice.
-  const sceneCommand = useRef<{ commandId: string; lengthSeconds: number } | null>(null);
+  const sceneCommand = useRef<{ commandId: string; sceneId: SceneId; lengthSeconds: number } | null>(null);
 
   useEffect(() => {
     loadQueue();
@@ -181,21 +182,23 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
     const lengthSeconds = Number(sceneLength);
     const invalid = sceneLength.trim() === '' ? sceneLengthError(NaN) : sceneLengthError(lengthSeconds);
     if (invalid) { setMessage({ type: 'error', text: invalid }); return; }
-    if (sceneCommand.current?.lengthSeconds !== lengthSeconds) sceneCommand.current = { commandId: crypto.randomUUID(), lengthSeconds };
+    if (sceneCommand.current?.lengthSeconds !== lengthSeconds || sceneCommand.current.sceneId !== sceneId) {
+      sceneCommand.current = { commandId: crypto.randomUUID(), sceneId, lengthSeconds };
+    }
     setLoading(true);
     setMessage(null);
     try {
       const response = await fetch('/api/admin/queue/scene', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sceneId: 'rules-of-the-game', ...sceneCommand.current }),
+        body: JSON.stringify(sceneCommand.current),
       });
       const data = await response.json();
       if (response.ok) {
         sceneCommand.current = null;
         setSceneFormOpen(false);
         setSceneLength('');
-        setMessage({ type: 'success', text: `${SCENES['rules-of-the-game'].label} added to the end of the queue. Playback is unchanged.` });
+        setMessage({ type: 'success', text: `${SCENES[sceneId].label} added to the end of the queue. Playback is unchanged.` });
         await loadQueue();
       } else {
         if (response.status < 500) sceneCommand.current = null;
@@ -479,13 +482,19 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
           </span>
         </h3>
         <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} onClick={() => setCountdownEditor('new')}>Add countdown cue</button>
-        <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} aria-expanded={sceneFormOpen} onClick={() => setSceneFormOpen(open => !open)}>Add {SCENES['rules-of-the-game'].label} scene</button>
+        <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} aria-expanded={sceneFormOpen} onClick={() => setSceneFormOpen(open => !open)}>Add scene</button>
         </div>
 
         {sceneFormOpen && (
           <form className="mb-4 rounded border border-twitch-border p-3 space-y-2" onSubmit={event => { event.preventDefault(); void handleQueueScene(); }}>
-            <p className="text-sm font-semibold text-twitch-text">{SCENES['rules-of-the-game'].label} (interactive scene)</p>
-            <p className="text-xs text-twitch-text-alt">Online guests get the clickable cast lineup in the player; the stage shows a title card. It plays for exactly this length on the show clock, like a video. Adding it never starts it.</p>
+            <label className="block text-sm font-medium">Scene
+              <select value={sceneId} onChange={event => setSceneId(event.target.value as SceneId)} className="twitch-input w-full mt-2">
+                {(Object.keys(SCENES) as SceneId[]).map(id => <option key={id} value={id}>{SCENES[id].label}</option>)}
+              </select>
+            </label>
+            <p className="text-xs text-twitch-text-alt">{sceneId === 'check-our-scores'
+              ? 'Guests and the stage see live superlative totals, the countdown so far and tonight’s essays. Starting it reveals those totals.'
+              : 'Online guests get the clickable cast lineup in the player; the stage shows a title card.'} It plays for exactly this length on the show clock, like a video. Adding it never starts it.</p>
             <label className="block text-sm font-medium">Length (seconds)
               <input type="number" inputMode="decimal" min="0.001" max="7200" step="any" required value={sceneLength}
                 onChange={event => setSceneLength(event.target.value)} className="twitch-input w-full mt-2" />
