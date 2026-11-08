@@ -79,6 +79,93 @@ function useTypingLines(draft: string, enabled: boolean): TypingLine | null {
   return typingLine;
 }
 
+const BALLOON_AUTO_CLOSE_MS = 12_000;
+
+/** Clippy floating over the TextEdit page like Office's assistant: a small
+ * character in the corner with a speech balloon. Click to poke him and open
+ * the balloon; drag to move him anywhere in the window; typing lines pop the
+ * balloon open and it tucks itself away again. Never moves focus. */
+function EssayClippy({ mode, typingLine, paused, active, onHide }: {
+  mode: ClippyMode; typingLine: TypingLine | null; paused: boolean; active: boolean; onHide: () => void;
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const balloon = useRef<HTMLDivElement>(null);
+  // Phones start with the balloon closed so it never sits over the writing.
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia('(max-width: 900px)').matches);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [userPaused, setUserPaused] = useState(false);
+  const [reduced, setReduced] = useState(true);
+  const drag = useRef<{ pointer: number; startX: number; startY: number; from: { x: number; y: number }; moved: boolean } | null>(null);
+  const justDragged = useRef(false);
+  const autoClose = useRef<number | null>(null);
+
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  // The greeting and each typing line open the balloon, then it tucks away
+  // unless the guest is using it.
+  useEffect(() => {
+    if (typingLine) setOpen(true);
+    if (autoClose.current) window.clearTimeout(autoClose.current);
+    autoClose.current = window.setTimeout(() => {
+      if (!balloon.current?.matches(':hover, :focus-within')) setOpen(false);
+    }, BALLOON_AUTO_CLOSE_MS);
+  }, [typingLine]);
+  useEffect(() => () => { if (autoClose.current) window.clearTimeout(autoClose.current); }, []);
+
+  const onPointerDown = (event: React.PointerEvent) => {
+    if (event.button !== 0) return;
+    drag.current = { pointer: event.pointerId, startX: event.clientX, startY: event.clientY, from: offset, moved: false };
+  };
+  const onPointerMove = (event: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || d.pointer !== event.pointerId) return;
+    const dx = event.clientX - d.startX, dy = event.clientY - d.startY;
+    if (!d.moved && Math.hypot(dx, dy) < 5) return;
+    if (!d.moved) { d.moved = true; (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); }
+    // Keep him inside the TextEdit window.
+    const box = host.current, frame = box?.closest('.mac2006-textedit-app');
+    if (!box || !frame) return;
+    const f = frame.getBoundingClientRect(), b = box.getBoundingClientRect();
+    // `b` is where he is drawn now (at `offset`), so the window edges bound the offset.
+    const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
+    setOffset({
+      x: clamp(d.from.x + dx, offset.x + f.left - b.left, offset.x + f.right - b.right),
+      y: clamp(d.from.y + dy, offset.y + f.top - b.top, offset.y + f.bottom - b.bottom),
+    });
+  };
+  const onPointerUp = (event: React.PointerEvent) => {
+    if (drag.current?.moved) justDragged.current = true;
+    if (drag.current?.pointer === event.pointerId) drag.current = null;
+  };
+
+  return (
+    <div ref={host} className="essay-clippy" style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+      onKeyDown={event => { if (event.key === 'Escape' && open) { event.stopPropagation(); setOpen(false); } }}>
+      {open && (
+        <div ref={balloon} className="essay-clippy-balloon" role="region" aria-label="Clippy">
+          <ClippyDialogue mode={mode} typingLine={typingLine} />
+          <div className="essay-clippy-actions">
+            {!reduced && !paused && <button type="button" aria-pressed={userPaused} onClick={() => setUserPaused(value => !value)}>{userPaused ? 'Resume Clippy' : 'Pause Clippy'}</button>}
+            <button type="button" onClick={onHide}>Hide Clippy</button>
+          </div>
+          <button type="button" className="essay-clippy-close" aria-label="Close Clippy’s balloon" onClick={() => setOpen(false)}>×</button>
+        </div>
+      )}
+      <div className="essay-clippy-body" title="Click me. Drag to move me."
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
+        onClickCapture={event => { if (justDragged.current) { justDragged.current = false; event.preventDefault(); event.stopPropagation(); } }}>
+        <ClippyAnimation compact reaction={mode === 'saved' ? 'spin' : 'curious'} paused={paused || userPaused} active={active}
+          onPoke={() => setOpen(true)} />
+      </div>
+    </div>
+  );
+}
+
 /** Phone counterpart to the desktop helper, kept below the program picture. */
 export function StudyBreakInvitation({ onOpenEssay, onDismiss }: { onOpenEssay: () => void; onDismiss: () => void }) {
   return <aside className="show2006-audience-cue show2006-study-break" aria-label="Essay invitation">
@@ -191,13 +278,6 @@ export function TextEditApp({
       {submission && (
         <p className="show2006-essay-submitted" role="status">Submitted as {submission.screenName}. Your essay is published for tonight’s show and can’t be changed.</p>
       )}
-      {helperVisible ? <aside className="show2006-essay-clippy" aria-label="Clippy essay helper">
-        <ClippyAnimation reaction={saved ? 'spin' : 'curious'} paused={paused} active={active} />
-        <div>
-          <ClippyDialogue mode={saved ? 'saved' : 'essay'} typingLine={saved ? null : typingLine} />
-          <button type="button" className="mac2006-aqua-button" onClick={() => setHelperVisible(false)}>Hide Clippy</button>
-        </div>
-      </aside> : <button type="button" className="show2006-clippy-return" onClick={() => setHelperVisible(true)}>Bring back Clippy</button>}
       <div className="mac2006-ruler" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
       <div className="mac2006-document-wrap">
         <div className="mac2006-document">
@@ -209,7 +289,13 @@ export function TextEditApp({
       </div>
       {saveError && <p className="show2006-save-error" role="alert">{saveError}</p>}
       {submitError && <p className="show2006-save-error" role="alert">{submitError}</p>}
-      <div className="mac2006-app-status"><span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span><span>{submission ? 'Submitted' : saved ? 'Saved on this computer' : 'Not saved'}</span></div>
+      {helperVisible && <EssayClippy mode={saved ? 'saved' : 'essay'} typingLine={saved ? null : typingLine} paused={paused} active={active}
+        onHide={() => setHelperVisible(false)} />}
+      <div className="mac2006-app-status">
+        <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
+        {!helperVisible && <button type="button" className="show2006-clippy-return" onClick={() => setHelperVisible(true)}>Bring back Clippy</button>}
+        <span>{submission ? 'Submitted' : saved ? 'Saved on this computer' : 'Not saved'}</span>
+      </div>
     </div>
   );
 }

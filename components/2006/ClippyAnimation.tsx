@@ -6,8 +6,11 @@ const CLIPS = { hello: 3200, curious: 3520, tap: 3520, spin: 3840 } as const;
 type Clip = keyof typeof CLIPS;
 
 /** Original one-shot GIFs, with a static fallback and no broadcast side effects. */
-export default function ClippyAnimation({ reaction = 'curious', paused = false, active = true }: {
+export default function ClippyAnimation({ reaction = 'curious', paused = false, active = true, compact = false, onPoke }: {
   reaction?: Clip; paused?: boolean; active?: boolean;
+  /** Just the character: the floating helper shows remarks and controls in its balloon. */
+  compact?: boolean;
+  onPoke?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [onScreen, setOnScreen] = useState(false);
@@ -48,6 +51,7 @@ export default function ClippyAnimation({ reaction = 'curious', paused = false, 
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [reaction, canAnimate]);
   const poke = () => {
+    onPoke?.();
     const count = ++clicks.current;
     setRemark(count % 2 ? 'Yes, this counts as procrastinating.' : 'A little spin. Now back to your masterpiece.');
     if (!canAnimate || run || document.hidden) return;
@@ -63,7 +67,7 @@ export default function ClippyAnimation({ reaction = 'curious', paused = false, 
           timer.current = setTimeout(stop, CLIPS[run.clip]);
         }} onError={stop} />
     </button>
-    <small role="status">{remark}</small>
-    {!reduced && !paused && <button type="button" className="show2006-clippy-motion" aria-pressed={localPaused} onClick={() => setLocalPaused(value => !value)}>{localPaused ? 'Resume Clippy' : 'Pause Clippy'}</button>}
+    {!compact && <small role="status">{remark}</small>}
+    {!compact && !reduced && !paused && <button type="button" className="show2006-clippy-motion" aria-pressed={localPaused} onClick={() => setLocalPaused(value => !value)}>{localPaused ? 'Resume Clippy' : 'Pause Clippy'}</button>}
   </div>;
 }

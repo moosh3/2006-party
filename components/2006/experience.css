@@ -554,12 +554,12 @@
 .mac2006-email-body li { margin: 5px 0; }
 .mac2006-aqua-button.primary { border-color: #3577a9; box-shadow: inset 0 1px 0 #fff, 0 0 0 2px rgba(68, 146, 202, .25); font-weight: 700; }
 
-.mac2006-textedit-app { display: flex; min-height: 0; flex: 1; flex-direction: column; background: #d7d7d7; }
+.mac2006-textedit-app { position: relative; display: flex; min-height: 0; flex: 1; flex-direction: column; background: #d7d7d7; }
 .mac2006-textedit-toolbar { display: flex; min-height: 56px; flex: none; align-items: end; gap: 12px; justify-content: space-between; border-bottom: 1px solid #858585; background: linear-gradient(#f0f0f0, #c8c8c8); padding: 6px 10px; }
 .mac2006-textedit-toolbar label { display: grid; min-width: 0; flex: 1; gap: 3px; color: #444; font-size: 9px; }
 .mac2006-textedit-toolbar select { width: 100%; min-width: 0; border: 1px solid #777; border-radius: 4px; background: #fff; padding: 4px 6px; color: #222; font: 10px 'Lucida Grande', Helvetica, Arial, sans-serif; }
 .mac2006-ruler { display: flex; height: 18px; flex: none; justify-content: space-around; border-bottom: 1px solid #999; background: repeating-linear-gradient(90deg, transparent 0 9px, #888 10px, transparent 11px 19px), #ececec; padding: 2px 22px 0; color: #666; font: 8px Georgia, serif; }
-.mac2006-document-wrap { min-height: 0; flex: 1; overflow: auto; background: #929292; padding: 16px; }
+.mac2006-document-wrap { min-height: 0; flex: 1; overflow: auto; background: #929292; padding: 16px 16px 132px; }
 .mac2006-document { display: flex; width: min(100%, 560px); min-height: 100%; flex-direction: column; margin: 0 auto; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .45); padding: 34px 42px; }
 .mac2006-document h2 { margin: 0 0 18px; font: 700 19px/1.2 Georgia, 'Times New Roman', serif; text-align: center; }
 .mac2006-document .prompt { margin: 0 0 16px; border-bottom: 1px solid #ddd; padding-bottom: 11px; color: #555; font: italic 12px/1.45 Georgia, 'Times New Roman', serif; }
@@ -621,7 +621,7 @@
   .mac2006-mail-reader { grid-template-rows: 72px minmax(0, 1fr); }
   .mac2006-message-list button { grid-template-columns: 12px 90px minmax(0, 1fr); }
   .mac2006-textedit-toolbar { align-items: stretch; flex-direction: column; }
-  .mac2006-document-wrap { padding: 8px; }
+  .mac2006-document-wrap { padding: 8px 8px 124px; }
   .mac2006-document { min-height: 540px; padding: 25px 21px; }
   .mac2006-clippy { max-width: calc(100vw - 10px); }
   .mac2006-clippy > img { width: 102px; height: 132px; }
@@ -703,10 +703,34 @@
   .xp2006-desktop { padding-inline: 4px; }
 }
 
-/* Clippy shares TextEdit's paper, never the program picture. */
-.show2006-essay-clippy { display: flex; flex: none; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid oklch(0.8 0.018 85); background: oklch(0.98 0.027 95); color: oklch(0.27 0.025 65); }
-.show2006-essay-clippy > div:last-child { min-width: 0; max-width: 42ch; font: 12px/1.5 Tahoma, Arial, sans-serif; }
-.show2006-essay-clippy p { margin: 5px 0 8px; }
+/* Clippy floats over TextEdit's page like Office's assistant, never over the
+   program picture. The page has room below so writing scrolls clear of him. */
+.essay-clippy { position: absolute; right: 18px; bottom: 34px; z-index: 6; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: calc(100% - 24px); pointer-events: none; }
+.essay-clippy > * { pointer-events: auto; }
+.essay-clippy-body { width: 84px; cursor: grab; touch-action: none; filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3)); }
+.essay-clippy-body:active { cursor: grabbing; }
+.essay-clippy .show2006-clippy-animation { width: 84px; }
+.essay-clippy .show2006-clippy-poke { width: 84px; height: 84px; }
+.essay-clippy .show2006-clippy-poke img { pointer-events: none; -webkit-user-drag: none; }
+.essay-clippy-balloon { position: relative; width: min(250px, 100%); margin-right: 26px; border: 1px solid #000; border-radius: 10px; background: #ffffe1; color: #111; padding: 10px 14px 6px 12px; font: 12px/1.45 Tahoma, Arial, sans-serif; text-align: left; box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.22); }
+/* The balloon's tail points down at Clippy. */
+.essay-clippy-balloon::before, .essay-clippy-balloon::after { content: ''; position: absolute; right: 18px; border-style: solid; }
+.essay-clippy-balloon::before { bottom: -13px; border-width: 13px 0 0 13px; border-color: #000 transparent transparent; }
+.essay-clippy-balloon::after { bottom: -11px; right: 19px; border-width: 11px 0 0 11px; border-color: #ffffe1 transparent transparent; }
+.essay-clippy-balloon .show2006-clippy-copy { padding-right: 18px; }
+.essay-clippy-balloon .show2006-clippy-copy strong { display: block; font-size: 12.5px; }
+.essay-clippy-balloon .show2006-clippy-copy p { margin: 4px 0 2px; }
+.essay-clippy-balloon .show2006-clippy-another { min-height: 36px; padding: 4px 0; }
+.essay-clippy-actions { display: flex; flex-wrap: wrap; gap: 0 12px; border-top: 1px solid #e3dca0; margin-top: 2px; }
+.essay-clippy-actions button { min-height: 36px; border: 0; background: none; padding: 0; color: #00329b; font: inherit; text-decoration: underline; cursor: pointer; }
+.essay-clippy-close { position: absolute; top: 0; right: 0; width: 32px; height: 32px; border: 0; background: none; color: #444; font: 18px/1 Tahoma, Arial, sans-serif; cursor: pointer; }
+.essay-clippy :is(button, .essay-clippy-body button):focus-visible { outline: 2px solid oklch(0.46 0.13 250); outline-offset: 2px; }
+.mac2006-app-status .show2006-clippy-return { min-height: 0; border: 0; background: none; padding: 0 6px; color: #00329b; }
+@media (max-width: 900px) {
+  .essay-clippy-close { width: 44px; height: 44px; }
+  .essay-clippy-actions button, .essay-clippy-balloon .show2006-clippy-another { min-height: 44px; }
+  .essay-clippy-balloon .show2006-clippy-copy { padding-right: 30px; }
+}
 .show2006-clippy-another { position: relative; z-index: 1; min-height: 44px; padding: 6px 8px; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
 .show2006-clippy-another:hover { background: oklch(0.94 0.035 95); }
 :is(.show2006-clippy-another, .mac2006-clippy-close):focus-visible { outline: 2px solid oklch(0.46 0.13 250); outline-offset: 2px; }
@@ -723,16 +747,6 @@
 .show2006-clippy-return { flex: none; background: oklch(0.98 0.027 95); }
 .mac2006-clippy .show2006-clippy-poke { width: 96px; height: 96px; }
 .mac2006-clippy .show2006-clippy-animation { width: 96px; border-radius: 10px; padding: 4px; background: oklch(0.98 0.027 95); color: oklch(0.27 0.025 65); }
-.show2006-essay-clippy .mac2006-aqua-button { min-height: 44px; }
 @media (max-width: 600px) {
-  .show2006-essay-clippy { padding: 8px; gap: 8px; }
-  .show2006-essay-clippy .show2006-clippy-animation { width: 100px; }
-  .show2006-essay-clippy .show2006-clippy-poke { width: 96px; height: 96px; }
 }
 @media (prefers-reduced-motion: reduce) { .mac2006-clippy { animation: none; } }
-@media (min-width: 601px) {
-  .show2006-essay-clippy .show2006-clippy-animation { display: grid; width: 230px; grid-template-columns: 112px 1fr; grid-template-rows: 1fr 1fr; column-gap: 6px; }
-  .show2006-essay-clippy .show2006-clippy-poke { grid-row: 1 / 3; }
-  .show2006-essay-clippy .show2006-clippy-animation small { align-self: end; padding: 0 4px; }
-  .show2006-essay-clippy .show2006-clippy-motion { align-self: start; }
-}
