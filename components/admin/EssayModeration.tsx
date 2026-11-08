@@ -65,7 +65,7 @@ export default function EssayModeration() {
           <h3>{essay.prompt}</h3>
           <p style={{ whiteSpace: "pre-wrap" }}>{essay.body}</p>
           <div className="game-admin-actions">
-            <button disabled={busy === essay.id} onClick={() => void setHidden(essay, !essay.hidden)}>
+            <button disabled={busy === essay.id} aria-label={`${essay.hidden ? "Restore" : "Hide"} essay by ${essay.screenName}`} onClick={() => void setHidden(essay, !essay.hidden)}>
               {essay.hidden ? "Restore" : "Hide"}
             </button>
           </div>

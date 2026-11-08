@@ -121,6 +121,7 @@ function YouTubePlaylistPlayer({
   useEffect(() => {
     let disposed = false;
     let autoplayFallbackTimer: number | null = null;
+    const mount = mountRef.current;
 
     setIsReady(false);
     setLoadError(false);
@@ -128,9 +129,15 @@ function YouTubePlaylistPlayer({
 
     loadYouTubeIframeApi()
       .then((YT) => {
-        if (disposed || !mountRef.current) return;
+        if (disposed || !mount) return;
 
-        const player = new YT.Player(mountRef.current, {
+        // YouTube replaces the element it is given with its iframe. Give it a
+        // node React does not own, or React's next removal of this tree throws
+        // "removeChild … not a child of this node" and crashes the page.
+        const target = document.createElement('div');
+        target.className = 'h-full w-full';
+        mount.replaceChildren(target);
+        const player = new YT.Player(target, {
           width: '100%',
           height: '100%',
           playerVars: {
@@ -219,6 +226,7 @@ function YouTubePlaylistPlayer({
       if (autoplayFallbackTimer !== null) window.clearTimeout(autoplayFallbackTimer);
       playerRef.current?.destroy();
       playerRef.current = null;
+      mount?.replaceChildren();
     };
   }, [playlistId, viewerLocked]);
 
@@ -288,6 +296,7 @@ function YouTubePlaylistPlayer({
       onMouseMove={pokeControls}
     >
       <div className="absolute inset-0 h-full w-full">
+        {/* Filled with YouTube's player outside React (see the effect above). */}
         <div ref={mountRef} className="h-full w-full" title={title} />
       </div>
       {viewerLocked && <div className="absolute inset-0 z-10" aria-hidden="true" />}

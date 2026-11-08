@@ -11,8 +11,10 @@ export const POPUP_MAX_WIDTH = 380;
 export const POPUP_MIN_HEIGHT = 200;
 
 /** `avoid` is the player; `viewport` is the usable screen (minus menu bar and
- * dock). With no player on screen, the popup sits bottom-right. */
-export function placePopup(viewport: Box, avoid: Box | null): Placement {
+ * dock). With no player on screen, the popup sits bottom-right. Spaces where
+ * the whole popup (`contentHeight`) fits win over larger ones where it scrolls,
+ * so the popup does not jump between spaces or hide its buttons. */
+export function placePopup(viewport: Box, avoid: Box | null, contentHeight = 0): Placement {
   const visible = avoid && avoid.right > viewport.left && avoid.left < viewport.right
     && avoid.bottom > viewport.top && avoid.top < viewport.bottom ? avoid : null;
   const regions: Box[] = visible ? [
@@ -24,7 +26,7 @@ export function placePopup(viewport: Box, avoid: Box | null): Placement {
   const fitting = regions
     .map(r => ({ r, w: r.right - r.left, h: r.bottom - r.top }))
     .filter(({ w, h }) => w >= POPUP_MIN_WIDTH && h >= POPUP_MIN_HEIGHT)
-    .sort((a, b) => b.w * b.h - a.w * a.h);
+    .sort((a, b) => Number(b.h >= contentHeight) - Number(a.h >= contentHeight) || b.w * b.h - a.w * a.h);
   const best = fitting[0];
   if (!best) return { mode: 'collapsed' };
   const width = Math.min(POPUP_MAX_WIDTH, best.w);

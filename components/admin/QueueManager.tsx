@@ -479,7 +479,7 @@ export default function QueueManager({ program, onStreamRefresh }: { program?: P
             <span>Show queue</span>
           </span>
           <span className="text-sm font-normal text-twitch-text-alt">
-            {queue.length} {queue.length === 1 ? 'video' : 'videos'}
+            {queue.length} {queue.length === 1 ? 'cue' : 'cues'}
           </span>
         </h3>
         <button type="button" className="min-h-[44px] px-4 rounded border border-twitch-purple text-twitch-purple font-semibold" disabled={loading} onClick={() => setCountdownEditor('new')}>Add countdown cue</button>

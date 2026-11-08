@@ -70,7 +70,7 @@ export default function ScoresBoard({ interactive }: { interactive: boolean }) {
                 {scores.countdown.map(video => <li key={video.rank}><strong>#{video.rank}</strong> {video.title}</li>)}
               </ol>
             )}
-            <p className="scores-next">#1 is still to come…</p>
+            {!scores.countdown.some(video => video.rank === 1) && <p className="scores-next">#1 is still to come…</p>}
           </section>
           <section aria-labelledby="scores-essays">
             <h3 id="scores-essays">Essays ({scores.essays.length})</h3>

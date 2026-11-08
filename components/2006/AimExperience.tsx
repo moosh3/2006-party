@@ -101,6 +101,21 @@ const BUDDIES: Buddy[] = [
 
 const SHOW_BUDDIES: readonly ShowBuddy[] = SPRITES;
 
+/** Scroll only a real scroll container to show `target`. scrollIntoView would
+ * also scroll overflow-hidden Mac windows, hiding their title bars for good. */
+function revealWithin(target: HTMLElement) {
+  for (let el = target.parentElement; el && el !== document.body; el = el.parentElement) {
+    const overflow = getComputedStyle(el).overflowY;
+    if ((overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight) {
+      el.scrollTo({ top: target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop, behavior: 'instant' });
+      return;
+    }
+  }
+  // Phones scroll the page itself; keep the target below the sticky header.
+  const header = document.querySelector('.mobile2006-header')?.getBoundingClientRect().height || 0;
+  window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - header, behavior: 'instant' });
+}
+
 function ShowLinks() {
   return (
     <nav className="show2006-links" aria-label="More from the show">
@@ -754,7 +769,7 @@ export default function AimExperience({
     setActiveMacWindow('safari');
     setClippyVisible(false);
     const target = section === 'game' ? showGameRef.current : showVideoRef.current;
-    target?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    if (target) revealWithin(target);
     target?.focus({ preventScroll: true });
   };
   const [macWindows, setMacWindows] = useState<Record<MacWindowName, boolean>>({ safari: true, aim: true, mail: false, textedit: false, rules: false });
@@ -865,7 +880,11 @@ export default function AimExperience({
     setActiveMacWindow(name);
     if (window.matchMedia('(max-width: 900px)').matches) {
       setMobilePanel(name === 'aim' ? 'chat' : name === 'safari' ? 'watch' : 'extras');
-      requestAnimationFrame(() => document.querySelector(`.mac2006-window-${name}`)?.scrollIntoView({ block: 'start' }));
+      // Two frames: the panel switch must render before the window can be measured.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const target = document.querySelector<HTMLElement>(`.mac2006-window-${name}`);
+        if (target) revealWithin(target);
+      }));
     }
   };
 
@@ -1132,7 +1151,6 @@ export default function AimExperience({
               </nav>
 
               <div className="mac2006-safari-page" data-audience-layout={commercialLayout ? 'commercial' : 'program'}>
-                <div className="show2006-desktop-buddies"><ShowBuddyStrip origin="desktop" {...buddyStripProps} /></div>
                 <div className="mac2006-video" ref={showVideoRef} tabIndex={-1} data-program-player>
                   {streamData ? (
                     <ErrorBoundary fallback={<div className="mac2006-video-error">The video player stopped. Reload to reconnect.</div>}>

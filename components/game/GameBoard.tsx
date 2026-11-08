@@ -113,7 +113,9 @@ function usePopupPlacement(open: boolean): Placement | null {
         top: (header ? Math.max(0, header.bottom) : 0) + 8,
         bottom: (dock && dock.top > window.innerHeight / 2 ? dock.top : window.innerHeight) - 8,
       };
-      const next = placePopup(viewport, rect(document.querySelector("[data-program-player]")));
+      // Natural height of the open popup, so a space that fits it wins.
+      const content = document.querySelector<HTMLElement>(".game-popup-layer .game-popup");
+      const next = placePopup(viewport, rect(document.querySelector("[data-program-player]")), content?.scrollHeight || 0);
       setPlacement((prev) => JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
     };
     measure();

@@ -18,9 +18,10 @@ export async function publishedEssays(): Promise<PublishedEssay[]> {
   const since = await tonight();
   if (!since) return [];
   const { data, error } = await db.from('essay_submissions').select('id,screen_name,prompt,body,created_at')
-    .eq('hidden', false).gte('created_at', since).order('created_at', { ascending: true }).limit(300);
+    .eq('hidden', false).gte('created_at', since).order('created_at', { ascending: false }).limit(300);
   if (error) throw new Error(error.code || 'essay_submissions');
-  return (data || []).map(toEssay);
+  // Newest 300, shown oldest first.
+  return (data || []).map(toEssay).reverse();
 }
 
 export const missingEssayTable = (code?: string) => code === '42P01' || code === '42883' || code === 'PGRST202' || code === 'PGRST205';

@@ -360,7 +360,7 @@
 .xp2006-desktop.mac2006-desktop::before { width: 84vw; height: 58vh; right: -19vw; bottom: -31vh; box-shadow: 0 -22px 55px rgba(95, 224, 255, .22), inset 0 18px 42px rgba(255, 255, 255, .12); }
 .xp2006-desktop.mac2006-desktop::after { width: 76vw; height: 46vh; left: -31vw; top: -25vh; box-shadow: 0 18px 54px rgba(255, 255, 255, .18); }
 
-.mac2006-shell { position: relative; z-index: 1; width: 100%; min-height: 100dvh; overflow: hidden; }
+.mac2006-shell { position: relative; z-index: 1; width: 100%; min-height: 100dvh; overflow: hidden; overflow: clip; }
 
 .mac2006-menubar {
   position: absolute;
@@ -398,6 +398,9 @@
   min-height: 220px;
   flex-direction: column;
   overflow: hidden;
+  /* clip, not just hidden: a hidden box is still a scroll container that focus,
+     scrollIntoView or scroll anchoring can shift, hiding the title bar for good. */
+  overflow: clip;
   transform: translate3d(var(--mac2006-drag-x), var(--mac2006-drag-y), 0);
   border: 1px solid #6d6d6d;
   border-radius: 7px 7px 5px 5px;

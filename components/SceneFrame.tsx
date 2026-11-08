@@ -104,7 +104,22 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
     return () => { if (root.dataset.tourTarget === highlight) delete root.dataset.tourTarget; };
   }, [highlight]);
   const stopAudio = () => { audio.current?.pause(); audio.current = null; };
-  const endTour = () => { setStep(null); markTourDone(sessionId); };
+  // After a guest's own wizard click, keep keyboard focus on a sensible button
+  // (a disabled or removed button would drop focus to the page).
+  const nextButton = useRef<HTMLButtonElement>(null);
+  const finishButton = useRef<HTMLButtonElement>(null);
+  const startButton = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    // Only when the clicked button is gone or disabled; otherwise focus stays put.
+    const active = document.activeElement as HTMLButtonElement | null;
+    if (active && active !== document.body && active.isConnected && !active.disabled) return;
+    (step === null ? startButton.current : nextButton.current || finishButton.current)?.focus();
+  }, [step]);
+  const goTo = (next: number) => { refocus.current = true; setStep(next); };
+  const endTour = () => { refocus.current = true; setStep(null); markTourDone(sessionId); };
 
   /** Each click says the next of the Sprite's lines, back to the first after the last. */
   const speak = (sprite: Sprite) => {
@@ -172,15 +187,15 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
               <ol className="scene-wizard-dots" aria-hidden="true">
                 {RULES_TOUR.map((s, i) => <li key={s.id} data-current={i === step || undefined} data-done={i < step! || undefined} />)}
               </ol>
-              <button type="button" disabled={step === 0} onClick={() => setStep(step! - 1)}>&lt; Back</button>
+              <button type="button" disabled={step === 0} onClick={() => goTo(step! - 1)}>&lt; Back</button>
               {step! < RULES_TOUR.length - 1
-                ? <button type="button" onClick={() => setStep(step! + 1)}>Next &gt;</button>
-                : <button type="button" onClick={endTour}>Finish</button>}
+                ? <button type="button" ref={nextButton} onClick={() => goTo(step! + 1)}>Next &gt;</button>
+                : <button type="button" ref={finishButton} onClick={endTour}>Finish</button>}
               {step! < RULES_TOUR.length - 1 && <button type="button" onClick={endTour}>Skip</button>}
             </div>
           </>
         ) : (
-          <button type="button" className="scene-tour-start" onClick={() => setStep(0)}>Show me around</button>
+          <button type="button" ref={startButton} className="scene-tour-start" onClick={() => goTo(0)}>Show me around</button>
         )}
       </div>
     </section>

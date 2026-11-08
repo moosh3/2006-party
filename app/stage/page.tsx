@@ -107,7 +107,8 @@ export default function StagePage() {
 
         <div className="stage-cue-next">
           <span className="stage-cue-label">NEXT</span>
-          <strong>{nextCue?.label || (stream.nextTransitionAt ? 'Scheduled transition' : 'Waiting for operator')}</strong>
+          {/* The queue itself stays private: listing it here would spoil the countdown order. */}
+          <strong>{nextCue?.label || (stream.nextTransitionAt ? (stream.playoutMode === 'schedule' ? 'Scheduled transition' : 'Next cue starts automatically') : 'Waiting for operator')}</strong>
         </div>
       </section>
 

@@ -74,7 +74,9 @@
 .scene-stage[data-entering] { overflow: hidden; }
 .scene-rules .scene-lineup { flex-wrap: nowrap; gap: 0; }
 /* Gathered together, slightly overlapping and staggered, like a group photo. */
-.scene-rules .scene-lineup li { position: relative; margin: 0 clamp(-10px, -1cqw, -3px); }
+/* The Sprites stand close, but their name labels never overlap. */
+.scene-rules .scene-lineup li { position: relative; margin: 0 clamp(1px, 0.4cqw, 4px); }
+.scene-rules .scene-lineup span { position: relative; z-index: 1; font-size: clamp(9px, 1.9cqw, 14px); padding: 1px 4px; white-space: nowrap; }
 .scene-rules .scene-lineup li:nth-child(even) { top: clamp(3px, 1cqw, 8px); }
 .scene-rules .scene-lineup button { padding: 2px; }
 .scene-rules .scene-lineup img { width: clamp(30px, 7.5cqw, 90px); }
@@ -131,8 +133,8 @@
   background: linear-gradient(180deg, #fff, #ece9d8);
   color: #1a1a1a;
   padding: 2px 14px;
-  font-size: clamp(11px, 2cqw, 14px);
   font: inherit;
+  font-size: clamp(11px, 2cqw, 14px);
   cursor: pointer;
 }
 .scene-wizard-action { justify-self: start; margin-top: 4px; font-weight: 700; }
@@ -193,3 +195,8 @@ html[data-tour-target='chat'] [data-tour~='chat'] {
   html[data-tour-target] [data-tour] { animation: none !important; }
 }
 .scene-tour-pointer { font-style: italic; color: #5a4a00; }
+/* Phone header tabs sit right under the logo: keep their glow inside the tab. */
+html[data-tour-target] .mobile2006-header [data-tour] { outline-offset: -3px; box-shadow: inset 0 0 0 5px rgba(255, 214, 82, 0.35); animation: none; }
+html[data-tour-target='vote'] .mobile2006-header [data-tour~='vote'],
+html[data-tour-target='essay'] .mobile2006-header [data-tour~='essay'],
+html[data-tour-target='chat'] .mobile2006-header [data-tour~='chat'] { background: rgba(255, 214, 82, 0.3); }

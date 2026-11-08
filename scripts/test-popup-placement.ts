@@ -17,6 +17,9 @@ const check = (name: string, viewport: Box, video: Box | null, expect: 'floating
 // 1024×768 floating desktop: video on the left, room on the right.
 const desk = check('desktop 1024', { left: 12, top: 32, right: 1012, bottom: 680 }, { left: 13, top: 217, right: 699, bottom: 609 }, 'floating');
 assert.ok(desk.mode === 'floating' && desk.left > 699);
+// 1024×768 with a tall popup: the space beside the video (fits) beats the wider space below it (would scroll).
+const tall = placePopup({ left: 12, top: 32, right: 1012, bottom: 690 }, { left: 13, top: 120, right: 699, bottom: 469 }, 420);
+assert.ok(tall.mode === 'floating' && tall.left > 699 && tall.maxHeight >= 420, 'Tall popup goes where it fits whole');
 // Wide screen: plenty of room.
 check('desktop 1440', { left: 12, top: 32, right: 1428, bottom: 800 }, { left: 13, top: 200, right: 900, bottom: 700 }, 'floating');
 // Phone: video across the top, sheet below it.
