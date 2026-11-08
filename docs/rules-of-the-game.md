@@ -54,6 +54,7 @@ Revised November 7, 2026 after the first look: two separate things happen at onc
 
 ### Sprites (top half)
 
+- Look: a 2006 MySpace profile. Black with a hot-pink glitter tile and twinkling stars (still with reduced motion), and the Sprites stand in a pink “The 2006ers’ Friend Space” box (“The 2006ers have 6 friends.”). The setup wizard below keeps the Windows XP style.
 - No on-screen heading; the scene is still named “Rules of the Game” for assistive technology.
 - When the scene starts, the six Sprites walk in from the left one after another (0.3 s apart), gather in the middle slightly overlapping, and a “Welcome to 2006!” bubble appears for a few seconds. They use their still frames throughout: they walk and stand, they never spin. With reduced motion they are already gathered.
 - Clicking a Sprite pops a speech bubble above it with one of its three lines; each click says the next line, and after the third it starts again. Each Sprite keeps its own place. Only one bubble shows at a time; Escape closes it. A small **Buddy Info** link opens the existing profile.

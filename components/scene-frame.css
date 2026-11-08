@@ -69,7 +69,58 @@
 .scene-frame-audience { overflow: visible; align-content: center; }
 /* Sized to the player (cqw), not the browser window, so it fits the 16:9 picture. */
 .scene-rules { container-type: inline-size; place-content: stretch; grid-template-rows: auto auto; align-content: space-between; gap: clamp(6px, 1.5cqw, 16px); padding: clamp(6px, 2cqw, 24px); }
-.scene-stage { position: relative; display: grid; justify-items: center; padding-top: clamp(40px, 8cqw, 96px); }
+/* MySpace profile, 2006: black with a hot-pink glitter tile and twinkling stars. */
+.scene-rules {
+  background-color: #0d0710;
+  background-image:
+    radial-gradient(circle at 50% 120%, rgba(255, 20, 147, 0.45), transparent 60%),
+    radial-gradient(circle at 25% 25%, rgba(255, 105, 180, 0.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 75% 60%, rgba(255, 255, 255, 0.45) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 60% 15%, rgba(255, 182, 230, 0.4) 0 0.8px, transparent 1.4px);
+  background-size: 100% 100%, 22px 22px, 31px 31px, 17px 17px;
+}
+.scene-rules > :is(.scene-stage, .scene-wizard, .scene-tour-start) { position: relative; z-index: 1; }
+.scene-glitter { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.scene-glitter span {
+  position: absolute;
+  color: #ffd1f0;
+  text-shadow: 0 0 6px #ff69b4, 0 0 12px #ff1493;
+  animation: scene-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes scene-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-glitter span { animation: none; opacity: 0.6; }
+}
+/* The Sprites stand in a MySpace "Friend Space" box. */
+.scene-friends {
+  display: grid;
+  justify-items: center;
+  gap: clamp(2px, 0.8cqw, 6px);
+  border: 2px solid #ff69b4;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 18px rgba(255, 20, 147, 0.45);
+  padding: 0 clamp(6px, 2cqw, 18px) clamp(4px, 1cqw, 8px);
+  max-width: 100%;
+}
+.scene-friends-title {
+  justify-self: stretch;
+  margin: 0 calc(-1 * clamp(6px, 2cqw, 18px)) clamp(4px, 1cqw, 10px);
+  background: #ff69b4;
+  color: #fff;
+  padding: 2px 8px;
+  font-size: clamp(10px, 2cqw, 15px);
+  font-weight: 700;
+  text-align: left;
+}
+.scene-friends-count { margin: 0; color: #ffd1f0; font-size: clamp(9px, 1.7cqw, 13px); }
+.scene-friends-count b { color: #ff69b4; }
+.scene-rules .scene-lineup span { border-color: #ff69b4; color: #b0005f; }
+.scene-rules .scene-lineup button:hover { border-color: #ff69b4; background: rgba(255, 105, 180, 0.18); }
+.scene-rules .scene-bubble { border-color: #ff1493; }
+.scene-stage { position: relative; display: grid; justify-items: center; padding-top: clamp(30px, 5cqw, 64px); }
 /* Clip only while walking in from the left edge; bubbles may overflow afterwards. */
 .scene-stage[data-entering] { overflow: hidden; }
 .scene-rules .scene-lineup { flex-wrap: nowrap; gap: 0; }
@@ -105,7 +156,7 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
 }
 .scene-bubble p { margin: 0; line-height: 1.35; }
-.scene-welcome { position: absolute; top: clamp(4px, 2cqw, 20px); left: 50%; transform: translateX(-50%); margin: 0; font-weight: 700; font-size: clamp(13px, 3cqw, 24px); white-space: nowrap; }
+.scene-welcome { position: absolute; z-index: 2; top: 0; left: 50%; transform: translateX(-50%); margin: 0; font-weight: 700; font-size: clamp(13px, 3cqw, 24px); white-space: nowrap; }
 /* A line pops up above the Sprite who says it, kept inside the frame at the ends. */
 .scene-line { position: absolute; bottom: calc(100% + 6px); z-index: 3; width: max-content; max-width: min(260px, 45cqw); display: grid; gap: 4px; }
 .scene-lineup li[data-align='center'] .scene-line { left: 50%; transform: translateX(-50%); }

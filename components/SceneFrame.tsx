@@ -62,6 +62,11 @@ export default function SceneFrame({ sceneId, interactive, playbackSessionId, pl
 
 /** Walk-in time before the Sprites have gathered: 2.4 s walk plus a 0.3 s stagger each. */
 const ARRIVE_MS = 2400 + 300 * (SPRITES.length - 1) + 200;
+/** Decorative MySpace glitter: [left %, top %, size, delay s]. */
+const GLITTER: readonly [number, number, number, number][] = [
+  [6, 10, 1.1, 0], [18, 34, 0.7, 1.2], [29, 8, 0.9, 0.6], [44, 22, 0.6, 2.1], [58, 6, 1, 1.5], [71, 30, 0.8, 0.3],
+  [86, 12, 1.2, 1.9], [94, 40, 0.7, 0.9], [10, 58, 0.8, 2.4], [90, 62, 0.9, 1.1], [4, 86, 0.7, 0.4], [96, 88, 0.8, 1.7],
+];
 const WELCOME_MS = 5000;
 
 /** Two things at once: the Sprites walk in, gather and greet guests, who can
@@ -141,8 +146,15 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
   return (
     <section className="scene-frame scene-frame-audience scene-rules" aria-label={title}
       onKeyDown={event => { if (event.key === 'Escape' && talking) { stopAudio(); setTalking(null); } }}>
+      <div className="scene-glitter" aria-hidden="true">
+        {GLITTER.map(([left, top, size, delay]) => (
+          <span key={`${left}-${top}`} style={{ left: `${left}%`, top: `${top}%`, fontSize: `${size}em`, animationDelay: `${delay}s` }}>✦</span>
+        ))}
+      </div>
       <div className="scene-stage" data-entering={!arrived || undefined}>
         {arrived && welcoming && <p className="scene-bubble scene-welcome" role="status">{SPRITE_WELCOME}</p>}
+        <div className="scene-friends">
+        <p className="scene-friends-title" aria-hidden="true">The 2006ers’ Friend Space</p>
         <ul className="scene-lineup">
           {SPRITES.map((sprite, i) => {
             const isTalking = talking?.art === sprite.art;
@@ -166,6 +178,8 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
             );
           })}
         </ul>
+        <p className="scene-friends-count" aria-hidden="true">The 2006ers have <b>{SPRITES.length}</b> friends.</p>
+        </div>
       </div>
 
       <div className="scene-wizard" role="region" aria-label={`${title}: getting started`}
