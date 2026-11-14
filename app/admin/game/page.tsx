@@ -1,9 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GameKind, GameState, leaders, trlCountdown } from "@/lib/game-types";
+import { GameKind, GameState, leaders } from "@/lib/game-types";
 import "@/components/game/game.css";
 import EssayModeration from "@/components/admin/EssayModeration";
+import { SHOW_SUPERLATIVES } from "@/lib/show-superlatives";
+import GameShowControls from '@/components/admin/GameShowControls';
+import { runDeskActions } from '@/lib/game-desk';
 
 type AdminState = GameState & {
   shows: { id: string; title: string; status: string }[];
@@ -19,8 +22,11 @@ export default function GameAdmin() {
   const [connectionError, setConnectionError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deskView, setDeskView] = useState<"show" | "setup">("show");
+  const mutationPending = useRef(false);
   const [title, setTitle] = useState("2006 — tonight’s show");
   const [cast, setCast] = useState(initialCast);
+  const [triviaSourceShowId, setTriviaSourceShowId] = useState("");
   const [kind, setKind] = useState<GameKind>("trivia");
   const [question, setQuestion] = useState("");
   const [choices, setChoices] = useState("");
@@ -78,31 +84,53 @@ export default function GameAdmin() {
     }
   }, [data?.show?.id, data?.cast]);
 
-  async function act(payload: Record<string, unknown>) {
+  async function act(input: Record<string, unknown> | Record<string, unknown>[], message?: string) {
+    if (mutationPending.current || connectionError) return false;
+    const actions = Array.isArray(input) ? input : [input];
+    if (!actions.length) return false;
+    mutationPending.current = true;
     setBusy(true);
     setError("");
     setNotice("");
+    let completed = 0;
+    let createdShowId: string | undefined;
     try {
-      const r = await fetch("/api/admin/game", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ showId: data?.show?.id, ...payload }),
+      await runDeskActions(actions, async payload => {
+        const response = await fetch("/api/admin/game", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ showId: data?.show?.id, ...payload }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Action failed");
+        completed++;
+        if (payload.action === "new_show") createdShowId = result.showId;
       });
-      const result = await r.json();
-      if (!r.ok) throw new Error(result.error || "Action failed");
-      if (payload.action === "new_show") setShowId("");
-      await refresh();
-      setNotice("Saved.");
+      if (createdShowId) {
+        ++refreshVersion.current;
+        setData(null);
+        setShowId(createdShowId);
+        setTriviaSourceShowId("");
+        setDeskView("show");
+      } else await refresh();
+      setConnectionError("");
+      setNotice(message || (actions[0].action === "new_show" && actions[0].triviaSourceShowId
+        ? "New night created. Trivia is shuffled and saved as private drafts." : "Saved."));
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Action failed");
+      setError(`${completed ? "Some changes were saved before this stopped. " : ""}${e instanceof Error ? e.message : "Action failed"}`);
+      // A response can be lost after a write. Read actual state before enabling
+      // another click; never retry the reveal toggle automatically.
+      try { await refresh(); setConnectionError(""); }
+      catch { setConnectionError("Connection interrupted. Waiting for current status before enabling controls."); }
       return false;
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   }
   const show = data?.show;
   const active = show?.status === "active";
+  const unavailable = busy || Boolean(connectionError);
   const options = choices
     .split("\n")
     .map((s) => s.trim())
@@ -111,18 +139,12 @@ export default function GameAdmin() {
     <div className="game-admin">
       <main>
         <a href="/admin">← Stream controls</a>
-        <nav className="game-admin-nav" aria-label="Game desk shortcuts">
+        <h1>2006 · Game desk</h1>
+        <nav className="desk-view-nav" aria-label="Game desk views">
+          <button type="button" aria-pressed={deskView === 'show'} disabled={busy} onClick={() => setDeskView('show')}>Show time</button>
+          <button id="desk-setup-toggle" type="button" aria-pressed={deskView === 'setup'} disabled={busy} onClick={() => setDeskView('setup')}>Setup</button>
           <a href="/game" target="_blank" rel="noreferrer">Audience board ↗</a>
-          <a href="#game-editor">Prepare a round</a>
-          <a href="#game-rounds">Rounds</a>
-          <a href="#game-inbox">Suggestion inbox</a>
-          <a href="#game-moderation">Moderation</a>
         </nav>
-        <h1>2006 · Show game desk</h1>
-        <p>
-          Prepare drafts, open each round on cue, and reveal results when you’re
-          ready.
-        </p>
         {error && (
           <p className="game-error" role="alert">
             {error}
@@ -131,6 +153,16 @@ export default function GameAdmin() {
         <p role="status">{notice}</p>
         {connectionError && <p role="status" className="game-error">{connectionError}</p>}
         {!data && <p role="status" className="game-empty">Loading the show desk…</p>}
+        {deskView === 'show' && <GameShowControls data={data} disabled={unavailable} act={act} onSetup={() => {
+          setDeskView('setup');
+          requestAnimationFrame(() => document.getElementById('desk-setup-toggle')?.focus());
+        }} />}
+        {deskView === 'setup' && <div>
+          <nav className="game-admin-nav" aria-label="Setup shortcuts">
+            <a href="#game-editor">Prepare questions</a><a href="#game-rounds">All rounds</a>
+            <a href="#game-inbox">Suggestions</a><a href="#game-moderation">Moderation</a><a href="#game-essays">Essays</a>
+          </nav>
+          <p>Prepare trivia and cast superlatives here. Music-video voting runs on your other website.</p>
         {data && (
           <label>
             Show
@@ -154,7 +186,7 @@ export default function GameAdmin() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                await act({ action: "new_show", title });
+                await act({ action: "new_show", title, triviaSourceShowId: triviaSourceShowId || undefined });
               }}
             >
               <label>
@@ -166,11 +198,25 @@ export default function GameAdmin() {
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </label>
-              <button disabled={busy}>Create show</button>
+              <label>
+                Reuse trivia from a previous night
+                <select disabled={busy} value={triviaSourceShowId} onChange={(e) => setTriviaSourceShowId(e.target.value)}>
+                  <option value="">Start without trivia</option>
+                  {data.shows.filter((night) => night.status === "finished").map((night) => (
+                    <option key={night.id} value={night.id}>{night.title}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="game-help">
+                Copies all trivia and its correct answers into a new shuffled order.
+                Every question starts as a private draft, with fresh answers and scores.
+                Set up the cast and superlatives separately. Music-video voting stays on your other website.
+              </p>
+              <button disabled={busy}>{triviaSourceShowId ? "Create night with shuffled trivia" : "Create show"}</button>
             </form>
             <p>
               Every show gets fresh scores and polls. Past shows stay available
-              above.
+              above. Name each night clearly, for example “2006 — Friday, November 13”.
             </p>
           </section>
         )}
@@ -288,11 +334,39 @@ export default function GameAdmin() {
                         value={kind}
                         onChange={(e) => setKind(e.target.value as GameKind)}
                       >
-                        <option value="trl">TRL video vote</option>
                         <option value="trivia">Trivia question</option>
                         <option value="superlative">Cast superlative</option>
                       </select>
                     </label>
+                    {kind === "superlative" && !editingId && (
+                      <>
+                        <label>
+                          Supplied superlatives
+                          <select
+                            disabled={busy}
+                            value={SHOW_SUPERLATIVES.find((category) => category.question === question)?.id || ""}
+                            onChange={(e) => {
+                              const category = SHOW_SUPERLATIVES.find((item) => item.id === e.target.value);
+                              setQuestion(category?.question || "");
+                            }}
+                          >
+                            <option value="">Choose a category or write your own</option>
+                            {SHOW_SUPERLATIVES.map((category) => {
+                              const saved = data!.prompts.some((prompt) => prompt.kind === "superlative" && prompt.question === category.question);
+                              return (
+                                <option key={category.id} value={category.id} disabled={saved}>
+                                  {category.contributor} — {category.question}{saved ? " (already added)" : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+                        <p className="game-help">
+                          Choose a supplied category, edit it below if needed, then save a private draft.
+                          The names credit the contributors; guests vote across the saved cast roster.
+                        </p>
+                      </>
+                    )}
                     <label>
                       Question
                       <input
@@ -348,10 +422,11 @@ export default function GameAdmin() {
             )}
             <section id="game-rounds">
               <h2>Rounds</h2>
-              {data!.prompts.length === 0 && (
-                <p>No rounds yet. Prepare trivia and video choices above.</p>
+              <p className="game-help">Trivia appears in tonight’s saved order. Open the next draft when you’re ready; nothing opens automatically.</p>
+              {!data!.prompts.some(p => p.kind !== "trl") && (
+                <p>No rounds yet. Prepare trivia and superlatives above.</p>
               )}
-              {data!.prompts.map((p) => (
+              {data!.prompts.filter(p => p.kind !== "trl").map((p) => (
                 <article key={p.id}>
                   <p className="game-status">
                     {p.kind} · {p.status} · results{" "}
@@ -366,37 +441,8 @@ export default function GameAdmin() {
                       </li>
                     ))}
                   </ul>
-                  {p.kind === "trl" && p.status === "closed" && (
-                    <div className="game-trl-countdown">
-                      <h4>Countdown order from this vote</h4>
-                      <ol>
-                        {trlCountdown(p).map((o) => (
-                          <li key={o.id}>
-                            #{o.rank} {o.label} — {o.count} vote{o.count === 1 ? "" : "s"}
-                            {o.tied ? " · tied, you choose the order" : ""}
-                          </li>
-                        ))}
-                      </ol>
-                      <p className="game-help">
-                        Build the queue’s countdown cues #5–#1 from this list in
-                        /admin. Nothing is queued automatically.
-                      </p>
-                    </div>
-                  )}
                   {active && (
                     <div className="game-admin-actions">
-                      {p.kind === "trl" && (
-                        <button
-                          disabled={busy || p.trl_final}
-                          onClick={() =>
-                            void act({ action: "trl_final", id: p.id })
-                          }
-                        >
-                          {p.trl_final
-                            ? "Final TRL round"
-                            : "Use for TRL Winner"}
-                        </button>
-                      )}
                       {p.status === "draft" && (
                         <>
                           <button
@@ -453,16 +499,6 @@ export default function GameAdmin() {
                           <button
                             disabled={busy}
                             onClick={() => {
-                              // Revealing a TRL round mid-show shows guests the
-                              // winner before the countdown reaches #1.
-                              if (
-                                p.kind === "trl" &&
-                                !p.results_visible &&
-                                !window.confirm(
-                                  "Revealing TRL results shows guests the winning video before the countdown. Reveal anyway?",
-                                )
-                              )
-                                return;
                               void act({ action: "reveal", id: p.id });
                             }}
                           >
@@ -474,6 +510,11 @@ export default function GameAdmin() {
                 </article>
               ))}
             </section>
+            {data!.prompts.some(p => p.kind === 'trl') && <details className="desk-details">
+              <summary>Earlier music-video poll records</summary>
+              <p>Music-video voting is handled on the other website. These saved records are kept for reference.</p>
+              {data!.prompts.filter(p => p.kind === 'trl').map(p => <div key={p.id}><h3>{p.question}</h3><ul>{p.options.map(o => <li key={o.id}>{o.label}: {o.count || 0}</li>)}</ul></div>)}
+            </details>}
             <section id="game-inbox">
               <h2>Private suggestion inbox</h2>
               <p>
@@ -627,6 +668,7 @@ export default function GameAdmin() {
         )}
         {/* Essays belong to the doors-open night, not a game show. */}
         <EssayModeration />
+        </div>}
       </main>
     </div>
   );

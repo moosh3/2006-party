@@ -4,6 +4,11 @@ import { SPRITES, spriteLines, type Sprite } from '@/lib/cast';
 import { RULES_TOUR, SPRITE_WELCOME, type RulesTourAction } from '@/lib/rules-of-the-game';
 import { SCENES, type SceneId } from '@/lib/scenes';
 import ScoresBoard from '@/components/ScoresBoard';
+import SpriteShowcase from '@/components/SpriteShowcase';
+import StageScene from '@/components/StageScene';
+import { useScenePosition } from '@/hooks/useScenePosition';
+import SceneMusic, { type SceneMusicMode } from '@/components/SceneMusic';
+import { RESULTS_MUSIC, RULES_MUSIC } from '@/lib/scene-music';
 import './scene-frame.css';
 
 export type SceneActions = {
@@ -22,18 +27,21 @@ function markTourDone(sessionId?: string) {
 /** A timed scene in place of program video. The database clock owns when it
  * starts and ends; this only renders it and asks for a refresh at its end. */
 export default function SceneFrame({ sceneId, interactive, playbackSessionId, playbackState, playbackPositionSeconds,
-  playbackDurationSeconds, snapshotReceivedAt, onStreamRefresh, actions }: {
+  playbackDurationSeconds, snapshotReceivedAt, snapshotRoundTripMs, onStreamRefresh, actions, musicMode = 'auto' }: {
   sceneId: SceneId | null;
-  /** Online audience gets the lineup; stage and operator monitor get a card. */
+  /** Online guests click the lineup; stage and monitor automatically present the cast. */
   interactive: boolean;
   playbackSessionId?: string;
   playbackState?: string;
   playbackPositionSeconds?: number;
   playbackDurationSeconds?: number | null;
   snapshotReceivedAt?: number;
+  snapshotRoundTripMs?: number;
   onStreamRefresh?: () => void;
   actions?: SceneActions;
+  musicMode?: SceneMusicMode;
 }) {
+  const position = useScenePosition({ playbackState, playbackPositionSeconds, playbackDurationSeconds, snapshotReceivedAt, snapshotRoundTripMs });
   const scene = sceneId ? SCENES[sceneId] : null;
   const title = scene?.label || 'Interactive scene';
 
@@ -48,8 +56,16 @@ export default function SceneFrame({ sceneId, interactive, playbackSessionId, pl
     return () => window.clearTimeout(timer);
   }, [onStreamRefresh, playbackState, playbackDurationSeconds, playbackPositionSeconds, snapshotReceivedAt]);
 
-  if (sceneId === 'check-our-scores') return <ScoresBoard interactive={interactive} />;
-  if (!interactive || sceneId !== 'rules-of-the-game') {
+  if (sceneId === 'check-our-scores') return <div className="scene-with-music" data-projector={!interactive || undefined}>
+    <ScoresBoard interactive={interactive} paused={playbackState !== 'playing'} position={position} />
+    {musicMode !== 'off' && <SceneMusic key={`${playbackSessionId}:${sceneId}`} track={RESULTS_MUSIC} position={position} playing={playbackState === 'playing'} mode={musicMode} />}
+  </div>;
+  if (sceneId === 'rules-of-the-game') return <div className="scene-with-music" data-projector={!interactive || undefined}>
+    {interactive ? <RulesOfTheGame title={title} sessionId={playbackSessionId} actions={actions} />
+      : <StageScene><SpriteShowcase position={position} paused={playbackState !== 'playing'} /></StageScene>}
+    {musicMode !== 'off' && <SceneMusic key={`${playbackSessionId}:${sceneId}`} track={RULES_MUSIC} position={position} playing={playbackState === 'playing'} mode={musicMode} />}
+  </div>;
+  {
     return (
       <div className="scene-frame scene-frame-card" role="img" aria-label={`${title}. ${scene?.stageLine || ''}`}>
         <strong>{title}</strong>
@@ -57,7 +73,6 @@ export default function SceneFrame({ sceneId, interactive, playbackSessionId, pl
       </div>
     );
   }
-  return <RulesOfTheGame title={title} sessionId={playbackSessionId} actions={actions} />;
 }
 
 /** Walk-in time before the Sprites have gathered: 2.4 s walk plus a 0.3 s stagger each. */
@@ -164,7 +179,7 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
                 {isTalking && speaker && (
                   <div id={bubbleId} className="scene-bubble scene-line" role="status" aria-live="polite">
                     <p>{spriteLines(speaker)[talking.line]}</p>
-                    <button type="button" disabled={!actions} onClick={() => actions?.openBuddy(speaker.index)}>Buddy Info</button>
+                    <button type="button" disabled={!actions} onClick={() => actions?.openBuddy(speaker.index)}>View profile</button>
                   </div>
                 )}
                 <button type="button" aria-label={`${sprite.name} (${sprite.screenName}): say something`}

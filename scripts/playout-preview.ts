@@ -32,7 +32,7 @@ const migrations = [
   '014_showtime_playout_and_queue', '015_youtube_playlist_sources',
   '016_open_answer_polls', '017_video_playlist_shelf', '018_message_reactions',
   '019_lock_down_admin_tables', '020_2006_initial_state', '021_show_game',
-  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions', '028_scene_cues', '029_essay_submissions', '030_check_our_scores', '031_countdown_presenters',
+  '022_playout_hardening', '024_audience_doors', '025_youtube_video_queue', '026_countdown_queue', '027_countdown_introductions', '028_scene_cues', '029_essay_submissions', '030_check_our_scores', '031_countdown_presenters', '032_trivia_nights', '033_trivia_list',
 ];
 const tables = new Set([
   'current_stream', 'mux_items', 'video_queue', 'admin_actions', 'messages', 'chat_throttle',
@@ -55,6 +55,9 @@ const rpcArguments: Record<string, string[]> = {
   reorder_queue: ['items', 'admin_user_id'],
   delete_from_queue: ['queue_item_id', 'admin_user_id'],
   game_throttle: ['k', 'seconds'], game_totals: ['s'], game_vote: ['p', 'v', 'o'],
+  game_admin: ['s', 'action', 'payload'], game_copy_trivia_night: ['night_title', 'source_show'],
+  game_suggest: ['s', 'v', 'body_text'],
+  game_trivia_list: ['s', 'action'],
   set_audience_doors: ['requested_doors_open', 'expected_revision', 'admin_user_id'],
 };
 const identifier = (value: string) => {

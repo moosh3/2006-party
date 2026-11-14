@@ -24,9 +24,9 @@ assert.deepEqual(scenesAiredSince([
 ]), ['rules-of-the-game'], 'Only known scenes that started are reported, once');
 assert.deepEqual(scenesAiredSince([]), []);
 assert.equal(new Set(RULES_TOUR.map(step => step.id)).size, RULES_TOUR.length);
-assert.deepEqual(RULES_TOUR.filter(step => step.action).map(step => step.action!.target), ['superlative', 'trl', 'essay']);
+assert.deepEqual(RULES_TOUR.filter(step => step.action).map(step => step.action!.target), ['superlative', 'essay']);
 assert.ok(RULES_TOUR.every(step => !step.highlight || step.pointer), 'Every highlighted control is also named in the step text');
-assert.deepEqual(RULES_TOUR.map(step => step.highlight ?? null), [null, 'vote', 'vote', 'essay', 'chat', null]);
+assert.deepEqual(RULES_TOUR.map(step => step.highlight ?? null), [null, 'vote', null, 'essay', 'chat', null]);
 assert.ok(SPRITES.every(sprite => spriteLines(sprite).length === 3 && spriteLines(sprite).every(line => line.trim())), 'Every Sprite has three lines to cycle');
 assert.ok(SPRITES.every(sprite => !sprite.lines || sprite.lines.length === 3), 'MK supplies exactly three lines per Sprite');
 assert.ok(SPRITES.every(sprite => !sprite.lineAudio || sprite.lineAudio.length <= 3), 'At most one recording per line');

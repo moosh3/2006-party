@@ -5,13 +5,13 @@ import { LIVE_CLIPPY_LINES, TYPING_PAUSE_MS, countWords, shouldSpeak, type Typin
 import { ESSAY_PROMPTS, essayError, type PublishedEssay } from '@/lib/essays';
 import ClippyAnimation from './ClippyAnimation';
 
-export type ClippyMode = 'mail' | 'essay' | 'saved';
+export type ClippyMode = 'mail' | 'essay' | 'saved' | 'submitted';
 
 const CLIPPY_DIALOGUE = {
   mail: {
     heading: 'STUDY BREAK!',
     lines: [
-      'Your 2006 reflection is due before the show ends. Pick a prompt and add a few lines.',
+      'Your away message has lore. Pick a prompt, write a few lines, and submit before Let’s Check Our Scores.',
       'Remember your away message? Your essay can be a little longer than that.',
       'A song, a screen name, a wildly optimistic life plan. Pick a prompt and tell us about 2006.',
     ],
@@ -21,15 +21,23 @@ const CLIPPY_DIALOGUE = {
     lines: [
       'Pick a prompt and start with one memory. Save your draft when you want to keep it.',
       'No need for a five-paragraph masterpiece. A few lines about your 2006 will do.',
-      'I bring the paperclip energy. You bring the memories. Remember to save your draft.',
+      'I bring the paperclip energy. You bring the memories. Submit before Let’s Check Our Scores if you want to share.',
     ],
   },
   saved: {
-    heading: 'Homework crisis averted.',
+    heading: 'Saved! Still in your backpack, though.',
     lines: [
-      'Your draft is saved in this browser. I knew you had it in you.',
-      'Saved in this browser. Your English teacher would be so proud.',
-      'One small save for you. One giant relief for your paperclip. Your draft is stored in this browser.',
+      'Your draft is saved on this computer. Choose Submit essay to share it with the show.',
+      'Saved is not submitted. One more button before your English teacher can relax.',
+      'Your memories are safe in this browser. Ready for the class? Submit before Let’s Check Our Scores.',
+    ],
+  },
+  submitted: {
+    heading: 'Handed in. Paperclip high five!',
+    lines: [
+      'Your essay is in tonight’s published list with your screen name. Homework status: legendary.',
+      'You submitted it! Kick back and watch the show. I’ll keep the paper clipped.',
+      'Your 2006 lore has entered the chat. Find it when we check our scores.',
     ],
   },
 } satisfies Record<ClippyMode, { heading: string; lines: string[] }>;
@@ -208,7 +216,7 @@ export function MailApp({ onStartEssay }: { onStartEssay: () => void }) {
               </dl>
             </header>
             <div className="mac2006-email-body">
-              <p>Your 2006 reflection essay is due before the end of the show. Choose one prompt and start writing:</p>
+              <p>Your 2006 memory belongs in the yearbook. Choose a prompt and submit before Let’s Check Our Scores:</p>
               <ol>{ESSAY_PROMPTS.map((prompt) => <li key={prompt}>{prompt}</li>)}</ol>
               <button type="button" className="mac2006-aqua-button primary" onClick={onStartEssay}>Start Essay</button>
             </div>
@@ -242,7 +250,7 @@ export function TextEditApp({
 }) {
   const [helperVisible, setHelperVisible] = useState(true);
   const [confirming, setConfirming] = useState(false);
-  const typingLine = useTypingLines(draft, helperVisible && !submission);
+  const typingLine = useTypingLines(draft, helperVisible && active && !paused && !submission);
   const shown = submission ? submission.body : draft;
   const wordCount = shown.trim() ? shown.trim().split(/\s+/).length : 0;
   const draftProblem = essayError(draft);
@@ -289,12 +297,12 @@ export function TextEditApp({
       </div>
       {saveError && <p className="show2006-save-error" role="alert">{saveError}</p>}
       {submitError && <p className="show2006-save-error" role="alert">{submitError}</p>}
-      {helperVisible && <EssayClippy mode={saved ? 'saved' : 'essay'} typingLine={saved ? null : typingLine} paused={paused} active={active}
+      {helperVisible && <EssayClippy mode={submission ? 'submitted' : saved ? 'saved' : 'essay'} typingLine={submission || saved ? null : typingLine} paused={paused} active={active}
         onHide={() => setHelperVisible(false)} />}
       <div className="mac2006-app-status">
         <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
         {!helperVisible && <button type="button" className="show2006-clippy-return" onClick={() => setHelperVisible(true)}>Bring back Clippy</button>}
-        <span>{submission ? 'Submitted' : saved ? 'Saved on this computer' : 'Not saved'}</span>
+        <span>{submission ? 'Submitted' : saved ? 'Saved on this computer · not submitted' : 'Not saved'}</span>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import type { ShowInvitation } from './show-invitations';
 export type GameKind = "trl" | "trivia" | "superlative";
 export type GameOption = { id: string; label: string; count?: number };
 export type GamePrompt = {
@@ -24,6 +25,7 @@ export type GameState = {
   viewer?: { id: string; name: string; blocked: boolean } | null;
   prompts: GamePrompt[];
   score: number;
+  invitation?: ShowInvitation | null;
   scores?: GameScore[];
   castScores?: GameScore[];
   cast?: { id: string; name: string }[];

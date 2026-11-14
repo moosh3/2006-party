@@ -165,6 +165,26 @@ async function main() {
   const trl = await create("trl", "Pick tonight’s final video");
   await admin("trl_final", { id: trl.id });
   await admin("open", { id: trl.id });
+  // Operator invitations reuse the game poll without changing votes or scores.
+  await request('/api/admin/game', { action: 'audience_invitation', showId, invitation: 'clippy' }, '', 401);
+  await admin('audience_invitation', { invitation: '__proto__' }, 400);
+  const beforeInvitation = (await request('/api/game', undefined, viewer.cookie)).data;
+  await admin('audience_invitation', { invitation: 'welcome' });
+  let invited = (await request('/api/game', undefined, viewer.cookie)).data;
+  assert.equal(invited.invitation.kind, 'welcome');
+  assert.equal(invited.invitation.trlStatus, 'open');
+  assert.deepEqual(Object.keys(invited.invitation).sort(), ['id', 'kind', 'showId', 'trlStatus']);
+  assert.deepEqual(invited.prompts, beforeInvitation.prompts, 'Inviting leaves prompts and votes untouched');
+  assert.equal(invited.score, beforeInvitation.score);
+  const firstInvitation = invited.invitation.id;
+  await admin('audience_invitation', { invitation: 'welcome' });
+  invited = (await request('/api/game', undefined, viewer.cookie)).data;
+  assert.notEqual(invited.invitation.id, firstInvitation, 'Resend reaches guests who dismissed it');
+  await admin('audience_invitation', { invitation: 'clippy' });
+  assert.equal((await request('/api/game')).data.invitation.kind, 'clippy');
+  await admin('audience_invitation', { invitation: 'clear' });
+  assert.equal((await request('/api/game')).data.invitation, null);
+  await admin('audience_invitation', { invitation: 'essay-last-call' });
   await request(
     "/api/game",
     { action: "vote", promptId: trl.id, optionId: "1" },
@@ -172,6 +192,8 @@ async function main() {
   );
   await admin("finish");
   pub = (await request("/api/game", undefined, viewer.cookie)).data;
+  assert.equal(pub.invitation, null, 'Finished shows never retain an invitation');
+  await admin('audience_invitation', { invitation: 'welcome' }, 400);
   assert.equal(pub.scores, undefined);
   await admin("reveal_show");
   pub = (await request("/api/game", undefined, viewer.cookie)).data;
@@ -199,6 +221,29 @@ async function main() {
     body: JSON.stringify({ action: "join", name: "Attacker" }),
   });
   assert.equal(cross.status, 400);
+  // Reuse a finished night's trivia through the real authenticated API.
+  const sourceShowId = showId;
+  const copied = await request("/api/admin/game", {
+    action: "new_show", title: "Saturday — shuffled trivia", triviaSourceShowId: sourceShowId,
+  }, adminCookie);
+  assert.ok(copied.data.showId);
+  const copiedState = (await request(`/api/admin/game?show=${copied.data.showId}`, undefined, adminCookie)).data;
+  assert.equal(copiedState.show.id, copied.data.showId);
+  assert.equal(copiedState.prompts.length, 1);
+  assert.equal(copiedState.prompts[0].question, trivia.question);
+  assert.equal(copiedState.prompts[0].correct_option, "0");
+  assert.notEqual(copiedState.prompts[0].id, trivia.id);
+  assert.equal(copiedState.prompts[0].status, "draft");
+  const copiedPublic = (await request("/api/game", undefined, viewer.cookie)).data;
+  assert.deepEqual(copiedPublic.prompts, []);
+  assert.equal(copiedPublic.score, 0);
+  assert.equal(copiedPublic.invitation, null, 'A new night does not inherit an invitation');
+  await request("/api/admin/game", {
+    action: "new_show", title: "Duplicate Saturday", triviaSourceShowId: sourceShowId,
+  }, adminCookie, 400);
+  await request("/api/admin/game", { action: "finish", showId: copied.data.showId }, adminCookie);
+  const sourceState = (await request(`/api/admin/game?show=${sourceShowId}`, undefined, adminCookie)).data;
+  assert.equal(sourceState.scores[0].score, 1, "Source results are preserved");
   // Leave a fresh rehearsal show with an open trivia popup for visual checks.
   await request(
     "/api/admin/game",

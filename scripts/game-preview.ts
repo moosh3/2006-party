@@ -16,6 +16,8 @@ async function main() {
   );
   await db.exec(readFileSync("sql/001_schema.sql", "utf8"));
   await db.exec(readFileSync("sql/021_show_game.sql", "utf8"));
+  await db.exec(readFileSync("sql/032_trivia_nights.sql", "utf8"));
+  await db.exec(readFileSync("sql/033_trivia_list.sql", "utf8"));
   const tables = new Set([
     "game_shows",
     "game_viewers",
@@ -31,6 +33,8 @@ async function main() {
     game_suggest: ["s", "v", "body_text"],
     game_totals: ["s"],
     game_admin: ["s", "action", "payload"],
+    game_copy_trivia_night: ["night_title", "source_show"],
+    game_trivia_list: ["s", "action"],
   };
   const ident = (s: string) => {
     if (!/^[a-z_]+$/.test(s)) throw new Error("Invalid identifier");

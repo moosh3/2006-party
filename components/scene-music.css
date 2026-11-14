@@ -1,0 +1,13 @@
+.scene-with-music{position:relative;width:100%;min-height:0}
+.scene-with-music>audio{display:none}
+.scene-music-controls{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:6px 10px;background:#211126;color:#fff;font:13px Tahoma,sans-serif}
+.scene-music-controls button{min-height:36px;border:1px solid #daa8c9;background:#342034;color:#fff;font:inherit;padding:7px 12px;cursor:pointer}
+.scene-music-controls button:focus-visible,.scene-music-controls input:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.scene-music-controls input{width:100px;accent-color:#ffd1ed}
+.scene-music-controls span{font-size:12px}
+.stage-program .scene-with-music{height:100%}
+.scene-with-music[data-projector]>.scene-music-controls{position:absolute;right:12px;bottom:12px;z-index:5;background:#211126ed;border:1px solid #daa8c9;transition:opacity .15s}
+.scene-with-music[data-projector]>.scene-music-controls[data-status=playing]{opacity:0}
+.scene-with-music[data-projector]:hover>.scene-music-controls,.scene-with-music[data-projector]:focus-within>.scene-music-controls{opacity:1}
+@media(hover:none){.scene-with-music[data-projector]>.scene-music-controls[data-status=playing]{opacity:1}}
+@media(prefers-reduced-motion:reduce){.scene-music-controls{transition:none!important}}

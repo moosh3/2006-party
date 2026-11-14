@@ -7,6 +7,7 @@ export type ScoresCountdown = { rank: number; title: string };
 export type ScoresPayload = {
   /** False until the Scores scene has started tonight; totals stay private until then. */
   available: boolean;
+  party?: import('./party-results').PartyResults;
   superlatives: ScoresSuperlative[];
   countdown: ScoresCountdown[];
   essays: PublishedEssay[];

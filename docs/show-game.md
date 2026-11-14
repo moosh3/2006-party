@@ -25,12 +25,26 @@ The migration creates private game tables and functions and removes permissive p
 
 1. Create a show with a unique title/date. Only one show can be active. Earlier nights remain available in the admin show selector.
 2. Save the cast roster, one name per line (2–30 people). Suggested names are taken from the existing AIM cast list; edit them to match tonight’s eligible cast. Creating the first superlative locks that night’s roster.
-3. Prepare TRL polls and trivia questions with choices, and select each trivia question’s correct answer. All new rounds start as private drafts; edit or discard them before opening. Cast superlatives automatically use the saved roster. Each show supports up to 200 rounds.
+3. Prepare TRL polls and trivia questions with choices, and select each trivia question’s correct answer. All new rounds start as private drafts; edit or discard them before opening. Cast superlatives automatically use the saved roster. Choose **Cast superlative → Supplied superlatives** to load one of the six production categories, edit if needed, then **Save private draft**. Contributor names appear only in the picker; they are not assigned winners. Categories already saved with the same wording are marked **already added** for that show. The source copy is in `lib/show-superlatives.ts`. Each show supports up to 200 rounds.
 4. Mark the decisive video round **Use for TRL Winner**. Earlier video rounds do not decide the final title. TRL voting happens before the show; see **TRL before the show** below.
 5. Open a draft on cue. Opening trivia triggers a dismissible popup for participating viewers; the question also remains in the Trivia tab. Only one trivia question may be open. Submitted trivia answers lock immediately; TRL and cast votes can change until closing.
 6. Close trivia to calculate scores. Reveal its answer afterward if desired. For TRL and superlatives, totals can be shown during voting or kept hidden. Changes reach viewers within roughly five seconds, and their own submissions refresh immediately.
 7. Review the private suggestion inbox. Edit, approve as a draft, or reject. Approval never publishes immediately; open the resulting draft to start voting. Only cast choices are used. Viewers can submit at most ten suggestions per night, at least 30 seconds apart. Basic profanity and link filtering also applies to suggestions and new game names; human review is the primary protection.
 8. End the show to close all open rounds, then reveal the final awards when ready. Ending a show is intentionally irreversible; start a new show for the next performance.
+
+## Reuse trivia Friday–Sunday
+
+For this run, label the shows **Friday, November 13**, **Saturday, November 14**, and **Sunday, November 15, 2026**.
+
+1. Prepare Friday’s trivia as usual. End that night with **End show and calculate winners** when the performance is over.
+2. In **Start a new night**, name Saturday’s show and choose Friday under **Reuse trivia from a previous night**.
+3. Select **Create night with shuffled trivia**. Every trivia question (including unused drafts) is copied with its choices and correct answer into a different order. The order is saved and survives refreshes. With only one question, its order stays the same.
+4. Open the copied drafts one at a time during the ad breaks. Nothing opens automatically. Saturday starts with no answers or scores; Friday’s results stay intact.
+5. After Saturday ends, repeat for Sunday, using Saturday as the source to get a different order again.
+
+This copies trivia only. Save the cast roster and prepare that night’s superlatives and TRL vote separately. You can still start an empty show. A source with no trivia is rejected without creating a show, and only one night can be active at a time.
+
+Requires `sql/032_trivia_nights.sql` before deploying the new snapshot ordering. `npm run db:trivia-nights` performs a read-only preflight; `npm run db:trivia-nights -- --apply` installs the additive column and private copy function without creating or ending shows or changing existing questions, votes or results. Do not replay historical game migrations.
 
 ## TRL before the show
 

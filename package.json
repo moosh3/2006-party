@@ -67,7 +67,9 @@
     "db:scores": "node --import tsx scripts/apply-scores-db.ts",
     "test:countdown-presenter-db": "node --import tsx scripts/test-countdown-presenter-db.ts",
     "db:countdown-presenters": "node --import tsx scripts/apply-countdown-presenter-db.ts",
-    "db:countdown": "node --import tsx scripts/apply-countdown-db.ts"
+    "db:countdown": "node --import tsx scripts/apply-countdown-db.ts",
+    "test:trivia-nights": "node --import tsx scripts/test-trivia-nights.ts",
+    "db:trivia-nights": "node --import tsx scripts/apply-trivia-nights-db.ts"
   },
   "dependencies": {
     "@mux/mux-node": "^8.0.0",

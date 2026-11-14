@@ -19,6 +19,7 @@ import type { RulesTourAction } from '@/lib/rules-of-the-game';
 import type { GameKind } from '@/lib/game-types';
 import type { PublishedEssay } from '@/lib/essays';
 import { SPRITES } from '@/lib/cast';
+import SpriteProfile from '@/components/2006/SpriteProfile';
 import ShowBuddyStrip, { type ShowBuddy } from '@/components/2006/ShowBuddyStrip';
 import { useCastRun, type CastRunOrigin } from '@/hooks/useCastRun';
 import type { CastRunId } from '@/lib/cast-runs';
@@ -27,6 +28,9 @@ import { useAudienceCues } from '@/hooks/useAudienceCues';
 import { SHOW_AUDIENCE_CUES } from '@/lib/audience-cue-config';
 import { getDeliveryKey } from '@/lib/audience-cue-delivery';
 import type { AudienceCue } from '@/lib/audience-cues';
+import ShowInvitation from '@/components/2006/ShowInvitation';
+import type { ShowInvitation as ShowInvitationState } from '@/lib/show-invitations';
+import { useShowInvitation } from '@/hooks/useShowInvitation';
 import './experience.css';
 import './mobile-show.css';
 import './show-personality.css';
@@ -55,7 +59,7 @@ type Buddy = {
   font: string;
 };
 
-const BUDDIES: Buddy[] = [
+export const BUDDIES: Buddy[] = [
   {
     screenName: 'mkashe9', status: 'away', idleMinutes: 23,
     role: 'Writer/Performer/Editor/Tech', background: '#3e7391', foreground: '#fff2f5', font: 'Tahoma, sans-serif',
@@ -595,13 +599,14 @@ function IpodHome({
   );
 }
 
-function BuddyModal({ buddy, screenName, type, close, showInfo }: {
+export function BuddyModal({ buddy, screenName, type, close, showInfo }: {
   buddy: Buddy;
   screenName: string;
   type: 'im' | 'info';
   close: () => void;
   showInfo: () => void;
 }) {
+  const sprite = SPRITES.find(item => item.screenName === buddy.screenName);
   const [entry, setEntry] = useState('');
   const [messages, setMessages] = useState<{ from: string; body: string }[]>([]);
   const [typing, setTyping] = useState(false);
@@ -648,7 +653,7 @@ function BuddyModal({ buddy, screenName, type, close, showInfo }: {
 
   return (
     <div className="xp2006-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section ref={dialogRef} className="xp2006-window xp2006-popwin" role="dialog" aria-modal="true" aria-label={type === 'info' ? `Buddy Info: ${buddy.screenName}` : `IM with ${buddy.screenName}`}>
+      <section ref={dialogRef} className={`xp2006-window xp2006-popwin${type === 'info' && sprite ? ' xp2006-sprite-popwin' : ''}`} role="dialog" aria-modal="true" aria-label={type === 'info' ? `Buddy Info: ${buddy.screenName}` : `IM with ${buddy.screenName}`}>
         <div className="xp2006-titlebar">
           <span className={`xp2006-presence ${buddy.status}`} aria-hidden="true" />
           <span className="xp2006-title">{type === 'info' ? 'Buddy Info' : 'IM with'}: {buddy.screenName}</span>
@@ -657,7 +662,7 @@ function BuddyModal({ buddy, screenName, type, close, showInfo }: {
 
         {type === 'info' ? (
           <>
-            <div className="xp2006-info-body">
+            {sprite ? <SpriteProfile sprite={sprite} role={buddy.role} awayMessage={buddy.awayMessage} aimProfile={buddy.profile} /> : <div className="xp2006-info-body">
               <div><strong>Screen Name:</strong><span>{buddy.screenName}</span></div>
               <div><strong>Role in 2006:</strong><span>{buddy.role}</span></div>
               <div><strong>Warning Level:</strong><span>0%</span></div>
@@ -672,7 +677,7 @@ function BuddyModal({ buddy, screenName, type, close, showInfo }: {
               <div className="xp2006-profile-card" style={{ background: buddy.background, color: buddy.foreground, fontFamily: buddy.font }}>
                 <small>PROFILE</small>{buddy.profile || 'No profile posted yet.'}
               </div>
-            </div>
+            </div>}
             <div className="xp2006-im-actions"><button type="button" className="xp2006-button" onClick={close}>Close</button></div>
           </>
         ) : (
@@ -776,6 +781,7 @@ export default function AimExperience({
   const [zoomedMacWindow, setZoomedMacWindow] = useState<MacWindowName | null>(null);
   const [clippyVisible, setClippyVisible] = useState(false);
   const [clippyMode, setClippyMode] = useState<ClippyMode>('mail');
+  const [showInvitation, setShowInvitation] = useState<ShowInvitationState | null>(null);
   const [essayPrompt, setEssayPrompt] = useState(0);
   const [essayDraft, setEssayDraft] = useState('');
   const [essaySaved, setEssaySaved] = useState(false);
@@ -831,20 +837,7 @@ export default function AimExperience({
     document.title = `${titles[screen]} · 2006`;
   }, [screen]);
 
-  useEffect(() => {
-    if (screen !== 'show' || audienceCues.armed) return;
-
-    // Offer the essay reminder without covering the show or an in-progress vote.
-    const clippyTimer = window.setTimeout(() => {
-      if (showInteraction.current) return;
-      setClippyMode('mail');
-      setClippyVisible(true);
-    }, 1_200);
-
-    return () => {
-      window.clearTimeout(clippyTimer);
-    };
-  }, [screen, audienceCues.armed]);
+  // Clippy enters on the operator's cue or a guest's click, never on a page timer.
 
   const navigate = (destination: ExperienceScreen) => {
     try { sessionStorage.setItem('2006_party_initial_screen', destination); } catch { /* Navigation remains in memory. */ }
@@ -913,7 +906,7 @@ export default function AimExperience({
   const openEssay = () => {
     showInteraction.current = true;
     openMacWindow('textedit');
-    setClippyMode('essay');
+    setClippyMode(essaySubmission ? 'submitted' : 'essay');
     setClippyVisible(false);
   };
 
@@ -980,6 +973,9 @@ export default function AimExperience({
   };
 
   const [essaySubmission, setEssaySubmission] = useState<PublishedEssay | null>(null);
+  const manualInvitation = useShowInvitation(showInvitation, viewer.id,
+    screen === 'show' && macWindows.safari && !invitedCue && !sceneNow && !streamError
+    && (showInvitation?.kind === 'welcome' || (!macWindows.textedit && !essaySubmission)));
   const [essaySubmitting, setEssaySubmitting] = useState(false);
   const [essaySubmitError, setEssaySubmitError] = useState<string | null>(null);
   useEffect(() => {
@@ -1001,6 +997,7 @@ export default function AimExperience({
       if (response.ok && data.essay) {
         setEssaySubmission(data.essay);
         saveEssay();
+        setClippyMode('submitted');
       } else setEssaySubmitError(data.error || 'Could not submit your essay. Try again.');
     } catch {
       setEssaySubmitError('Could not reach the show. Your draft is still here; try again.');
@@ -1150,7 +1147,7 @@ export default function AimExperience({
                 <button type="button" onClick={openMail} data-tour="essay">Essay due!</button>
               </nav>
 
-              <div className="mac2006-safari-page" data-audience-layout={commercialLayout ? 'commercial' : 'program'}>
+              <div className="mac2006-safari-page" data-show-invitation={Boolean(manualInvitation.invitation)} data-audience-layout={commercialLayout ? 'commercial' : 'program'}>
                 <div className="mac2006-video" ref={showVideoRef} tabIndex={-1} data-program-player>
                   {streamData ? (
                     <ErrorBoundary fallback={<div className="mac2006-video-error">The video player stopped. Reload to reconnect.</div>}>
@@ -1184,7 +1181,9 @@ export default function AimExperience({
                   <TransitionClock nextTransitionAt={streamData?.nextTransitionAt} />
                 </div>
 
-                {clippyVisible && clippyMode === 'mail' && !macWindows.textedit && !audienceCues.armed && (
+
+
+                {clippyVisible && clippyMode === 'mail' && !macWindows.textedit && !audienceCues.armed && !manualInvitation.invitation && (
                   <StudyBreakInvitation onOpenEssay={openEssay} onDismiss={dismissClippy} />
                 )}
 
@@ -1200,11 +1199,21 @@ export default function AimExperience({
                 </div>
                 <div className="mac2006-extra-panel" ref={showGameRef} tabIndex={-1} role="region" aria-label="Show game">
                   <ErrorBoundary fallback={<p>The show game is temporarily unavailable.</p>}><GameBoard screenName={viewer.displayName}
-                    onOpenTrivia={revealMobileTrivia} autoTriviaPopup={!audienceCues.armed} cueRequest={gameCueRequest} tabRequest={gameTabRequest} /></ErrorBoundary>
+                    onOpenTrivia={revealMobileTrivia} autoTriviaPopup={!audienceCues.armed && !manualInvitation.invitation && !macWindows.textedit}
+                    onInvitationChange={setShowInvitation} cueRequest={gameCueRequest} tabRequest={gameTabRequest} /></ErrorBoundary>
                   <ErrorBoundary fallback={<p>Voting is temporarily unavailable.</p>}><PollsTab userId={viewer.id} room={ROOM_NAMES.DEFAULT} hideWhenEmpty /></ErrorBoundary>
                   <ShowLinks />
                 </div>
               </div>
+                {manualInvitation.invitation && (
+                  <ShowInvitation invitation={manualInvitation.invitation} paused={castAnimationsPaused}
+                    onDismiss={manualInvitation.dismiss} onAction={() => {
+                      const invitation = manualInvitation.invitation;
+                      if (!invitation) return;
+                      manualInvitation.dismiss();
+                      if (invitation.kind !== 'welcome') openEssay();
+                    }} />
+                )}
             </MacWindow>
 
             <section className="mobile2006-watch" aria-label="Watching the show">
@@ -1310,7 +1319,7 @@ export default function AimExperience({
               </MacWindow>
             )}
 
-            {clippyVisible && !macWindows.textedit && (
+            {clippyVisible && !macWindows.textedit && !manualInvitation.invitation && (
               <ClippyAssistant
                 mode={clippyMode}
                 paused={castAnimationsPaused}

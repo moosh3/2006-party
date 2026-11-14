@@ -1,0 +1,42 @@
+/* The audience's MySpace Friend Space, composed for a room rather than clicks. */
+.sprite-show{display:grid;place-items:center;width:100%;aspect-ratio:16/9;background:#0d0710;color:#17111a;font-family:Tahoma,Verdana,sans-serif}
+.sprite-show *{box-sizing:border-box}
+.sprite-show-scene{width:100%;aspect-ratio:16/9;container-type:inline-size;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:1.5cqw;padding:2.4cqw 3.2cqw;background:radial-gradient(ellipse at bottom,#a51b6770,transparent 65%),radial-gradient(circle,#ffb6e655 1px,transparent 1.5px) 0 0/22px 22px,#0d0710}
+.sprite-show-card{min-height:0;display:grid;grid-template-columns:32% minmax(0,1fr);border:.3cqw solid #f5badf;background:#fff7fb;box-shadow:.6cqw .6cqw 0 #ec459873;overflow:hidden}
+.sprite-show-person{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;justify-items:center;padding:1.5cqw;background:#fbd9e9;border-right:.2cqw solid #e7a4c5;min-height:0}
+.sprite-show-person h2{font:bold 4.3cqw Georgia,serif;margin:0;line-height:1.1}
+.sprite-show-handle{font:bold 1.45cqw Tahoma,sans-serif;margin:.6cqw 0 0;overflow-wrap:anywhere;text-align:center}
+.sprite-show-portrait{min-height:0;display:grid;place-items:center;width:100%}
+.sprite-show-portrait img{width:auto;height:13cqw;image-rendering:pixelated;object-fit:contain}
+.sprite-show-line{position:relative;display:grid;place-items:center;min-height:5.3cqw;width:100%;padding:.7cqw;border:.18cqw solid #19121a;background:white;font:bold 2.2cqw Tahoma,sans-serif;text-align:center;margin:0;overflow-wrap:anywhere}
+.sprite-show-line:before{content:'';position:absolute;top:-.8cqw;left:48%;width:1.4cqw;height:1.4cqw;border-top:.18cqw solid #19121a;border-left:.18cqw solid #19121a;transform:rotate(45deg);background:#fff}
+.sprite-show-details{padding:1.6cqw 2cqw;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1cqw}
+.sprite-show-details>header{display:flex;justify-content:space-between;align-items:baseline;gap:1cqw;padding-bottom:.6cqw;border-bottom:.2cqw solid #edb2cf}
+.sprite-show-details>header strong{font:bold 2.5cqw Georgia,serif}
+.sprite-show-details>header span{font-size:1.5cqw}
+.sprite-show-brand{margin:0;color:#7c184b;font-size:1.6cqw;font-weight:bold}
+.sprite-show-stats{margin:0;display:grid;gap:.5cqw}
+.sprite-show-stats>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1cqw;background:#f7e5ef;padding:.65cqw 1cqw;min-height:3.05cqw}
+.sprite-show-stats dt{font-size:1.65cqw;line-height:1.15;white-space:pre-line}
+.sprite-show-stats dd{font:bold 2.25cqw 'Courier New',monospace;margin:0;color:#8f174e}
+.sprite-show-extras{display:grid;grid-template-columns:1fr auto;gap:1.4cqw;font-size:1.3cqw}
+.sprite-show-extras p{margin:0;white-space:pre-line}.sprite-show-extras b{display:block;font-size:1.05cqw;text-transform:uppercase;margin-bottom:.3cqw;color:#7c184b}
+.sprite-show-conditions{margin:0;font-size:1.15cqw;font-weight:bold;color:#7c184b}
+.sprite-show-alec{padding:1cqw 0}.sprite-show-alec h3{font:bold 2cqw Georgia,serif;margin:0 0 1cqw}
+.sprite-show-alec dl{margin:0;display:grid;gap:1cqw}.sprite-show-alec dl>div{display:grid;grid-template-columns:30% 1fr;align-items:center;gap:1cqw}.sprite-show-alec dt{font-size:1.5cqw;color:#7c184b}.sprite-show-alec dd{margin:0;font-size:2.4cqw;font-weight:bold}
+.sprite-show-lineup{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1cqw;padding:0;margin:0;list-style:none}
+.sprite-show-lineup li{display:flex;align-items:center;justify-content:center;gap:.9cqw;border:.16cqw solid #a04c7c;background:#211126;color:#ffd1ed;padding:.6cqw;min-width:0;font-size:1.6cqw;font-weight:bold}
+.sprite-show-lineup li[aria-current]{border-color:#fff;background:#ffd1ed;color:#321128;box-shadow:0 0 0 .15cqw #ff69b4}
+.sprite-show-lineup img{width:2.7cqw;height:4.05cqw;image-rendering:pixelated;object-fit:contain}
+.stage-program .sprite-show{height:100%;aspect-ratio:auto;container-type:size}
+.stage-program .sprite-show-scene{width:min(100cqw,calc(100cqh * 16 / 9))}
+@media(prefers-reduced-motion:no-preference){.sprite-show-card{animation:sprite-show-arrive .4s ease-out both}@keyframes sprite-show-arrive{from{opacity:.3;transform:translateY(.5cqw)}to{opacity:1;transform:none}}}
+.sprite-show[data-paused] *{animation-play-state:paused!important}
+
+/* A profile selected while paused must appear fully, not freeze mid-entrance. */
+.sprite-show[data-paused] .sprite-show-card{animation:none}
+
+/* The complete 1024px canvas includes each character’s own movement.
+   Keep the transparent margins; size the artwork without clipping its poses. */
+.sprite-show-portrait{position:relative}
+.sprite-show-portrait[data-animated] img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22cqw;height:22cqw;max-width:none;max-height:none}

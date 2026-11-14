@@ -3,6 +3,7 @@ import { advancesTonight } from '@/lib/show-log';
 import { scenesAiredSince } from '@/lib/scenes';
 import { countdownAiredSince, type ScoresPayload } from '@/lib/scores';
 import { publishedEssays } from '@/lib/essays-server';
+import { partyResults } from '@/lib/party-results';
 import { snapshot } from '@/lib/game-server';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ export async function GET() {
     ]);
     const payload: ScoresPayload = {
       available: true,
+      party: partyResults(game),
       superlatives: game.prompts.filter(p => p.kind === 'superlative' && p.status !== 'draft').map(p => ({
         id: p.id, question: p.question, status: p.status as 'open' | 'closed',
         options: p.options.map(o => ({ label: o.label, count: o.count || 0 })),

@@ -68,7 +68,7 @@ interface VideoPlayerProps {
   onPlaybackError?: () => void;
   onStreamRefresh?: () => void;
   onReconnectReady?: (reconnect: (() => void) | null) => void;
-  /** Online audience view of a timed scene; stage and monitor show a card. */
+  /** Online audience view of a timed scene; stage and monitor present the automatic show. */
   sceneInteractive?: boolean;
   sceneActions?: SceneActions;
 }
@@ -366,8 +366,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   if (props.sourceType === SCENE_SOURCE_TYPE && !props.isHoldScreen && props.playoutMode !== 'schedule') {
     return <SceneFrame sceneId={parseScenePlaybackId(props.playbackId)} interactive={Boolean(props.sceneInteractive)} playbackSessionId={props.playbackSessionId}
       playbackState={props.playbackState} playbackPositionSeconds={props.playbackPositionSeconds}
-      playbackDurationSeconds={props.playbackDurationSeconds} snapshotReceivedAt={props.snapshotReceivedAt}
-      onStreamRefresh={props.onStreamRefresh} actions={props.sceneActions} />;
+      playbackDurationSeconds={props.playbackDurationSeconds} snapshotReceivedAt={props.snapshotReceivedAt} snapshotRoundTripMs={props.snapshotRoundTripMs}
+      onStreamRefresh={props.onStreamRefresh} actions={props.sceneActions} musicMode={props.isAdmin ? 'off' : 'auto'} />;
   }
   const cue = !props.isHoldScreen && props.playoutMode !== 'schedule' ? props.countdown : null;
   return cue ? <CountdownFrame cue={cue} separateFooter={props.sourceType === YOUTUBE_VIDEO_SOURCE_TYPE} sessionId={props.playbackSessionId} playbackStartDelaySeconds={props.playbackStartDelaySeconds} snapshotReceivedAt={props.snapshotReceivedAt} snapshotRoundTripMs={props.snapshotRoundTripMs} paused={props.playbackState === 'paused'}><ProgramVideoPlayer {...props} /></CountdownFrame> : <ProgramVideoPlayer {...props} />;

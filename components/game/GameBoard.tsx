@@ -7,9 +7,9 @@ import { placePopup, type Box, type Placement } from "@/lib/popup-placement";
 import "./game.css";
 import "./game-zine.css";
 
+const GAME_TABS = ["trivia", "superlative"] as const;
 const labels = { trl: "TRL", trivia: "Trivia", superlative: "Superlatives" };
 const categoryCopy = {
-  trl: { title: "total request live", body: "Pick the video you want on top. The countdown is in your hands." },
   trivia: { title: "pop quiz", body: "Music, movies, and the internet you grew up on. Every correct answer gets you closer to SuperFan." },
   superlative: { title: "yearbook awards", body: "Give the 2006ers their flowers. Vote for the cast member who fits each award." },
 };
@@ -131,7 +131,7 @@ function usePopupPlacement(open: boolean): Placement | null {
   return placement;
 }
 
-export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = true, cueRequest, tabRequest }: {
+export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = true, cueRequest, tabRequest, onInvitationChange }: {
   screenName: string;
   /** The guest chose to answer in the Trivia tab (phones switch to the game panel). */
   onOpenTrivia?: () => void;
@@ -139,10 +139,12 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   cueRequest?: GameCueRequest | null;
   /** A guest asked for a category elsewhere (e.g. the Rules of the Game tour). */
   tabRequest?: { key: string; kind: GameKind } | null;
+  /** Share the existing poll with the surrounding show; never start a second game poll. */
+  onInvitationChange?: (invitation: NonNullable<GameState['invitation']> | null) => void;
 }) {
   const boardId = useId();
   const [state, setState] = useState<GameState | null>(null);
-  const [tab, setTab] = useState<"trl" | "trivia" | "superlative">("trl");
+  const [tab, setTab] = useState<(typeof GAME_TABS)[number]>("superlative");
   const [error, setError] = useState("");
   const [connectionError, setConnectionError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -156,6 +158,11 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   const appliedCue = useRef<string | null>(null);
   const initialTab = useRef(false);
   const appliedTab = useRef<string | null>(null);
+
+  useEffect(() => {
+    onInvitationChange?.(connectionError ? null : state?.invitation ?? null);
+  }, [state?.invitation, connectionError, onInvitationChange]);
+  useEffect(() => () => onInvitationChange?.(null), [onInvitationChange]);
 
   const refresh = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -190,9 +197,13 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
       setPopup(null);
       return;
     }
-    const active = state?.prompts.find(
-      (p) => p.kind === "trivia" && p.status === "open" && !p.answer,
-    );
+    const questions = state?.prompts.filter(p => p.kind === "trivia" && p.status === "open") ?? [];
+    // A full trivia list is answered in the panel, without a chain of popups.
+    if (questions.length !== 1) {
+      setPopup(null);
+      return;
+    }
+    const active = questions.find(p => !p.answer);
     if (active && state?.viewer && !seen.current.has(active.id)) {
       seen.current.add(active.id);
       setPopup(active.id);
@@ -204,36 +215,31 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
   useEffect(() => {
     if (!state?.show || initialTab.current) return;
     initialTab.current = true;
-    // TRL voting closes before the show, so after doors guests land on
-    // whatever is open instead of a finished vote.
-    const open = (k: GameKind) => state.prompts.some(p => p.kind === k && p.status === "open");
-    if (!open("trl")) {
-      if (open("superlative")) setTab("superlative");
-      else if (open("trivia")) setTab("trivia");
-    }
+    const open = (kind: GameKind) => state.prompts.some(p => p.kind === kind && p.status === "open");
+    if (!open("superlative") && open("trivia")) setTab("trivia");
   }, [state]);
 
   useEffect(() => {
     if (!tabRequest || appliedTab.current === tabRequest.key) return;
     appliedTab.current = tabRequest.key;
     initialTab.current = true;
-    setTab(tabRequest.kind);
+    setTab(tabRequest.kind === "trl" ? "superlative" : tabRequest.kind);
   }, [tabRequest]);
 
   useEffect(() => {
     if (!cueRequest || appliedCue.current === cueRequest.key) return;
     const prompt = state?.prompts.find(p => p.id === cueRequest.promptId
       && p.kind === cueRequest.kind && p.status === "open");
-    if (!prompt || state?.show?.status !== "active") return;
+    if (!prompt || prompt.kind === "trl" || state?.show?.status !== "active") return;
     appliedCue.current = cueRequest.key;
     // A shared cue selects the existing board, never opens a modal, steals
     // focus, changes a vote, or adds another polling/scoring component.
     setTab(prompt.kind);
   }, [cueRequest, state]);
 
-  const popupPrompt = state?.prompts.find(
+  const popupPrompt = autoTriviaPopup ? state?.prompts.find(
     (p) => p.id === popup && p.status === "open" && !p.answer,
-  );
+  ) : undefined;
   const placement = usePopupPlacement(Boolean(popupPrompt));
   // A guest may expand the collapsed chip even when no free space exists.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -281,9 +287,6 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
     );
   const canVote =
     !!state.viewer && !state.viewer.blocked && state.show.status === "active";
-  const trlPrompts = state.prompts.filter(p => p.kind === "trl");
-  const trlClosed = state.show.status === "active" && trlPrompts.length > 0
-    && trlPrompts.every(p => p.status === "closed");
   return (
     <section className="game-board" aria-label="2006 show game">
       <header className="game-heading">
@@ -361,33 +364,6 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
                   .map((s) => `${s.name} (${s.score} wins)`)
                   .join(" & ") || "No superlative winners tonight"}
               </p>
-              {!state.prompts.some(
-                (p) => p.trl_final && p.status === "closed",
-              ) && (
-                <p>
-                  <strong>TRL Winner:</strong> No final video vote was
-                  designated.
-                </p>
-              )}
-              {state.prompts
-                .filter((p) => p.trl_final && p.status === "closed")
-                .map((p) => {
-                  const max = Math.max(
-                    0,
-                    ...p.options.map((o) => o.count || 0),
-                  );
-                  return (
-                    <p key={p.id}>
-                      <strong>TRL Winner:</strong>{" "}
-                      {max
-                        ? p.options
-                            .filter((o) => o.count === max)
-                            .map((o) => o.label)
-                            .join(" & ")
-                        : "No votes"}
-                    </p>
-                  );
-                })}
             </>
           ) : (
             <p>The host will reveal the winners shortly.</p>
@@ -395,7 +371,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
         </div>
       )}
       <div className="game-tabs" role="tablist" aria-label="Game categories">
-        {(["trl", "trivia", "superlative"] as const).map((k) => (
+        {GAME_TABS.map((k) => (
           <button
             type="button"
             key={k}
@@ -405,11 +381,11 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
             aria-selected={tab === k}
             tabIndex={tab === k ? 0 : -1}
             onKeyDown={(event) => {
-              const keys = ["trl", "trivia", "superlative"] as const;
+              const keys = GAME_TABS;
               const index = keys.indexOf(k);
-              const next = event.key === "ArrowRight" ? (index + 1) % 3
-                : event.key === "ArrowLeft" ? (index + 2) % 3
-                : event.key === "Home" ? 0 : event.key === "End" ? 2 : -1;
+              const next = event.key === "ArrowRight" ? (index + 1) % keys.length
+                : event.key === "ArrowLeft" ? (index + keys.length - 1) % keys.length
+                : event.key === "Home" ? 0 : event.key === "End" ? keys.length - 1 : -1;
               if (next < 0) return;
               event.preventDefault();
               setTab(keys[next]);
@@ -426,24 +402,20 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
       <div id={`${boardId}-panel`} role="tabpanel" tabIndex={0} aria-labelledby={`${boardId}-tab-${tab}`}>
         <div className={`game-category-intro game-category-intro-${tab}`}>
           <h3>{categoryCopy[tab].title}</h3>
-          <p>{tab === "trl" && trlClosed
-            ? "Voting closed before the show. Watch the countdown to see where your pick landed."
-            : categoryCopy[tab].body}</p>
+          <p>{categoryCopy[tab].body}</p>
         </div>
         {!state.viewer && state.show.status === "active" && <p className="game-help">Join above to vote and keep your trivia score.</p>}
         {state.prompts.filter((p) => p.kind === tab).length === 0 && (
           <p className="game-empty">
-            {tab === "trl"
-              ? "The next video vote is coming up."
-              : tab === "trivia"
-                ? "Keep watching. The next trivia question will pop up here."
+            {tab === "trivia"
+                ? "Trivia will appear here when the host opens the list."
                 : "Cast awards will appear here when voting opens."}
           </p>
         )}
         {state.prompts
           .filter((p) => p.kind === tab)
           .sort(
-            (a, b) => Number(b.status === "open") - Number(a.status === "open")
+            (a, b) => tab === "trivia" ? 0 : Number(b.status === "open") - Number(a.status === "open")
               || Number(b.id === cueRequest?.promptId) - Number(a.id === cueRequest?.promptId),
           )
           .map((p) => (

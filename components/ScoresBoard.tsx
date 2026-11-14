@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import PartyResultsBoard from './PartyResultsBoard';
 import type { ScoresPayload } from '@/lib/scores';
 
 const REFRESH_MS = 5000;
@@ -7,7 +8,7 @@ const TOP_OPTIONS = 3;
 
 /** Let's Check Our Scores: live superlative totals, the countdown so far and
  * tonight's essays. Guests can open an essay; the stage shows names only. */
-export default function ScoresBoard({ interactive }: { interactive: boolean }) {
+export default function ScoresBoard({ interactive, paused=false, position }: { interactive: boolean; paused?:boolean; position?:number }) {
   const [scores, setScores] = useState<ScoresPayload | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -29,6 +30,7 @@ export default function ScoresBoard({ interactive }: { interactive: boolean }) {
   }, []);
 
   const ready = scores?.available;
+  if (ready && scores.party && !interactive) return <PartyResultsBoard data={scores.party} paused={paused} position={position} />;
   return (
     <section className={`scene-frame scores-board ${interactive ? 'scores-board-audience' : 'scores-board-stage'}`}
       aria-label="Let's Check Our Scores">
@@ -36,6 +38,8 @@ export default function ScoresBoard({ interactive }: { interactive: boolean }) {
       {!ready ? (
         <p className="scores-status" role="status">{failed ? 'Reconnecting to the scoreboard…' : 'Tallying the scores…'}</p>
       ) : (
+        <div>
+        {scores.party && <PartyResultsBoard data={scores.party} interactive />}
         <div className="scores-panels">
           <section aria-labelledby="scores-superlatives">
             <h3 id="scores-superlatives">Superlatives</h3>
@@ -92,7 +96,7 @@ export default function ScoresBoard({ interactive }: { interactive: boolean }) {
               </ul>
             )}
           </section>
-        </div>
+        </div></div>
       )}
     </section>
   );

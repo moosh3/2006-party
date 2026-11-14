@@ -58,7 +58,7 @@ Revised November 7, 2026 after the first look: two separate things happen at onc
 - No on-screen heading; the scene is still named “Rules of the Game” for assistive technology.
 - When the scene starts, the six Sprites walk in from the left one after another (0.3 s apart), gather in the middle slightly overlapping, and a “Welcome to 2006!” bubble appears for a few seconds. They use their still frames throughout: they walk and stand, they never spin. With reduced motion they are already gathered.
 - Clicking a Sprite pops a speech bubble above it with one of its three lines; each click says the next line, and after the third it starts again. Each Sprite keeps its own place. Only one bubble shows at a time; Escape closes it. A small **Buddy Info** link opens the existing profile.
-- Lines live in `lib/cast.ts` (`lines`, three per Sprite) with an optional recording per line (`lineAudio`), played on the click that says it. Until MK sends them, each Sprite has three placeholder lines.
+- Lines live in `lib/cast.ts` (`lines`, three per Sprite) with an optional recording per line (`lineAudio`), played on the click that says it. All six Sprites now use the production-supplied text, cycling Celebrate → Bummer → Extra. Recordings remain optional and have not been supplied.
 - Sized to the player (container units), so it fits the 16:9 picture on desktop; narrow players get more room above the Sprites and 44 px touch targets.
 
 ### Setup wizard (bottom half)
@@ -147,7 +147,7 @@ Each queued scene is its own hidden library row (`source_type = 'scene'`, `playb
 
 Answered with MK on November 7, 2026: cast mapping, lineup (includes Alec), tour auto-start, icon timing, `/stage` wording, and that every Sprite gets recorded audio. Still open:
 
-1. **Three lines for each Sprite** (said in turn on each click), and the group welcome line. MK will send.
+1. **Group welcome line.** The three individual lines for each Sprite were supplied November 11, 2026 and are installed in `lib/cast.ts`, in Celebrate → Bummer → Extra order.
 2. **Recordings** of each line, if wanted (optional per line).
 3. **Missing profiles:** Jen (`SBconfetti`), Yongoo (`neodafunky`), Emma (`EmmaIsNine`) and Alec (`bbulldogs48`) have empty profiles; Emma’s away message is a placeholder.
 4. **Wizard wording** for the six steps (no presenters any more).

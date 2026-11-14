@@ -1,0 +1,36 @@
+/* A readable cue sheet for the operator in a dim performance space. */
+.game-admin .desk-view-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 24px; }
+.game-admin .desk-view-nav button { min-width: 112px; min-height: 44px; }
+.game-admin .desk-view-nav button[aria-pressed="true"],
+.game-admin button.desk-primary { background: oklch(0.42 0.09 250); border-color: oklch(0.42 0.09 250); color: oklch(0.98 0.005 250); }
+.game-admin .desk-view-nav button[aria-pressed="true"]:hover,
+.game-admin button.desk-primary:hover:not(:disabled) { background: oklch(0.36 0.09 250); }
+.game-admin .desk-view-nav a { margin-left: auto; padding: 10px 0; }
+.game-admin .desk-showtime { max-width: 960px; }
+.game-admin .desk-night { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.game-admin .desk-night strong { font-size: 18px; }
+.game-admin .desk-night span { font-size: 12px; color: oklch(0.42 0.04 250); }
+.game-admin section.desk-cue-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 28px; border: 0; border-top: 1px solid oklch(0.8 0.025 250); background: transparent; margin: 0; padding: 26px 0; }
+.game-admin .desk-cue-row h2 { font-size: 20px; margin-bottom: 6px; }
+.game-admin .desk-cue-row h3 { font-size: 18px; line-height: 1.45; margin: 8px 0 14px; max-width: 65ch; }
+.game-admin .desk-cue-row p { max-width: 65ch; }
+.game-admin .desk-cue-row > div:first-child p, .game-admin .desk-status { font-size: 13px; color: oklch(0.43 0.035 250); }
+.game-admin .desk-status { margin: 8px 0; }
+.game-admin .desk-message-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.game-admin .desk-showtime button { min-height: 44px; }
+.game-admin .desk-details { margin-top: 18px; }
+.game-admin .desk-details summary { cursor: pointer; padding: 10px 0; min-height: 44px; color: oklch(0.37 0.08 250); }
+.game-admin .desk-details summary:focus-visible { outline: 3px solid oklch(0.48 0.16 255); outline-offset: 3px; }
+.game-admin .desk-award { border-top: 1px solid oklch(0.83 0.02 250); padding: 12px 0; }
+.game-admin .desk-award ul { display: flex; gap: 6px 20px; flex-wrap: wrap; padding: 0; list-style: none; }
+.game-admin .desk-award li { margin: 0; }
+.game-admin .desk-external { color: oklch(0.43 0.035 250); max-width: 65ch; font-size: 13px; padding-top: 12px; }
+.game-admin .desk-finish { border-top: 1px solid oklch(0.8 0.025 250); margin-top: 28px; padding-top: 8px; }
+.game-admin .desk-finish p, .game-admin .desk-empty p { max-width: 65ch; }
+.game-admin .desk-empty { padding: 24px 0; }
+@media (max-width: 650px) {
+  .game-admin section.desk-cue-row { grid-template-columns: 1fr; gap: 14px; padding: 22px 0; }
+  .game-admin .desk-view-nav a { margin-left: 0; }
+  .game-admin .desk-message-buttons { display: grid; grid-template-columns: 1fr; }
+  .game-admin .desk-cue-row .desk-primary { width: 100%; }
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/session";
 import { supabaseAdmin as db } from "@/lib/supabase-admin";
+import { invitationActionType, isShowInvitationKind } from '@/lib/show-invitations';
 import {
   check,
   failure,
@@ -38,11 +39,38 @@ export async function POST(req: NextRequest) {
   try {
     sameOrigin(req);
     const b = await req.json();
+    let createdShowId: string | undefined;
     if (b.action === "new_show") {
-      const r = await db
-        .from("game_shows")
-        .insert({ title: textInput(b.title, 1, 100) });
-      check(r.error);
+      const title = textInput(b.title, 1, 100);
+      if (b.triviaSourceShowId) {
+        const source = textInput(b.triviaSourceShowId, 36, 36);
+        const r = await db.rpc("game_copy_trivia_night", { night_title: title, source_show: source });
+        if (r.error?.code === "PGRST202")
+          throw new Error("Trivia reuse needs database update 032. Ask the operator to install it before copying a night.");
+        check(r.error);
+        createdShowId = r.data;
+      } else {
+        const r = await db.from("game_shows").insert({ title }).select("id").single();
+        check(r.error);
+        createdShowId = r.data!.id;
+      }
+    } else if (b.action === 'trivia_open' || b.action === 'trivia_close_reveal') {
+      const showId = textInput(b.showId, 36, 36);
+      const result = await db.rpc('game_trivia_list', {
+        s: showId, action: b.action === 'trivia_open' ? 'open' : 'close_reveal',
+      });
+      check(result.error);
+    } else if (b.action === 'audience_invitation') {
+      const showId = textInput(b.showId, 36, 36);
+      if (b.invitation !== 'clear' && !isShowInvitationKind(b.invitation))
+        throw new Error('Choose a show invitation or clear it.');
+      const current = await db.from('game_shows').select('id,status').eq('id', showId).maybeSingle();
+      check(current.error);
+      if (current.data?.status !== 'active') throw new Error('Choose the active show before sending an invitation.');
+      const saved = await db.from('admin_actions').insert({ action_type: invitationActionType(showId),
+        admin_user: session.userId, details: { kind: b.invitation } });
+      check(saved.error);
+      return NextResponse.json({ success: true });
     } else {
       textInput(b.showId, 36, 36);
       if (["create", "approve", "edit"].includes(b.action))
@@ -92,9 +120,9 @@ export async function POST(req: NextRequest) {
       .insert({
         action_type: `game_${b.action}`,
         admin_user: session.userId,
-        details: { show_id: b.showId },
+        details: { show_id: createdShowId || b.showId, ...(b.triviaSourceShowId ? { trivia_source_show_id: b.triviaSourceShowId } : {}) },
       });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, ...(createdShowId ? { showId: createdShowId } : {}) });
   } catch (e) {
     return failure(e);
   }

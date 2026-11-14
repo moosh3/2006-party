@@ -64,3 +64,12 @@ Supplied by the production as 1280×720 Canva MOV exports through Messages. The 
 - #3: source `video number 3.mov`, source SHA-256 `c77e9e4dd4b94232bd3749ead154a7d53dbdd48db8ba6c4e7247f3a6828855f9`; WebM SHA-256 `60687ff890152d0e5753776739cc973703a78ab3e0c962890efb2c42fdd50f81`.
 - #4: source `video number 4.mov`, source SHA-256 `6d1282d512fe327222f79e53882a85d6bf089d13db61466c7c59af88589540f3`; WebM SHA-256 `9317faf2202becb99cb1e9b6f96638dcf0da5ed4ebd384147054d01303e7f233`.
 - #5: source `video number five.mov`, source SHA-256 `943dff676e0f1a8dbbb668378d2282a7cb8017c6455b1c63484c432c5692578b`; WebM SHA-256 `f85c98f0d92f7cb1551256aae0c04b4718866510cb67bfb026addb7c63718468`.
+
+## Rules music
+
+`music/chacarron.m4a` is the original AAC stereo audio extracted without re-encoding from the user-provided `YTDown.com_YouTube_Media_MlW7T0SUH0E_El-Chombo-Chacarron-Official-Video_001_1080p.mp4` in Downloads on November 13, 2026. The complete 168.066032-second track loops only during Rules of the Game. The file stays bundled; playback makes no request to YouTube. This is production-supplied music, not newly composed audio or a license claim.
+
+
+## Results music
+
+`music/mario-party-results.m4a` is the original AAC stereo audio extracted without re-encoding from the user-provided `YTDown.com_YouTube_Media__bPtlScYnXI_Mario-Party-1-OST-Results_001_480p.mp4` in Downloads on November 13, 2026. The complete 20.317460-second track loops during Check Our Scores, across result-card changes. The bundled file makes no request to YouTube. This is production-supplied music, not newly composed audio or a license claim.

@@ -10,7 +10,7 @@ Online viewers watching the live 2006 performance, cast and production operators
 
 ## Product Purpose
 
-Keep the shared program and TRL video vote central. Trivia and cast superlatives add lightweight participation between video votes, without requiring audience accounts or adding operator busywork.
+Keep the shared program central. Music-video voting happens on a separate website; production receives that site’s final ranking and arranges the countdown. Trivia and cast superlative voting happen here. Trivia opens as a full list under the video for guests to answer at their own pace; nightly shuffle changes only that list’s order. The game desk opens in a simple Show time view, with preparation and moderation under Setup.
 
 ## Brand Personality
 
@@ -22,7 +22,7 @@ Do not replace the period desktop with a generic modern dashboard or let decorat
 
 ## Design Principles
 
-- The broadcast and main TRL vote come first.
+- The broadcast comes first. Do not duplicate the external music-video vote.
 - Make the next audience action easy to find.
 - Keep administration predictable and protect live operations.
 - Preserve the period character while improving readability and feedback.

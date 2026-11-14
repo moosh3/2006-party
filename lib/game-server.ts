@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as db } from "./supabase-admin";
+import { invitationActionType, readShowInvitation } from './show-invitations';
 import {
   castScores,
   type GamePrompt,
@@ -83,16 +84,18 @@ export async function snapshot(
   check(showResult.error);
   const show = showResult.data;
   if (!show) return { show: null, viewer, prompts: [], score: 0 };
-  const [pr, cr, tr] = await Promise.all([
+  const [pr, cr, tr, ir] = await Promise.all([
     db
       .from("game_prompts")
       .select("*")
       .eq("show_id", show.id)
-      .order("created_at"),
+      .order("display_order").order("created_at").order("id"),
     db.from("game_cast").select("id,name").eq("show_id", show.id),
     db.rpc("game_totals", { s: show.id }),
+    db.from('admin_actions').select('id,details').eq('action_type', invitationActionType(show.id))
+      .order('id', { ascending: false }).limit(1).maybeSingle(),
   ]);
-  [pr, cr, tr].forEach((r) => check(r.error));
+  [pr, cr, tr, ir].forEach((r) => check(r.error));
   const promptIds = (pr.data || []).map((p) => p.id);
   const vr =
     viewer && promptIds.length
@@ -140,6 +143,7 @@ export async function snapshot(
     viewer,
     prompts,
     score: totals.scores.find((s) => s.id === viewer?.id)?.score || 0,
+    invitation: readShowInvitation(show, ir.data, all),
     ...(admin || revealFinal
       ? { scores: totals.scores, castScores: castScores(all, cr.data || []) }
       : {}),

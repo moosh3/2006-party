@@ -1,0 +1,75 @@
+/* Character-sheet content inside the existing AIM window. */
+.xp2006-popwin.xp2006-sprite-popwin{display:flex;flex-direction:column;max-width:780px;max-height:calc(100dvh - 24px);min-height:0;zoom:1}
+.xp2006-sprite-popwin>.xp2006-titlebar,.xp2006-sprite-popwin>.xp2006-im-actions{flex:none}
+.xp2006-sprite-popwin>.xp2006-titlebar{min-height:36px}
+.xp2006-sprite-popwin .xp2006-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xp2006-sprite-popwin .xp2006-window-buttons>button{min-width:32px;min-height:28px}
+.xp2006-sprite-popwin>.xp2006-im-actions button{min-height:36px;min-width:88px;font-size:13px}
+.sprite-profile{--profile-peach:#f8ce9f;--profile-paper:#fff5e9;--profile-ink:#25201c;--profile-line:#8d6b4e;overflow:auto;overscroll-behavior:contain;min-height:0;margin:5px 5px 0;padding:20px;color:var(--profile-ink);background:var(--profile-paper);font:14px/1.5 Tahoma,Arial,sans-serif;border:1px solid #9b8d7d;scrollbar-gutter:stable;overflow-wrap:anywhere}
+.sprite-profile :is(h2,h3,p,dl,dd,ul){margin:0}
+.sprite-profile-hero{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:2px solid var(--profile-ink)}
+.sprite-profile-portrait{width:88px;height:104px;display:grid;place-items:center;flex:none;background:repeating-linear-gradient(0deg,#f5c28d 0px,#f5c28d 1px,transparent 1px,transparent 16px),repeating-linear-gradient(90deg,#f5c28d 0px,#f5c28d 1px,#ffe2c1 1px,#ffe2c1 16px);border:2px solid var(--profile-ink);box-shadow:3px 3px 0 #b98150}
+.sprite-profile-portrait img{width:auto;height:80px;object-fit:contain;image-rendering:pixelated}
+.sprite-profile-identity{min-width:0;flex:1}
+.sprite-profile-identity>p{font:700 12px/1.4 Tahoma,Arial,sans-serif}
+.sprite-profile-identity h2{font:700 38px/1.15 Georgia,'Times New Roman',serif;margin:2px 0 6px}
+.sprite-profile-handle{display:block;font:12px/1.5 'Courier New',monospace;overflow-wrap:anywhere}
+.sprite-profile-vitals{display:grid;gap:10px;min-width:210px;flex:none}
+.sprite-profile-meter{display:grid;grid-template-columns:60px 1fr 32px;gap:8px;align-items:center;font-size:11px}
+.sprite-profile-meter>strong{text-transform:uppercase}
+.sprite-profile-meter>span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.sprite-profile-boxes{display:flex;gap:3px}
+.sprite-profile-boxes>span{width:10px;height:16px;flex:1;border:1px solid #a9652e;background:#fff3df}
+.sprite-profile-boxes>span[data-filled]{background:#bd621a;box-shadow:inset 1px 1px 0 #ffe2a6}
+.sprite-profile-meta{display:flex;flex-wrap:wrap;gap:12px 28px;padding:13px 0 15px}
+.sprite-profile-meta dt{font-size:11px;font-weight:700;color:#655141}
+.sprite-profile-meta dd{font-weight:700;font-size:14px}
+.sprite-profile-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+.sprite-profile-main,.sprite-profile-details{display:grid;gap:14px;min-width:0}
+.sprite-profile-field{border:1px solid var(--profile-line);background:var(--profile-peach);min-width:0}
+.sprite-profile-field h3{display:inline-block;max-width:100%;padding:4px 10px;background:var(--profile-ink);color:#fff5e9;font:700 12px/1.5 Tahoma,Arial,sans-serif}
+.sprite-profile-field>div{padding:10px 12px}
+.sprite-profile-field p{white-space:pre-line}
+.sprite-profile-field ul{padding:0;list-style:none}
+.sprite-profile-field li+li{border-top:1px dotted #aa784f;padding-top:7px;margin-top:7px}
+.sprite-profile-field table{width:100%;border-collapse:collapse;font-size:13px}
+.sprite-profile-field th{text-align:left;font-weight:400}
+.sprite-profile-field thead{font-size:11px;color:#59402b}
+.sprite-profile-field :is(th,td){padding:5px 0;border-bottom:1px dotted #a47752;white-space:pre-line}
+.sprite-profile-field tr:last-child :is(th,td){border-bottom:0}
+.sprite-profile-field :is(td,th:last-child){text-align:right;padding-left:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sprite-profile-field td{font-weight:700}
+.sprite-profile-conditions{display:flex;align-items:center;gap:10px;margin-top:14px;border:1px solid var(--profile-line);padding:9px 10px;background:#ffe4c5}
+.sprite-profile-conditions h3{font-size:11px;text-transform:uppercase}
+.sprite-profile-conditions ul{display:flex;flex-wrap:wrap;gap:5px;list-style:none;padding:0}
+.sprite-profile-conditions li{padding:3px 8px;background:#6d391b;color:#fff;font:700 10px/1.6 Tahoma,Arial,sans-serif}
+.sprite-profile-catchphrases{margin-top:18px;padding-top:14px;border-top:2px solid var(--profile-ink)}
+.sprite-profile-catchphrases h3{font:700 18px/1.3 Georgia,serif;margin-bottom:10px}
+.sprite-profile-catchphrases dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sprite-profile-catchphrases dl>div{padding:8px 10px;border-left:3px solid #b65b22;background:#ffe5c9}
+.sprite-profile-catchphrases dt{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#65452c}
+.sprite-profile-catchphrases dd{font-weight:700;margin-top:3px}
+.sprite-profile-footer{margin-top:16px;font-size:11px;color:#5d4c3c}
+.sprite-profile-footer summary{cursor:pointer;min-height:32px;padding:10px 0 3px;font-weight:700}
+.sprite-profile-footer details p{white-space:pre-line;padding:8px 0}
+.sprite-profile-footer details strong{display:block;margin-bottom:3px}
+@media(max-width:600px){
+ .xp2006-popwin.xp2006-sprite-popwin{max-height:calc(100dvh - 20px)}
+ .xp2006-sprite-popwin .xp2006-window-buttons>button,.xp2006-sprite-popwin>.xp2006-im-actions button{min-width:44px;min-height:44px}
+ .sprite-profile{padding:14px;font-size:14px;scrollbar-gutter:auto}
+ .sprite-profile-hero{flex-wrap:wrap;gap:12px}
+ .sprite-profile-portrait{width:68px;height:86px}
+ .sprite-profile-portrait img{height:68px}
+ .sprite-profile-identity h2{font-size:32px}
+ .sprite-profile-vitals{width:100%;min-width:0;grid-template-columns:1fr 1fr;gap:12px}
+ .sprite-profile-meter{grid-template-columns:1fr 32px;gap:4px}
+ .sprite-profile-boxes{grid-column:1/-1;grid-row:2}
+ .sprite-profile-boxes>span{max-width:20px}
+ .sprite-profile-meta{gap:10px 20px}
+ .sprite-profile-grid{grid-template-columns:1fr}
+ .sprite-profile-catchphrases dl{grid-template-columns:1fr}
+ .sprite-profile-conditions{align-items:flex-start;flex-direction:column}
+ .sprite-profile-footer summary{min-height:44px}
+}
+
+.sprite-profile:focus-visible{outline:2px solid #285dc2;outline-offset:-3px}
