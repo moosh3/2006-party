@@ -4,6 +4,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GamePrompt, GameState, leaders, type GameKind } from "@/lib/game-types";
 import { placePopup, type Box, type Placement } from "@/lib/popup-placement";
+import { SPRITES } from "@/lib/cast";
+import { SPRITE_PROFILES } from "@/lib/sprite-profiles";
 import "./game.css";
 import "./game-zine.css";
 
@@ -14,49 +16,73 @@ const categoryCopy = {
   superlative: { title: "yearbook awards", body: "Give the 2006ers their flowers. Vote for the cast member who fits each award." },
 };
 
+/** The Sprite for a cast choice, when the operator's spelling matches one. */
+const castArt = (label: string) => {
+  const name = label.trim().toLowerCase();
+  return SPRITES.find(sprite => [sprite.name, sprite.screenName, SPRITE_PROFILES[sprite.art]?.characterName]
+    .some(known => known?.toLowerCase() === name))?.art;
+};
+
 function Question({
   prompt,
   disabled,
   vote,
   showActive = true,
+  place,
 }: {
   prompt: GamePrompt;
   disabled: boolean;
   showActive?: boolean;
+  /** "Question 2 of 9", for a list answered in order. */
+  place?: string;
   vote: (id: string, option: string) => void;
 }) {
   const total = prompt.options.reduce((n, o) => n + (o.count || 0), 0);
   const max = Math.max(0, ...prompt.options.map((o) => o.count || 0));
   const locked = prompt.kind === "trivia" && !!prompt.answer;
+  const open = prompt.status === "open";
+  const graded = prompt.kind === "trivia" && !open && !!prompt.correct_option;
   return (
-    <article className={`game-question game-question-${prompt.kind}`}>
+    <article className={`game-question game-question-${prompt.kind}`} data-status={open ? "open" : "closed"}>
       <div className="game-eyebrow">
-        {labels[prompt.kind]} ·{" "}
-        {prompt.status === "open" ? "Open now" : prompt.kind === "trl" ? "Voting closed" : "Closed"}
+        <span>{place || labels[prompt.kind]}</span>
+        <span className="game-status-pill">
+          {open ? "Open now" : prompt.kind === "trl" ? "Voting closed" : "Closed"}
+        </span>
       </div>
       <h3>{prompt.question}</h3>
+      {graded && (
+        <p className="game-verdict" data-result={!prompt.answer ? "none" : prompt.answer === prompt.correct_option ? "right" : "wrong"}>
+          {!prompt.answer ? "You sat this one out." : prompt.answer === prompt.correct_option ? "You got it! +1" : "Not this time."}
+        </p>
+      )}
       <div className="game-options">
-        {prompt.options.map((option) => (
+        {prompt.options.map((option, index) => {
+          const art = prompt.kind === "superlative" ? castArt(option.label) : undefined;
+          const top = prompt.kind !== "trivia" && max > 0 && option.count === max;
+          return (
           <button
             type="button"
             key={option.id}
             aria-pressed={prompt.answer === option.id}
-            disabled={disabled || prompt.status !== "open" || locked}
+            data-correct={prompt.correct_option === option.id || undefined}
+            data-top={top || undefined}
+            disabled={disabled || !open || locked}
             onClick={() => vote(prompt.id, option.id)}
           >
-            <span>
+            {art
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img className="game-option-face" src={`/2006/cast/${art}.png`} alt="" width={32} height={48} />
+              : prompt.kind === "trivia" && <span className="game-option-letter" aria-hidden="true">{String.fromCharCode(65 + index)}</span>}
+            <span className="game-option-label">
               {option.label}
-              {prompt.answer === option.id ? " ✓ Your answer" : ""}
-              {prompt.correct_option === option.id ? " · Correct answer" : ""}
+              {prompt.answer === option.id && <>{" "}<span className="game-tag game-tag-yours">✓ {prompt.kind === "trivia" ? "Your answer" : "Your vote"}</span></>}
+              {prompt.correct_option === option.id && <>{" "}<span className="game-tag game-tag-correct">Correct answer</span></>}
             </span>
             {option.count !== undefined && (
               <span className="game-count">
                 {option.count} vote{option.count === 1 ? "" : "s"}
-                {prompt.kind !== "trivia" && max > 0 && option.count === max
-                  ? prompt.status === "closed"
-                    ? " · Winner"
-                    : " · Leading"
-                  : ""}
+                {top && <b>{prompt.status === "closed" ? " · Winner" : " · Leading"}</b>}
               </span>
             )}
             {option.count !== undefined && total > 0 && (
@@ -67,7 +93,8 @@ function Question({
               />
             )}
           </button>
-        ))}
+          );
+        })}
       </div>
       <p className="game-help">
         {prompt.status === "closed" && prompt.kind === "trl" && showActive
@@ -285,6 +312,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
         </p>
       </section>
     );
+  const inTab = state.prompts.filter((p) => p.kind === tab);
   const canVote =
     !!state.viewer && !state.viewer.blocked && state.show.status === "active";
   return (
@@ -301,7 +329,7 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
         {state.viewer && (
           <div className="game-score">
             <strong>{state.score}</strong>
-            <span>correct · {state.viewer.name}</span>
+            <span><b>correct</b> {state.viewer.name}</span>
           </div>
         )}
       </header>
@@ -401,8 +429,16 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
       </div>
       <div id={`${boardId}-panel`} role="tabpanel" tabIndex={0} aria-labelledby={`${boardId}-tab-${tab}`}>
         <div className={`game-category-intro game-category-intro-${tab}`}>
-          <h3>{categoryCopy[tab].title}</h3>
-          <p>{categoryCopy[tab].body}</p>
+          <div>
+            <h3>{categoryCopy[tab].title}</h3>
+            <p>{categoryCopy[tab].body}</p>
+          </div>
+          {state.viewer && inTab.length > 0 && (
+            <p className="game-progress">
+              <strong>{inTab.filter(p => p.answer).length}<span> / {inTab.length}</span></strong>
+              {tab === "trivia" ? "answered" : "voted"}
+            </p>
+          )}
         </div>
         {!state.viewer && state.show.status === "active" && <p className="game-help">Join above to vote and keep your trivia score.</p>}
         {state.prompts.filter((p) => p.kind === tab).length === 0 && (
@@ -418,10 +454,11 @@ export default function GameBoard({ screenName, onOpenTrivia, autoTriviaPopup = 
             (a, b) => tab === "trivia" ? 0 : Number(b.status === "open") - Number(a.status === "open")
               || Number(b.id === cueRequest?.promptId) - Number(a.id === cueRequest?.promptId),
           )
-          .map((p) => (
+          .map((p, index, list) => (
             <Question
               key={p.id}
               prompt={p}
+              place={tab === "trivia" ? `Question ${index + 1} of ${list.length}` : undefined}
               disabled={busy || !canVote}
               vote={vote}
               showActive={state.show!.status === "active"}
