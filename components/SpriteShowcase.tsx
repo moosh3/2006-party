@@ -8,7 +8,7 @@ import { spriteSpotlight } from '@/lib/scene-presentation';
 import './sprite-showcase.css';
 
 /** Show the complete original animation once, then leave the still portrait. */
-function SpriteEntrance({ art, motionAllowed, paused }: { art: CastRunId; motionAllowed: boolean; paused: boolean }) {
+export function SpriteEntrance({ art, motionAllowed, paused }: { art: CastRunId; motionAllowed: boolean; paused: boolean }) {
   const instance = useId();
   const [finished, setFinished] = useState(false);
   const started = useRef(false);

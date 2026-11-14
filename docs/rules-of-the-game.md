@@ -50,6 +50,8 @@ Segment 2 of the show, after Welcome and Ads 1, before Ads 2 and video #5. While
 
 ## Guest experience (`/event`)
 
+Revised November 14, 2026 after the show, in the style of a 2006 ringtone advert (this replaces the Friend Space lineup and the separate wizard panel described below): a purple starburst; one Sprite at a time walks out on the left under a white speech bubble that types out its character-sheet description (the first one opens with “Welcome to 2006!”); that Sprite’s profile card sits on the right with its A/S/L, stats, theme song, a first-condition sticker and **View full profile**; a row of all six picks who is out. Until a guest picks someone the Sprites take turns; after that, clicking the Sprite out front cycles its three catchphrases. The same six-step tour runs along the bottom as a “How to play” bar. With reduced motion nothing walks, types or takes turns. The reopened desktop window starts on MK and waits for the guest.
+
 Revised November 7, 2026 after the first look: two separate things happen at once. The Sprites greet guests and can be played with; below them, a self-paced setup wizard shows the rest of the site.
 
 ### Sprites (top half)

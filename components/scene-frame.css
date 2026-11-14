@@ -64,22 +64,25 @@
   font-weight: 700;
 }
 
-/* Rules of the Game: the Sprites on the sky, the setup wizard on the grass.
+/* Rules of the Game, after a 2006 ringtone advert: a starburst, one Sprite out
+   front with a typed speech bubble, its profile card alongside, the cast to
+   pick from and the tour along the bottom.
    The audience scene may grow past 16:9 on phones so nothing overlaps. */
 .scene-frame-audience { overflow: visible; align-content: center; }
 /* Sized to the player (cqw), not the browser window, so it fits the 16:9 picture. */
-.scene-rules { container-type: inline-size; place-content: stretch; grid-template-rows: auto auto; align-content: space-between; gap: clamp(6px, 1.5cqw, 16px); padding: clamp(6px, 2cqw, 24px); }
-/* MySpace profile, 2006: black with a hot-pink glitter tile and twinkling stars. */
 .scene-rules {
-  background-color: #0d0710;
-  background-image:
-    radial-gradient(circle at 50% 120%, rgba(255, 20, 147, 0.45), transparent 60%),
-    radial-gradient(circle at 25% 25%, rgba(255, 105, 180, 0.55) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 75% 60%, rgba(255, 255, 255, 0.45) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 60% 15%, rgba(255, 182, 230, 0.4) 0 0.8px, transparent 1.4px);
-  background-size: 100% 100%, 22px 22px, 31px 31px, 17px 17px;
+  container-type: inline-size;
+  place-content: stretch;
+  align-content: space-between;
+  justify-items: stretch;
+  gap: clamp(5px, 1.1cqw, 12px);
+  padding: clamp(6px, 1.6cqw, 18px);
+  text-align: left;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 105, 180, 0.4), transparent 58%),
+    repeating-conic-gradient(from 0deg at 50% 42%, #2a0d4d 0 7.5deg, #3d1570 7.5deg 15deg);
 }
-.scene-rules > :is(.scene-stage, .scene-wizard, .scene-tour-start) { position: relative; z-index: 1; }
+.scene-rules > :not(.scene-glitter) { position: relative; z-index: 1; min-width: 0; }
 .scene-glitter { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .scene-glitter span {
   position: absolute;
@@ -91,113 +94,189 @@
   0%, 100% { opacity: 0.25; transform: scale(0.7) rotate(0deg); }
   50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .scene-glitter span { animation: none; opacity: 0.6; }
+.scene-rules-title {
+  margin: 0;
+  color: #fff;
+  font: 400 clamp(18px, 4.4cqw, 44px)/1 Impact, 'Arial Black', sans-serif;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 0.07em 0 #ff1493, 0 0.14em 0 #7c184b, 0 0 0.6em rgba(255, 105, 180, 0.7);
 }
-/* The Sprites stand in a MySpace "Friend Space" box. */
-.scene-friends {
+.scene-show { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: clamp(8px, 2.6cqw, 30px); padding-inline: clamp(0px, 1.5cqw, 16px); }
+/* Clipped sideways only, so a Sprite can walk in from beyond the edge. */
+.scene-host { display: grid; justify-items: center; gap: clamp(8px, 1.4cqw, 14px); min-width: 0; overflow-x: clip; }
+.scene-bubble {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  border: 3px solid #19121a;
+  border-radius: clamp(12px, 2.2cqw, 22px);
+  background: #fff;
+  color: #19121a;
+  padding: clamp(6px, 1.3cqw, 14px) clamp(8px, 1.6cqw, 16px);
+  font-size: clamp(11px, 1.62cqw, 16px);
+  line-height: 1.35;
+  box-shadow: 4px 4px 0 rgba(13, 7, 16, 0.55);
+}
+.scene-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 14px;
+  height: 14px;
+  border: solid #19121a;
+  border-width: 0 3px 3px 0;
+  background: #fff;
+  transform: translateX(-50%) rotate(45deg);
+}
+/* A catchphrase is a few words: say it loudly. */
+.scene-bubble[data-kind='line'] { width: auto; min-width: 45%; font-size: clamp(18px, 3.6cqw, 34px); font-weight: 700; text-align: center; }
+.scene-bubble-rest { visibility: hidden; }
+.scene-host-sprite {
   display: grid;
   justify-items: center;
-  gap: clamp(2px, 0.8cqw, 6px);
-  border: 2px solid #ff69b4;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 18px rgba(255, 20, 147, 0.45);
-  padding: 0 clamp(6px, 2cqw, 18px) clamp(4px, 1cqw, 8px);
-  max-width: 100%;
-}
-.scene-friends-title {
-  justify-self: stretch;
-  margin: 0 calc(-1 * clamp(6px, 2cqw, 18px)) clamp(4px, 1cqw, 10px);
-  background: #ff69b4;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
   color: #fff;
-  padding: 2px 8px;
-  font-size: clamp(10px, 2cqw, 15px);
-  font-weight: 700;
-  text-align: left;
+  padding: 2px 6px;
+  font: inherit;
+  cursor: pointer;
+  animation: scene-walk-out 1.1s cubic-bezier(0.22, 0.7, 0.35, 1) both;
 }
-.scene-friends-count { margin: 0; color: #ffd1f0; font-size: clamp(9px, 1.7cqw, 13px); }
-.scene-friends-count b { color: #ff69b4; }
-.scene-rules .scene-lineup span { border-color: #ff69b4; color: #b0005f; }
-.scene-rules .scene-lineup button:hover { border-color: #ff69b4; background: rgba(255, 105, 180, 0.18); }
-.scene-rules .scene-bubble { border-color: #ff1493; }
-/* Headroom for the welcome bubble, so it never covers the Friend Space title. */
-.scene-stage { position: relative; display: grid; justify-items: center; padding-top: clamp(44px, 8.5cqw, 76px); }
-/* Clip only while walking in from the left edge; bubbles may overflow afterwards. */
-.scene-stage[data-entering] { overflow: hidden; }
-.scene-rules .scene-lineup { flex-wrap: nowrap; gap: 0; }
-/* Gathered together, slightly overlapping and staggered, like a group photo. */
-/* The Sprites stand close, but their name labels never overlap. */
-.scene-rules .scene-lineup li { position: relative; margin: 0 clamp(1px, 0.4cqw, 4px); }
-.scene-rules .scene-lineup span { position: relative; z-index: 1; font-size: clamp(9px, 1.9cqw, 14px); padding: 1px 4px; white-space: nowrap; }
-.scene-rules .scene-lineup li:nth-child(even) { top: clamp(3px, 1cqw, 8px); }
-.scene-rules .scene-lineup button { padding: 2px; }
-.scene-rules .scene-lineup img { width: clamp(30px, 9cqw, 104px); }
-.scene-stage[data-entering] .scene-lineup li {
-  animation: scene-walk-in 2.4s cubic-bezier(0.22, 0.7, 0.35, 1) both;
-  animation-delay: calc(var(--i) * 0.3s);
-}
-.scene-stage[data-entering] .scene-lineup img { animation: scene-step 0.32s steps(2, jump-none) infinite; }
-@keyframes scene-walk-in {
-  from { transform: translateX(-110vw); }
+.scene-host-sprite:focus-visible, .scene-card-cta:focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
+.scene-host-sprite:hover .scene-host-hint { background: #fff; }
+.scene-rules .sprite-show-portrait { width: auto; }
+.scene-rules .sprite-show-portrait img { height: clamp(72px, 13.5cqw, 150px); }
+.scene-host-name { display: grid; justify-items: center; font-size: clamp(9px, 1.4cqw, 13px); overflow-wrap: anywhere; text-shadow: 0 1px 2px #0d0710; }
+.scene-host-name b { font: 400 clamp(14px, 2.6cqw, 26px)/1.1 Impact, 'Arial Black', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #ffe069; }
+.scene-host-hint { border-radius: 999px; background: #adff39; color: #19121a; padding: 1px 10px; font-size: clamp(9px, 1.3cqw, 12px); font-weight: 700; }
+@keyframes scene-walk-out {
+  from { transform: translateX(-36cqw); }
   to { transform: translateX(0); }
 }
-@keyframes scene-step { 50% { transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) {
-  .scene-stage[data-entering] .scene-lineup li,
-  .scene-stage[data-entering] .scene-lineup img { animation: none; }
+/* The profile card, framed like the advert's "now playing" panel. */
+.scene-card {
+  position: relative;
+  display: grid;
+  gap: clamp(3px, 0.7cqw, 8px);
+  align-self: center;
+  border: clamp(3px, 0.5cqw, 5px) solid #ff8fd0;
+  border-radius: clamp(8px, 1.4cqw, 14px);
+  background: linear-gradient(170deg, #24103f, #12061f);
+  color: #fff7fb;
+  padding: clamp(8px, 1.6cqw, 18px);
+  box-shadow: 0 0 0 3px #19121a, 7px 7px 0 rgba(255, 20, 147, 0.55);
+  font-size: clamp(10px, 1.45cqw, 14px);
+  animation: scene-card-in 0.4s ease-out both;
 }
-.scene-bubble {
-  border: 2px solid #0a246a;
-  border-radius: 12px;
-  background: #fffbe0;
-  color: #1a1a1a;
-  padding: 8px 12px;
-  font-size: clamp(11px, 2.4cqw, 17px);
-  text-align: left;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+@keyframes scene-card-in { from { opacity: 0; transform: translateY(10px) rotate(1.5deg); } }
+.scene-card :is(p, h3, dl, dd) { margin: 0; }
+.scene-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-right: clamp(40px, 8cqw, 84px); font-size: 0.95em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.scene-card-top b { border-radius: 999px; background: #ff69b4; color: #19121a; padding: 1px 10px; }
+.scene-card h3 { font: 400 clamp(22px, 5.2cqw, 54px)/0.95 Impact, 'Arial Black', sans-serif; letter-spacing: 0.03em; text-transform: uppercase; overflow-wrap: anywhere; text-shadow: 0 0.06em 0 #b3155f; }
+.scene-card-brand { color: #ffb6e6; font-size: 1.15em; font-weight: 700; }
+.scene-card dl { display: grid; gap: 2px; }
+.scene-card dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 10px; border-bottom: 1px dotted rgba(255, 143, 208, 0.5); padding: 1px 0; }
+.scene-card dt { white-space: pre-line; line-height: 1.2; }
+.scene-card dd { color: #adff39; font: 700 1.15em 'Courier New', monospace; }
+.scene-card-song { white-space: pre-line; line-height: 1.25; }
+.scene-card-song b { display: block; color: #ffb6e6; font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; }
+.scene-card-cta {
+  justify-self: start;
+  min-height: 44px;
+  margin-top: 2px;
+  border: 2px solid #19121a;
+  border-radius: 6px;
+  background: #ffe069;
+  color: #19121a;
+  padding: 2px 16px;
+  font: 400 clamp(13px, 2cqw, 19px)/1 Impact, 'Arial Black', sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 #b3155f;
+  cursor: pointer;
 }
-.scene-bubble p { margin: 0; line-height: 1.35; }
-.scene-welcome { position: absolute; z-index: 2; top: 0; left: 50%; transform: translateX(-50%); margin: 0; font-weight: 700; font-size: clamp(13px, 3cqw, 24px); white-space: nowrap; }
-/* A line pops up above the Sprite who says it, kept inside the frame at the ends. */
-.scene-line { position: absolute; bottom: calc(100% + 6px); z-index: 3; width: max-content; max-width: min(260px, 45cqw); display: grid; gap: 4px; }
-.scene-lineup li[data-align='center'] .scene-line { left: 50%; transform: translateX(-50%); }
-.scene-lineup li[data-align='start'] .scene-line { left: 0; }
-.scene-lineup li[data-align='end'] .scene-line { right: 0; }
-.scene-line button { justify-self: start; min-height: 32px; border: 0; background: none; color: #0a246a; padding: 0; font: inherit; font-size: 0.85em; text-decoration: underline; cursor: pointer; }
-.scene-rules .scene-lineup li:nth-child(even) .scene-line { margin-bottom: 6px; }
+.scene-card-cta:hover:not(:disabled) { background: #fff3b0; }
+.scene-card-cta:disabled { cursor: default; opacity: 0.6; }
+.scene-card-sticker {
+  position: absolute;
+  top: clamp(-26px, -2.6cqw, -12px);
+  right: clamp(-22px, -2.2cqw, -8px);
+  display: grid;
+  place-items: center;
+  width: clamp(58px, 11.5cqw, 118px);
+  aspect-ratio: 1;
+  padding: 16%;
+  background: #adff39;
+  color: #19121a;
+  font: 400 clamp(8px, 1.55cqw, 16px)/1 Impact, 'Arial Black', sans-serif;
+  text-align: center;
+  transform: rotate(12deg);
+  clip-path: polygon(50.0% 0.0%,58.5% 13.0%,71.7% 5.0%,73.7% 20.3%,89.1% 18.8%,84.2% 33.5%,98.7% 38.9%,88.0% 50.0%,98.7% 61.1%,84.2% 66.5%,89.1% 81.2%,73.7% 79.7%,71.7% 95.0%,58.5% 87.0%,50.0% 100.0%,41.5% 87.0%,28.3% 95.0%,26.3% 79.7%,10.9% 81.2%,15.8% 66.5%,1.3% 61.1%,12.0% 50.0%,1.3% 38.9%,15.8% 33.5%,10.9% 18.8%,26.3% 20.3%,28.3% 5.0%,41.5% 13.0%);
+}
+/* Everyone, to pick from. The one who is out front is lit. */
+.scene-rules .scene-lineup { flex-wrap: nowrap; align-items: stretch; gap: clamp(2px, 0.8cqw, 10px); }
+.scene-rules .scene-lineup li { display: flex; min-width: 0; }
+.scene-rules .scene-lineup button { grid-auto-flow: column; align-items: center; gap: clamp(2px, 0.7cqw, 8px); border: 2px solid #a04c7c; background: rgba(13, 7, 16, 0.72); color: #ffd1ed; padding: 2px clamp(3px, 1cqw, 12px); }
+.scene-rules .scene-lineup button:hover { border-color: #ff69b4; background: rgba(255, 105, 180, 0.3); }
+.scene-rules .scene-lineup button[aria-current] { border-color: #fff; background: #ffd1ed; color: #321128; box-shadow: 0 0 0 2px #ff69b4; }
+.scene-rules .scene-lineup img { width: clamp(18px, 2.9cqw, 28px); }
+.scene-rules .scene-lineup span { border: 0; background: none; color: inherit; padding: 0; font-size: clamp(10px, 1.6cqw, 14px); white-space: nowrap; }
 
-/* Windows XP style setup wizard, paced by the guest. */
-.scene-wizard { justify-self: center; width: min(100%, 620px, 78cqw); text-align: left; color: #1a1a1a; }
-.scene-wizard > :is(.scene-wizard-title, .scene-wizard-body, .scene-wizard-footer) { margin: 0; }
-.scene-wizard-title { display: flex; justify-content: space-between; gap: 8px; border: 1px solid #0831d9; border-bottom: 0; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #0a5fdd, #0039b6); color: #fff; padding: 3px 10px; font-size: clamp(10px, 1.9cqw, 13px); font-weight: 700; }
-.scene-wizard-body { display: grid; gap: 3px; border-inline: 1px solid #0831d9; background: #fff; padding: clamp(6px, 1.4cqw, 12px) 12px; font-size: clamp(11px, 2.2cqw, 15px); }
-.scene-wizard-body p { margin: 0; line-height: 1.4; }
-.scene-wizard-heading { font-weight: 700; color: #0a246a; font-size: 1.1em; }
-.scene-wizard-dots { display: flex; gap: 6px; align-items: center; margin: 0 auto 0 0; padding: 0; list-style: none; }
-.scene-wizard-dots li { width: 8px; height: 8px; border-radius: 50%; background: #c9c9c9; }
-.scene-wizard-dots li[data-done] { background: #7aa0d8; }
-.scene-wizard-dots li[data-current] { background: #0a5fdd; }
-.scene-wizard-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; border: 1px solid #0831d9; border-top: 1px solid #c9c9c9; border-radius: 0 0 6px 6px; background: #ece9d8; padding: 5px 10px; }
+/* The tour, paced by the guest, runs along the bottom like the advert's ticker. */
+.scene-wizard { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; border: 2px solid #19121a; border-bottom: clamp(4px, 0.7cqw, 7px) solid #ffe069; background: #fff7fb; color: #19121a; }
+.scene-wizard[data-done] { display: flex; justify-content: center; border-color: transparent; border-bottom-color: #ffe069; background: none; padding-bottom: 4px; }
+.scene-wizard-title { display: grid; align-content: center; gap: 2px; background: #ff1493; color: #fff; padding: 4px clamp(6px, 1.2cqw, 12px); font-size: clamp(9px, 1.3cqw, 12px); font-weight: 700; white-space: nowrap; }
+.scene-wizard-title span:first-child { font: 400 clamp(12px, 2cqw, 19px)/1 Impact, 'Arial Black', sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
+.scene-wizard-body { display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 1px 8px; padding: 4px clamp(6px, 1.2cqw, 12px); font-size: clamp(10px, 1.5cqw, 14px); }
+.scene-wizard-body p { flex: 1 1 100%; margin: 0; line-height: 1.3; }
+.scene-wizard-body .scene-tour-pointer { flex: 1 1 12em; }
+.scene-wizard-heading { font-weight: 700; color: #7c184b; font-size: 1.1em; }
+.scene-wizard-dots { display: none; }
+.scene-wizard-footer { display: flex; align-items: center; gap: 4px; padding: 4px clamp(4px, 0.9cqw, 10px); }
 .scene-wizard-footer button, .scene-wizard-action, .scene-tour-start {
+  min-width: 44px;
   min-height: 44px;
   border: 1px solid #003c74;
   border-radius: 3px;
   background: linear-gradient(180deg, #fff, #ece9d8);
   color: #1a1a1a;
-  padding: 2px 14px;
+  padding: 2px clamp(8px, 1.3cqw, 14px);
   font: inherit;
-  font-size: clamp(11px, 2cqw, 14px);
+  font-size: clamp(11px, 1.6cqw, 14px);
+  white-space: nowrap;
   cursor: pointer;
 }
-.scene-wizard-action { justify-self: start; margin-top: 4px; font-weight: 700; }
+.scene-wizard-action { font-weight: 700; }
 .scene-wizard-footer button:disabled, .scene-wizard-action:disabled { cursor: default; opacity: 0.55; }
-.scene-wizard :is(button):focus-visible, .scene-tour-start:focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
-.scene-tour-start { justify-self: center; }
-/* Narrow players (phones): room for a bubble above the Sprites, touch-size links, full-width wizard. */
-@container (max-width: 520px) {
-  .scene-stage { padding-top: 104px; }
-  .scene-line button { min-height: 44px; }
-  .scene-wizard { width: 100%; }
+.scene-wizard :is(button):focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
+/* Narrow players (phones): the bubble on top, the Sprite beside its card, the tour stacked. */
+@container (max-width: 560px) {
+  .scene-show { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px 10px; padding: 0; }
+  .scene-host { display: contents; }
+  .scene-bubble, .scene-bubble[data-kind='line'] { grid-column: 1 / -1; width: 100%; }
+  .scene-bubble::after { left: 18%; }
+  .scene-rules .sprite-show-portrait img { height: 96px; }
+  .scene-host-sprite { max-width: 34cqw; }
+  .scene-host-hint { font-size: 10px; }
+  .scene-card-sticker { top: -14px; right: 0; width: 66px; font-size: 9px; }
+  .scene-rules .scene-lineup { flex-wrap: wrap; }
+  .scene-rules .scene-lineup li { flex: 1 1 30%; }
+  .scene-rules .scene-lineup button { flex: 1; justify-content: center; }
+  .scene-wizard { grid-template-columns: minmax(0, 1fr); }
+  .scene-wizard-title { display: flex; justify-content: space-between; align-items: center; }
+  .scene-wizard-body { font-size: 12px; }
+  .scene-wizard-footer { justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid #edb2cf; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-glitter span { animation: none; opacity: 0.6; }
+  .scene-host-sprite, .scene-card { animation: none; }
 }
 
 /* Let's Check Our Scores: the Mario Party style board fills the program frame;

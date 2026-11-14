@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { SPRITES, spriteLines, type Sprite } from '@/lib/cast';
 import { RULES_TOUR, SPRITE_WELCOME, type RulesTourAction } from '@/lib/rules-of-the-game';
 import { SCENES, type SceneId } from '@/lib/scenes';
 import ScoresBoard from '@/components/ScoresBoard';
-import SpriteShowcase from '@/components/SpriteShowcase';
+import SpriteShowcase, { SpriteEntrance } from '@/components/SpriteShowcase';
+import { SPRITE_PROFILES } from '@/lib/sprite-profiles';
 import StageScene from '@/components/StageScene';
 import { useScenePosition } from '@/hooks/useScenePosition';
 import SceneMusic, { type SceneMusicMode } from '@/components/SceneMusic';
@@ -75,46 +76,86 @@ export default function SceneFrame({ sceneId, interactive, playbackSessionId, pl
   }
 }
 
-/** Walk-in time before the Sprites have gathered: 2.4 s walk plus a 0.3 s stagger each. */
-const ARRIVE_MS = 2400 + 300 * (SPRITES.length - 1) + 200;
 /** Decorative MySpace glitter: [left %, top %, size, delay s]. */
 const GLITTER: readonly [number, number, number, number][] = [
   [6, 10, 1.1, 0], [18, 34, 0.7, 1.2], [29, 8, 0.9, 0.6], [44, 22, 0.6, 2.1], [58, 6, 1, 1.5], [71, 30, 0.8, 0.3],
   [86, 12, 1.2, 1.9], [94, 40, 0.7, 0.9], [10, 58, 0.8, 2.4], [90, 62, 0.9, 1.1], [4, 86, 0.7, 0.4], [96, 88, 0.8, 1.7],
 ];
-const WELCOME_MS = 5000;
+const TYPE_MS = 22;
+/** How long a Sprite stays out after its bubble has finished typing, until a guest takes over. */
+const LINGER_MS = 6000;
 
-/** Two things at once: the Sprites walk in, gather and greet guests, who can
- * click each one for its lines; below, a self-paced setup wizard shows the
- * rest of the site. Also reopened from the desktop after the segment airs. */
+/** What a Sprite says as it walks out: its own description from the character sheet. */
+function spriteIntro(sprite: Sprite) {
+  const description = SPRITE_PROFILES[sprite.art]?.description.replace(/\s+/g, ' ').trim();
+  return description || `Hi! I’m ${sprite.name}. Find me on AIM: ${sprite.screenName}.`;
+}
+
+/** Types the bubble out letter by letter. The whole line is laid out from the
+ * start so the bubble never resizes, and screen readers get it in one piece. */
+function TypedLine({ text, animate }: { text: string; animate: boolean }) {
+  const [count, setCount] = useState(animate ? 0 : text.length);
+  useEffect(() => {
+    if (!animate) { setCount(text.length); return; }
+    setCount(0);
+    const timer = window.setInterval(() => setCount(shown => {
+      if (shown >= text.length) { window.clearInterval(timer); return shown; }
+      return shown + 1;
+    }), TYPE_MS);
+    return () => window.clearInterval(timer);
+  }, [text, animate]);
+  return <>
+    <span className="sr-only">{text}</span>
+    <span aria-hidden="true">{text.slice(0, count)}<span className="scene-bubble-rest">{text.slice(count)}</span></span>
+  </>;
+}
+
+/** One Sprite at a time walks out, says its piece in a typed speech bubble and
+ * shows its profile card; guests pick who is next and click for catchphrases.
+ * The self-paced tour runs along the bottom. Also reopened from the desktop
+ * after the segment airs. */
 export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sessionId, actions, autoStartTour = true, entrance = autoStartTour }: {
   title?: string; sessionId?: string; actions?: SceneActions; autoStartTour?: boolean;
-  /** Walk in from the left when the scene starts; the reopened window starts gathered. */
+  /** The Sprites take turns walking out until a guest picks one; the reopened window waits for the guest. */
   entrance?: boolean;
 }) {
   const bubbleId = useId();
-  const [arrived, setArrived] = useState(!entrance);
-  const [welcoming, setWelcoming] = useState(entrance);
-  const [talking, setTalking] = useState<{ art: Sprite['art']; line: number } | null>(null);
-  const clicks = useRef<Partial<Record<Sprite['art'], number>>>({});
+  const [motionAllowed, setMotionAllowed] = useState(false);
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setMotionAllowed(!reduced.matches);
+    update();
+    reduced.addEventListener('change', update);
+    return () => reduced.removeEventListener('change', update);
+  }, []);
+  // `line` is null for the walk-out introduction, otherwise one of the Sprite's three lines.
+  const [show, setShow] = useState<{ person: number; line: number | null; turn: number }>({ person: 0, line: null, turn: 0 });
+  const [touring, setTouring] = useState(entrance);
+  // Catchphrases said so far by each Sprite that has been out.
+  const clicks = useRef<Partial<Record<Sprite['art'], number>>>({ [SPRITES[0].art]: 0 });
   // The wizard is there from the start but never moves focus by itself.
   const [step, setStep] = useState<number | null>(() => (autoStartTour && !tourDone(sessionId) ? 0 : null));
   const audio = useRef<HTMLAudioElement | null>(null);
   const current = step === null ? null : RULES_TOUR[step];
-  const speaker = SPRITES.find(sprite => sprite.art === talking?.art) || null;
+  const sprite = SPRITES[show.person];
+  const profile = SPRITE_PROFILES[sprite.art];
+  const said = show.line === null
+    ? `${entrance && show.turn === 0 ? `${SPRITE_WELCOME} ` : ''}${spriteIntro(sprite)}`
+    : spriteLines(sprite)[show.line];
 
-  useEffect(() => {
-    if (arrived) return;
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const timer = window.setTimeout(() => setArrived(true), reduced ? 0 : ARRIVE_MS);
-    return () => window.clearTimeout(timer);
-  }, [arrived]);
-  useEffect(() => {
-    if (!arrived || !welcoming) return;
-    const timer = window.setTimeout(() => setWelcoming(false), WELCOME_MS);
-    return () => window.clearTimeout(timer);
-  }, [arrived, welcoming]);
   useEffect(() => () => { audio.current?.pause(); }, []);
+  // Until a guest picks someone, the next Sprite walks out once this one has been read.
+  useEffect(() => {
+    if (!touring || !motionAllowed) return;
+    const timer = window.setTimeout(() => {
+      setShow(now => {
+        const person = (now.person + 1) % SPRITES.length;
+        clicks.current[SPRITES[person].art] ??= 0;
+        return { person, line: null, turn: now.turn + 1 };
+      });
+    }, said.length * TYPE_MS + LINGER_MS);
+    return () => window.clearTimeout(timer);
+  }, [touring, motionAllowed, said, show.turn]);
   // Light up the page controls this step is about (see scene-frame.css).
   const highlight = current?.highlight;
   useEffect(() => {
@@ -141,16 +182,22 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
   const goTo = (next: number) => { refocus.current = true; setStep(next); };
   const endTour = () => { refocus.current = true; setStep(null); markTourDone(sessionId); };
 
-  /** Each click says the next of the Sprite's lines, back to the first after the last. */
-  const speak = (sprite: Sprite) => {
-    const lines = spriteLines(sprite);
-    const count = clicks.current[sprite.art] ?? 0;
-    const line = count % lines.length;
-    clicks.current[sprite.art] = count + 1;
-    setWelcoming(false);
-    setTalking({ art: sprite.art, line });
+  /** A Sprite new to the stage walks out and introduces itself. After that each
+   * click says the next of its lines, back to the first after the last. */
+  const speak = (person: number) => {
+    const chosen = SPRITES[person];
+    const count = clicks.current[chosen.art];
+    setTouring(false);
     stopAudio();
-    const src = sprite.lineAudio?.[line];
+    if (count === undefined) {
+      clicks.current[chosen.art] = 0;
+      setShow(now => ({ person, line: null, turn: now.turn + 1 }));
+      return;
+    }
+    const line = count % spriteLines(chosen).length;
+    clicks.current[chosen.art] = count + 1;
+    setShow(now => ({ person, line, turn: now.turn + 1 }));
+    const src = chosen.lineAudio?.[line];
     if (src) {
       const clip = new Audio(src);
       audio.current = clip;
@@ -160,49 +207,58 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
 
   return (
     <section className="scene-frame scene-frame-audience scene-rules" aria-label={title}
-      onKeyDown={event => { if (event.key === 'Escape' && talking) { stopAudio(); setTalking(null); } }}>
+      onKeyDown={event => { if (event.key === 'Escape') stopAudio(); }}>
       <div className="scene-glitter" aria-hidden="true">
         {GLITTER.map(([left, top, size, delay]) => (
           <span key={`${left}-${top}`} style={{ left: `${left}%`, top: `${top}%`, fontSize: `${size}em`, animationDelay: `${delay}s` }}>✦</span>
         ))}
       </div>
-      <div className="scene-stage" data-entering={!arrived || undefined}>
-        {arrived && welcoming && <p className="scene-bubble scene-welcome" role="status">{SPRITE_WELCOME}</p>}
-        <div className="scene-friends">
-        <p className="scene-friends-title" aria-hidden="true">The 2006ers’ Friend Space</p>
-        <ul className="scene-lineup">
-          {SPRITES.map((sprite, i) => {
-            const isTalking = talking?.art === sprite.art;
-            return (
-              <li key={sprite.art} style={{ '--i': i } as CSSProperties}
-                data-align={i < 2 ? 'start' : i >= SPRITES.length - 2 ? 'end' : 'center'}>
-                {isTalking && speaker && (
-                  <div id={bubbleId} className="scene-bubble scene-line" role="status" aria-live="polite">
-                    <p>{spriteLines(speaker)[talking.line]}</p>
-                    <button type="button" disabled={!actions} onClick={() => actions?.openBuddy(speaker.index)}>View profile</button>
-                  </div>
-                )}
-                <button type="button" aria-label={`${sprite.name} (${sprite.screenName}): say something`}
-                  aria-controls={isTalking ? bubbleId : undefined} onClick={() => speak(sprite)}>
-                  {/* Still frames only: the Sprites walk and stand, they never spin. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/2006/cast/${sprite.art}.png`} alt="" width={32} height={48} />
-                  <span>{sprite.name}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <p className="scene-friends-count" aria-hidden="true">The 2006ers have <b>{SPRITES.length}</b> friends.</p>
+      <h2 className="scene-rules-title">{title}</h2>
+      <div className="scene-show">
+        <div className="scene-host">
+          <p id={bubbleId} className="scene-bubble" role="status" data-kind={show.line === null ? 'intro' : 'line'}>
+            <TypedLine key={show.turn} text={said} animate={motionAllowed} />
+          </p>
+          <button type="button" className="scene-host-sprite" key={sprite.art} aria-controls={bubbleId}
+            aria-label={`${sprite.name} (${sprite.screenName}): say something`} onClick={() => speak(show.person)}>
+            <SpriteEntrance art={sprite.art} motionAllowed={motionAllowed} paused={false} />
+            <span className="scene-host-name"><b>{sprite.name}</b>{sprite.screenName}</span>
+            <span className="scene-host-hint" aria-hidden="true">click me!</span>
+          </button>
         </div>
+        <article className="scene-card" key={sprite.art} aria-label={`${sprite.name}’s profile card`}>
+          <p className="scene-card-top"><span>2006er {show.person + 1}/{SPRITES.length}</span><b>{profile?.asl || sprite.screenName}</b></p>
+          <h3>{profile?.characterName || sprite.name}</h3>
+          <p className="scene-card-brand">{profile?.archetype || 'In their own words'}</p>
+          {profile ? (
+            <dl>{profile.stats.map(stat => <div key={stat.name}><dt>{stat.name}</dt><dd>{stat.bonus}</dd></div>)}</dl>
+          ) : (
+            <dl>{spriteLines(sprite).map((phrase, i) => <div key={i}><dt>{['Celebrate', 'Bummer', 'Extra'][i]}</dt><dd>{phrase}</dd></div>)}</dl>
+          )}
+          {profile && <p className="scene-card-song"><b>Theme song</b> {profile.themeSong}</p>}
+          <button type="button" className="scene-card-cta" disabled={!actions} onClick={() => actions?.openBuddy(sprite.index)}>View full profile</button>
+          {profile?.conditions[0] && <p className="scene-card-sticker">{profile.conditions[0]}!</p>}
+        </article>
       </div>
+      <ul className="scene-lineup" aria-label="Pick a 2006er">
+        {SPRITES.map((friend, i) => (
+          <li key={friend.art}>
+            <button type="button" aria-current={i === show.person ? 'true' : undefined} aria-controls={bubbleId}
+              aria-label={i === show.person ? `${friend.name}: say something` : `Bring out ${friend.name}`} onClick={() => speak(i)}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/2006/cast/${friend.art}.png`} alt="" width={32} height={48} />
+              <span>{friend.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
 
-      <div className="scene-wizard" role="region" aria-label={`${title}: getting started`}
+      <div className="scene-wizard" role="region" aria-label={`${title}: getting started`} data-done={!current || undefined}
         onKeyDown={event => { if (event.key === 'Escape' && current) { event.stopPropagation(); endTour(); } }}>
         {current ? (
           <>
             <div className="scene-wizard-title">
-              <span>Getting started</span>
+              <span>How to play</span>
               <span>Step {step! + 1} of {RULES_TOUR.length}</span>
             </div>
             <div className="scene-wizard-body" aria-live="polite" aria-atomic="true">
