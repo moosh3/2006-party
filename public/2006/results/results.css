@@ -29,7 +29,7 @@
 .party-results footer{display:flex;justify-content:center;align-items:center;position:relative;margin:20px 0 0;font-size:25px;letter-spacing:2px;text-shadow:2px 2px #12383f}
 .party-results footer strong{display:flex;align-items:center;justify-content:center;gap:9px;font-weight:800}.party-results footer b{display:inline-grid;place-items:center;background:radial-gradient(circle at 35% 20%,#75ffe1,#00a67b 65%,#075d52);width:27px;height:27px;border-radius:50%;font-size:21px;color:#083e35;text-shadow:0 1px #65e3b7;box-shadow:0 0 3px #c0ffee;margin-right:0;letter-spacing:0}
 .party-results footer>span{position:absolute;right:4px;font-size:14px;letter-spacing:1px}.party-show-title{text-align:center;font-size:12px;margin:12px 0 0;opacity:.75}.party-empty{text-align:center;padding:90px 15px;font-size:24px;text-shadow:1px 2px #12383f}
-.party-page-controls{display:flex;justify-content:center;gap:12px;padding:12px}.party-page-controls button{padding:8px 16px;border:2px solid #a5ebe2;border-radius:5px;color:#efffff;background:#176c6e}
+.party-page-controls{display:flex;justify-content:center;align-items:center;gap:10px;padding:10px;background:#182344;font-family:"Arial Rounded MT Bold","Trebuchet MS",sans-serif}.party-page-controls button{min-width:88px;min-height:44px;padding:6px 16px;border:2px solid #c3cad9;border-radius:22px;color:#f4fbff;font-weight:900;background:linear-gradient(180deg,#3657a1,#213c91);box-shadow:inset 0 1px #8fa6dd,0 2px 0 #0e1630;cursor:pointer}.party-page-controls button:hover{background:linear-gradient(180deg,#4368bd,#27469f)}.party-page-controls button:active{transform:translateY(1px);box-shadow:inset 0 1px #8fa6dd}.party-page-controls button:focus-visible{outline:3px solid #adff39;outline-offset:2px}.party-page-controls button[aria-pressed=true]{border-color:#adff39;color:#adff39}.party-page-count{min-width:54px;text-align:center;color:#c3cad9;font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}
 @media(max-width:650px){.party-stage{padding:24px 4%}.party-results{min-height:460px}.party-rows{gap:21px;min-height:280px}.party-row{grid-template-columns:64px 54px minmax(0,1fr) 107px;gap:7px;height:54px;padding:0 7px}.party-place{text-align:center;font-size:38px}.party-portrait{width:56px;height:56px}.party-value{font-size:30px;gap:3px}.party-value b{width:34px;height:42px}.party-name{font-size:16px}.party-results footer{font-size:20px}.party-results h2{gap:3px}}
 @media(prefers-reduced-motion:no-preference){.party-row{animation:party-row-in .45s cubic-bezier(.16,1,.3,1) both}.party-row:nth-child(2){animation-delay:.09s}.party-row:nth-child(3){animation-delay:.18s}.party-row:nth-child(4){animation-delay:.27s}@keyframes party-row-in{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}}
 
@@ -70,3 +70,11 @@
 .party-loop-paused *{animation-play-state:paused!important}
 @media(prefers-reduced-motion:reduce){.party-reveal-wait{display:none}.party-reveal-answer{animation:none;visibility:visible}}
 @media(max-width:650px){.party-plaque,.party-trivia{padding:20px 16px}.party-winner .party-portrait{width:68px;height:68px}.party-winners{gap:15px}.party-kicker{font-size:11px;letter-spacing:2px}}
+
+/* On the audience site the real buttons under the board replace the painted "A Continue" prompt. */
+.party-results{text-align:left}
+.party-loop:not(.party-projector) .party-results footer{display:none}
+.party-loop:not(.party-projector) .party-results{min-height:520px}
+@media(max-width:650px){.party-loop:not(.party-projector) .party-results{min-height:440px}.party-page-controls{gap:6px}.party-page-controls button{min-width:72px;padding:6px 10px}}
+/* Phones: give screen names the width, not the medals. */
+@media(max-width:480px){.party-row{grid-template-columns:50px 44px minmax(0,1fr) 82px;gap:6px}.party-place{font-size:30px}.party-portrait{width:46px;height:46px}.party-value{font-size:24px}.party-value b{width:26px;height:33px}}

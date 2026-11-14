@@ -4,6 +4,9 @@ import { COUNTDOWN_BANNERS, type CountdownCue } from '@/lib/countdown';
 import './countdown-introduction.css';
 import CountdownMachine from './CountdownMachine';
 
+/** How long the rank banner stays over the picture once the video starts. */
+const BANNER_MS = 8000;
+
 /** Fullscreen the composition, so the numbered artwork stays with the picture. */
 export default function CountdownFrame({ cue, sessionId, paused, children, separateFooter = false, playbackStartDelaySeconds = 0, snapshotReceivedAt, snapshotRoundTripMs = 0 }: {
   cue: CountdownCue; sessionId?: string; paused: boolean; children: ReactNode; separateFooter?: boolean;
@@ -28,6 +31,16 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
     finish();
     return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', finish); };
   }, [introKey, paused, playbackStartDelaySeconds, snapshotReceivedAt, snapshotRoundTripMs]);
+  // The banner sits where captions are drawn, so it announces the rank and then
+  // fades out. The YouTube footer is outside the picture and stays.
+  const bannerKey = `${sessionId}:${cue.rank}`;
+  const [fadedBanner, setFadedBanner] = useState('');
+  const bannerGone = !separateFooter && fadedBanner === bannerKey;
+  useEffect(() => {
+    if (separateFooter || introActive || paused) return;
+    const timer = window.setTimeout(() => setFadedBanner(bannerKey), BANNER_MS);
+    return () => window.clearTimeout(timer);
+  }, [bannerKey, separateFooter, introActive, paused]);
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
@@ -49,8 +62,8 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
     const player = video.current;
     if (!player) return;
     if (paused || introActive || reducedMotion) player.pause();
-    else void player.play().catch(() => { /* Static first frame remains visible. */ });
-  }, [paused, introActive, reducedMotion, cue.bannerUrl, sessionId]);
+    else if (!bannerGone) void player.play().catch(() => { /* Static first frame remains visible. */ });
+  }, [paused, introActive, reducedMotion, bannerGone, cue.bannerUrl, sessionId]);
   return <div ref={frame} className="countdown-frame relative bg-black w-full">
     <div className={`countdown-picture relative w-full${separateFooter ? ' countdown-picture--footer' : ''}`}>
     <div className="countdown-source" style={{ visibility: introActive ? 'hidden' : undefined }} aria-hidden={introActive || undefined}>{children}</div>
@@ -62,7 +75,8 @@ export default function CountdownFrame({ cue, sessionId, paused, children, separ
         remaining={playbackStartDelaySeconds} receivedAt={snapshotReceivedAt} roundTripMs={snapshotRoundTripMs}
         paused={paused} reducedMotion={reducedMotion} active={introActive} />
     </div>
-    <div className={`countdown-banner left-0 right-0 pointer-events-none z-10 ${separateFooter ? 'relative py-2' : 'absolute'}`} style={{ bottom: separateFooter ? undefined : 8, visibility: introActive ? 'hidden' : undefined }} aria-label={`Countdown number ${cue.rank}`}>
+    <div className={`countdown-banner left-0 right-0 pointer-events-none z-10 ${separateFooter ? 'relative py-2' : 'absolute'}`} style={{ bottom: separateFooter ? undefined : 8, visibility: introActive ? 'hidden' : undefined }} aria-label={`Countdown number ${cue.rank}`}
+      data-gone={bannerGone || undefined} aria-hidden={bannerGone || undefined} onTransitionEnd={() => { if (bannerGone) video.current?.pause(); }}>
       {imageUrl && !imageFailed
         // Operator artwork may be transparent; bundled stills also cover reduced motion and unsupported alpha video.
         // eslint-disable-next-line @next/next/no-img-element

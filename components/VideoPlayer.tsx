@@ -691,6 +691,12 @@ export function ProgramVideoPlayer({
     const positionCaptions = () => {
       const banner = player.closest('.countdown-frame')?.querySelector('.countdown-banner');
       if (!banner) return;
+      // Once the banner has faded, captions go back where the VTT put them.
+      if (banner.hasAttribute('data-gone')) {
+        for (const [cue, original] of originals) Object.assign(cue, original);
+        originals.clear();
+        return;
+      }
       const picture = player.getBoundingClientRect();
       const footer = banner.getBoundingClientRect();
       if (!picture.height) return;

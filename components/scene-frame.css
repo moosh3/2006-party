@@ -120,7 +120,8 @@
 .scene-rules .scene-lineup span { border-color: #ff69b4; color: #b0005f; }
 .scene-rules .scene-lineup button:hover { border-color: #ff69b4; background: rgba(255, 105, 180, 0.18); }
 .scene-rules .scene-bubble { border-color: #ff1493; }
-.scene-stage { position: relative; display: grid; justify-items: center; padding-top: clamp(30px, 5cqw, 64px); }
+/* Headroom for the welcome bubble, so it never covers the Friend Space title. */
+.scene-stage { position: relative; display: grid; justify-items: center; padding-top: clamp(44px, 8.5cqw, 76px); }
 /* Clip only while walking in from the left edge; bubbles may overflow afterwards. */
 .scene-stage[data-entering] { overflow: hidden; }
 .scene-rules .scene-lineup { flex-wrap: nowrap; gap: 0; }
@@ -130,7 +131,7 @@
 .scene-rules .scene-lineup span { position: relative; z-index: 1; font-size: clamp(9px, 1.9cqw, 14px); padding: 1px 4px; white-space: nowrap; }
 .scene-rules .scene-lineup li:nth-child(even) { top: clamp(3px, 1cqw, 8px); }
 .scene-rules .scene-lineup button { padding: 2px; }
-.scene-rules .scene-lineup img { width: clamp(30px, 7.5cqw, 90px); }
+.scene-rules .scene-lineup img { width: clamp(30px, 9cqw, 104px); }
 .scene-stage[data-entering] .scene-lineup li {
   animation: scene-walk-in 2.4s cubic-bezier(0.22, 0.7, 0.35, 1) both;
   animation-delay: calc(var(--i) * 0.3s);
@@ -199,31 +200,33 @@
   .scene-wizard { width: 100%; }
 }
 
-/* Let's Check Our Scores: a Mario Party style scoreboard in the program frame. */
-.scores-board { align-content: start; justify-items: stretch; gap: clamp(6px, 1.5vw, 16px); background: linear-gradient(160deg, #2a0f6b 0%, #5b1fa8 45%, #e0457b 100%); }
-.scores-board h2 { margin: 0; text-align: center; font-size: clamp(20px, 4vw, 52px); text-shadow: 0 3px 0 #1b0640, 0 6px 16px rgba(0, 0, 0, 0.45); }
-.scores-board h3 { margin: 0 0 6px; font-size: clamp(13px, 1.8vw, 24px); color: #ffd652; }
+/* Let's Check Our Scores: the Mario Party style board fills the program frame;
+   the live tallies sit under it in the same chrome, cobalt and lime. */
+.scores-board { align-content: start; justify-items: stretch; gap: 0; padding: 0; background: radial-gradient(ellipse at top, #213c91, #182344 75%); }
+.scores-board h2 { margin: 0; padding: clamp(16px, 5vw, 48px) 12px 0; text-align: center; font-size: clamp(20px, 4vw, 52px); text-shadow: 0 3px 0 #0e1630, 0 6px 16px rgba(0, 0, 0, 0.45); }
+.scores-board h3 { margin: 0 0 8px; font-size: 12px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #adff39; }
 .scores-board p { margin: 0; }
-.scores-status { text-align: center; font-size: clamp(14px, 2vw, 24px); }
-.scores-panels { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: clamp(8px, 1.5vw, 20px); text-align: left; }
-.scores-panels > section { min-width: 0; border: 2px solid rgba(255, 255, 255, 0.55); border-radius: 10px; background: rgba(10, 4, 40, 0.45); padding: clamp(6px, 1vw, 14px); font-size: clamp(11px, 1.4vw, 18px); }
-.scores-categories, .scores-countdown, .scores-essays { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.scores-status { padding: 8px 12px clamp(16px, 5vw, 48px); text-align: center; font-size: clamp(14px, 2vw, 24px); color: #c3cad9; }
+.scores-panels { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; padding: 10px; text-align: left; border-top: 3px solid #8194bb; }
+.scores-panels > section { min-width: 0; border: 2px solid #c3cad9; border-radius: 6px; background: rgba(24, 35, 68, 0.75); box-shadow: inset 0 1px #eef1fc, 0 2px 0 #0e1630; padding: 10px 12px; font-size: 14px; line-height: 1.35; }
+.scores-categories, .scores-countdown, .scores-essays { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.scores-countdown, .scores-essays { gap: 4px; }
 .scores-categories ul { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; }
-.scores-categories ul li { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 2px 6px; overflow: hidden; }
-.scores-categories ul li[data-leading] { font-weight: 700; color: #ffd652; }
+.scores-categories ul li { position: relative; isolation: isolate; display: flex; justify-content: space-between; gap: 8px; padding: 3px 6px; overflow: hidden; border-radius: 3px; }
+.scores-categories ul li[data-leading] { font-weight: 700; color: #ffe069; }
 .scores-question { font-weight: 700; }
 .scores-count { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.scores-bar { position: absolute; inset: 0 auto 0 0; z-index: -1; background: rgba(255, 255, 255, 0.18); }
-.scores-categories ul li { isolation: isolate; }
-.scores-countdown strong { color: #ffd652; }
-.scores-next { margin-top: 8px !important; font-style: italic; opacity: 0.85; }
+.scores-bar { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #3657a1; }
+.scores-categories ul li[data-leading] .scores-bar { background: #2f6fd0; }
+.scores-countdown strong { color: #ffe069; }
+.scores-next { margin-top: 8px !important; font-style: italic; color: #c3cad9; }
 .scores-essays details summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
-.scores-essays details summary:focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
-.scores-essay-prompt { font-style: italic; opacity: 0.85; }
+.scores-essays details summary:focus-visible { outline: 3px solid #adff39; outline-offset: 2px; }
+.scores-essay-prompt { font-style: italic; color: #c3cad9; }
 .scores-essay-body { white-space: pre-wrap; margin-top: 4px !important; }
 .scores-essay-names { grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); }
 /* The audience view may grow and scroll; the stage keeps its 16:9 picture. */
-.scores-board-audience { overflow: visible; }
+.scores-board-audience { overflow: visible; aspect-ratio: auto; min-height: 0; }
 .scores-board-stage .scores-panels { overflow: hidden; }
 @media (max-width: 700px) {
   .scores-board-audience .scores-panels { grid-template-columns: 1fr; }

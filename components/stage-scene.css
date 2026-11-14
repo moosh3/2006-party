@@ -11,3 +11,7 @@
 .party-projector[data-shared-clock] .party-reveal-answer{animation:none;visibility:hidden}
 .party-projector[data-revealed=true] .party-reveal-wait{visibility:hidden}
 .party-projector[data-revealed=true] .party-reveal-answer{visibility:visible}
+/* New totals arriving on the page already showing: no second entrance. */
+.party-loop [data-updated] .party-row{animation:none}
+.party-loop:not([data-shared-clock]) [data-updated] .party-reveal-wait{animation:none;visibility:hidden}
+.party-loop:not([data-shared-clock]) [data-updated] .party-reveal-answer{animation:none;visibility:visible}

@@ -34,7 +34,8 @@ export default function ScoresBoard({ interactive, paused=false, position }: { i
   return (
     <section className={`scene-frame scores-board ${interactive ? 'scores-board-audience' : 'scores-board-stage'}`}
       aria-label="Let's Check Our Scores">
-      <h2>Let’s Check Our Scores!</h2>
+      {/* The board carries its own RESULTS masthead once the scores arrive. */}
+      <h2 className={ready ? 'sr-only' : undefined}>Let’s Check Our Scores!</h2>
       {!ready ? (
         <p className="scores-status" role="status">{failed ? 'Reconnecting to the scoreboard…' : 'Tallying the scores…'}</p>
       ) : (
