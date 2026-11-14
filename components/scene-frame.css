@@ -79,9 +79,12 @@
   padding: clamp(6px, 1.6cqw, 18px);
   text-align: left;
   background:
-    radial-gradient(circle at 50% 42%, rgba(255, 105, 180, 0.4), transparent 58%),
-    repeating-conic-gradient(from 0deg at 50% 42%, #2a0d4d 0 7.5deg, #3d1570 7.5deg 15deg);
+    radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(13, 7, 16, 0.6)),
+    radial-gradient(circle at 27% 56%, rgba(255, 105, 180, 0.5), transparent 46%),
+    repeating-conic-gradient(from 0deg at 27% 56%, #2a0d4d 0 7.5deg, #3a1468 7.5deg 15deg);
 }
+/* Faint scanlines, as on a tube television. */
+.scene-glitter::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(13, 7, 16, 0.16) 0 1px, transparent 1px 3px); }
 .scene-rules > :not(.scene-glitter) { position: relative; z-index: 1; min-width: 0; }
 .scene-glitter { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .scene-glitter span {
@@ -103,12 +106,18 @@
   text-transform: uppercase;
   text-shadow: 0 0.07em 0 #ff1493, 0 0.14em 0 #7c184b, 0 0 0.6em rgba(255, 105, 180, 0.7);
 }
-.scene-show { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: clamp(8px, 2.6cqw, 30px); padding-inline: clamp(0px, 1.5cqw, 16px); }
+.scene-rules-title::before, .scene-rules-title::after { content: '★'; display: inline-block; margin: 0 0.5em; color: #ffe069; font-size: 0.55em; vertical-align: 0.25em; text-shadow: 0 0.1em 0 #b3155f; }
+.scene-show { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: stretch; gap: clamp(8px, 2.4cqw, 28px); padding-inline: clamp(0px, 1cqw, 12px); }
 /* Clipped sideways only, so a Sprite can walk in from beyond the edge. */
-.scene-host { display: grid; justify-items: center; gap: clamp(8px, 1.4cqw, 14px); min-width: 0; overflow-x: clip; }
+.scene-host { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: clamp(10px, 1.5cqw, 16px); min-width: 0; overflow-x: clip; padding: 0 5px 2px 0; }
 .scene-bubble {
   position: relative;
+  display: grid;
+  align-content: center;
+  align-self: end;
   width: 100%;
+  /* One steady box: long introductions and two-word catchphrases share it. */
+  min-height: clamp(84px, 12.5cqw, 128px);
   margin: 0;
   border: 3px solid #19121a;
   border-radius: clamp(12px, 2.2cqw, 22px);
@@ -132,7 +141,7 @@
   transform: translateX(-50%) rotate(45deg);
 }
 /* A catchphrase is a few words: say it loudly. */
-.scene-bubble[data-kind='line'] { width: auto; min-width: 45%; font-size: clamp(18px, 3.6cqw, 34px); font-weight: 700; text-align: center; }
+.scene-bubble[data-kind='line'] { font-size: clamp(20px, 3.8cqw, 38px); font-weight: 700; line-height: 1.1; text-align: center; }
 .scene-bubble-rest { visibility: hidden; }
 .scene-host-sprite {
   display: grid;
@@ -151,8 +160,9 @@
 }
 .scene-host-sprite:focus-visible, .scene-card-cta:focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
 .scene-host-sprite:hover .scene-host-hint { background: #fff; }
-.scene-rules .sprite-show-portrait { width: auto; }
-.scene-rules .sprite-show-portrait img { height: clamp(72px, 13.5cqw, 150px); }
+/* Standing on a soft shadow rather than floating on the rays. */
+.scene-rules .sprite-show-portrait { width: auto; padding: 0 clamp(10px, 2cqw, 22px) 3px; background: radial-gradient(50% 7% at 50% 95%, rgba(13, 7, 16, 0.7), transparent); }
+.scene-rules .sprite-show-portrait img { height: clamp(76px, 14.5cqw, 150px); }
 .scene-host-name { display: grid; justify-items: center; font-size: clamp(9px, 1.4cqw, 13px); overflow-wrap: anywhere; text-shadow: 0 1px 2px #0d0710; }
 .scene-host-name b { font: 400 clamp(14px, 2.6cqw, 26px)/1.1 Impact, 'Arial Black', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #ffe069; }
 .scene-host-hint { border-radius: 999px; background: #adff39; color: #19121a; padding: 1px 10px; font-size: clamp(9px, 1.3cqw, 12px); font-weight: 700; }
@@ -165,7 +175,7 @@
   position: relative;
   display: grid;
   gap: clamp(3px, 0.7cqw, 8px);
-  align-self: center;
+  align-content: space-between;
   border: clamp(3px, 0.5cqw, 5px) solid #ff8fd0;
   border-radius: clamp(8px, 1.4cqw, 14px);
   background: linear-gradient(170deg, #24103f, #12061f);
@@ -177,16 +187,21 @@
 }
 @keyframes scene-card-in { from { opacity: 0; transform: translateY(10px) rotate(1.5deg); } }
 .scene-card :is(p, h3, dl, dd) { margin: 0; }
-.scene-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-right: clamp(40px, 8cqw, 84px); font-size: 0.95em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.scene-card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; font-size: 0.95em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .scene-card-top b { border-radius: 999px; background: #ff69b4; color: #19121a; padding: 1px 10px; }
 .scene-card h3 { font: 400 clamp(22px, 5.2cqw, 54px)/0.95 Impact, 'Arial Black', sans-serif; letter-spacing: 0.03em; text-transform: uppercase; overflow-wrap: anywhere; text-shadow: 0 0.06em 0 #b3155f; }
 .scene-card-brand { color: #ffb6e6; font-size: 1.15em; font-weight: 700; }
-.scene-card dl { display: grid; gap: 2px; }
-.scene-card dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 10px; border-bottom: 1px dotted rgba(255, 143, 208, 0.5); padding: 1px 0; }
+.scene-card dl { display: grid; border-radius: 6px; background: rgba(255, 255, 255, 0.07); padding: 2px clamp(6px, 1cqw, 12px); }
+.scene-card dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 10px; padding: clamp(2px, 0.4cqw, 4px) 0; }
+.scene-card dl > div + div { border-top: 1px dotted rgba(255, 143, 208, 0.45); }
 .scene-card dt { white-space: pre-line; line-height: 1.2; }
 .scene-card dd { color: #adff39; font: 700 1.15em 'Courier New', monospace; }
+.scene-card-extras { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; }
 .scene-card-song { white-space: pre-line; line-height: 1.25; }
-.scene-card-song b { display: block; color: #ffb6e6; font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; }
+.scene-card-extras b { display: block; margin-bottom: 1px; color: #ffb6e6; font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; }
+.scene-card-status { display: flex; flex-wrap: wrap; align-content: start; gap: 2px 5px; }
+.scene-card-status b { flex: 1 1 100%; }
+.scene-card-status span { border: 1px solid #adff39; border-radius: 999px; color: #adff39; padding: 0 8px; font-size: 0.9em; font-weight: 700; }
 .scene-card-cta {
   justify-self: start;
   min-height: 44px;
@@ -204,26 +219,10 @@
 }
 .scene-card-cta:hover:not(:disabled) { background: #fff3b0; }
 .scene-card-cta:disabled { cursor: default; opacity: 0.6; }
-.scene-card-sticker {
-  position: absolute;
-  top: clamp(-26px, -2.6cqw, -12px);
-  right: clamp(-22px, -2.2cqw, -8px);
-  display: grid;
-  place-items: center;
-  width: clamp(58px, 11.5cqw, 118px);
-  aspect-ratio: 1;
-  padding: 16%;
-  background: #adff39;
-  color: #19121a;
-  font: 400 clamp(8px, 1.55cqw, 16px)/1 Impact, 'Arial Black', sans-serif;
-  text-align: center;
-  transform: rotate(12deg);
-  clip-path: polygon(50.0% 0.0%,58.5% 13.0%,71.7% 5.0%,73.7% 20.3%,89.1% 18.8%,84.2% 33.5%,98.7% 38.9%,88.0% 50.0%,98.7% 61.1%,84.2% 66.5%,89.1% 81.2%,73.7% 79.7%,71.7% 95.0%,58.5% 87.0%,50.0% 100.0%,41.5% 87.0%,28.3% 95.0%,26.3% 79.7%,10.9% 81.2%,15.8% 66.5%,1.3% 61.1%,12.0% 50.0%,1.3% 38.9%,15.8% 33.5%,10.9% 18.8%,26.3% 20.3%,28.3% 5.0%,41.5% 13.0%);
-}
 /* Everyone, to pick from. The one who is out front is lit. */
 .scene-rules .scene-lineup { flex-wrap: nowrap; align-items: stretch; gap: clamp(2px, 0.8cqw, 10px); }
-.scene-rules .scene-lineup li { display: flex; min-width: 0; }
-.scene-rules .scene-lineup button { grid-auto-flow: column; align-items: center; gap: clamp(2px, 0.7cqw, 8px); border: 2px solid #a04c7c; background: rgba(13, 7, 16, 0.72); color: #ffd1ed; padding: 2px clamp(3px, 1cqw, 12px); }
+.scene-rules .scene-lineup li { display: flex; flex: 1 1 0; min-width: 0; }
+.scene-rules .scene-lineup button { flex: 1; grid-auto-flow: column; justify-content: center; align-items: center; border-radius: 6px; gap: clamp(2px, 0.7cqw, 8px); border: 2px solid #a04c7c; background: rgba(13, 7, 16, 0.72); color: #ffd1ed; padding: 2px clamp(3px, 1cqw, 12px); }
 .scene-rules .scene-lineup button:hover { border-color: #ff69b4; background: rgba(255, 105, 180, 0.3); }
 .scene-rules .scene-lineup button[aria-current] { border-color: #fff; background: #ffd1ed; color: #321128; box-shadow: 0 0 0 2px #ff69b4; }
 .scene-rules .scene-lineup img { width: clamp(18px, 2.9cqw, 28px); }
@@ -243,17 +242,20 @@
 .scene-wizard-footer button, .scene-wizard-action, .scene-tour-start {
   min-width: 44px;
   min-height: 44px;
-  border: 1px solid #003c74;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #fff, #ece9d8);
-  color: #1a1a1a;
+  border: 2px solid #19121a;
+  border-radius: 6px;
+  background: #fff;
+  color: #19121a;
   padding: 2px clamp(8px, 1.3cqw, 14px);
   font: inherit;
   font-size: clamp(11px, 1.6cqw, 14px);
+  font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
 }
-.scene-wizard-action { font-weight: 700; }
+.scene-wizard-footer button:hover:not(:disabled) { background: #fbd9e9; }
+.scene-wizard-footer button:is(:nth-last-child(2), :only-of-type), .scene-wizard-footer button:last-child:nth-child(3) { background: #ff1493; color: #fff; box-shadow: 2px 2px 0 #7c184b; }
+.scene-wizard-action, .scene-tour-start { background: #ffe069; box-shadow: 2px 2px 0 #b3155f; }
 .scene-wizard-footer button:disabled, .scene-wizard-action:disabled { cursor: default; opacity: 0.55; }
 .scene-wizard :is(button):focus-visible { outline: 3px solid #ffd652; outline-offset: 2px; }
 /* Narrow players (phones): the bubble on top, the Sprite beside its card, the tour stacked. */
@@ -265,10 +267,8 @@
   .scene-rules .sprite-show-portrait img { height: 96px; }
   .scene-host-sprite { max-width: 34cqw; }
   .scene-host-hint { font-size: 10px; }
-  .scene-card-sticker { top: -14px; right: 0; width: 66px; font-size: 9px; }
   .scene-rules .scene-lineup { flex-wrap: wrap; }
   .scene-rules .scene-lineup li { flex: 1 1 30%; }
-  .scene-rules .scene-lineup button { flex: 1; justify-content: center; }
   .scene-wizard { grid-template-columns: minmax(0, 1fr); }
   .scene-wizard-title { display: flex; justify-content: space-between; align-items: center; }
   .scene-wizard-body { font-size: 12px; }

@@ -235,9 +235,11 @@ export function RulesOfTheGame({ title = SCENES['rules-of-the-game'].label, sess
           ) : (
             <dl>{spriteLines(sprite).map((phrase, i) => <div key={i}><dt>{['Celebrate', 'Bummer', 'Extra'][i]}</dt><dd>{phrase}</dd></div>)}</dl>
           )}
-          {profile && <p className="scene-card-song"><b>Theme song</b> {profile.themeSong}</p>}
+          {profile && <div className="scene-card-extras">
+            <p className="scene-card-song"><b>Theme song</b> {profile.themeSong}</p>
+            {profile.conditions.length > 0 && <p className="scene-card-status"><b>Status</b>{profile.conditions.map(condition => <span key={condition}>{condition}</span>)}</p>}
+          </div>}
           <button type="button" className="scene-card-cta" disabled={!actions} onClick={() => actions?.openBuddy(sprite.index)}>View full profile</button>
-          {profile?.conditions[0] && <p className="scene-card-sticker">{profile.conditions[0]}!</p>}
         </article>
       </div>
       <ul className="scene-lineup" aria-label="Pick a 2006er">
