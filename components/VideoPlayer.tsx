@@ -68,6 +68,8 @@ interface VideoPlayerProps {
   onPlaybackError?: () => void;
   onStreamRefresh?: () => void;
   onReconnectReady?: (reconnect: (() => void) | null) => void;
+  /** Stage display: skip the start prompt on later cues once sound has played. */
+  rememberSound?: boolean;
   /** Online audience view of a timed scene; stage and monitor present the automatic show. */
   sceneInteractive?: boolean;
   sceneActions?: SceneActions;
@@ -76,6 +78,8 @@ interface VideoPlayerProps {
 const SIDELOADED_CAPTION_TRACK_ID = 'after-party-sideloaded-captions';
 const REALTIME_NOTICE_DELAY_MS = 15000;
 const PLAYBACK_SYNC_REQUEST_TIMEOUT_MS = 10000;
+// Set once a locked player has played with sound in this page.
+let soundStarted = false;
 const MANUAL_SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function YouTubePlaylistPlayer({
@@ -405,6 +409,7 @@ export function ProgramVideoPlayer({
   onPlaybackError,
   onStreamRefresh,
   onReconnectReady,
+  rememberSound = false,
 }: VideoPlayerProps) {
   const canBroadcastAdminControls = isAdmin && allowAdminBroadcast;
   const viewerLocked = !canBroadcastAdminControls;
@@ -413,8 +418,11 @@ export function ProgramVideoPlayer({
   const [isSyncing, setIsSyncing] = useState(false);
   // A phone can stop before metadata or while seeking, before safePlay ever
   // runs. Keep a tap-to-start path available even in those startup states.
-  const [needsUnmute, setNeedsUnmute] = useState(viewerLocked && (isHoldScreen || playbackState === 'playing'));
-  const [needsStart, setNeedsStart] = useState(viewerLocked && (isHoldScreen || playbackState === 'playing'));
+  // The stage remounts per cue; once it has played with sound, later cues
+  // start without flashing the prompt unless playback is actually blocked.
+  const promptAtStart = viewerLocked && !(rememberSound && soundStarted) && (isHoldScreen || playbackState === 'playing');
+  const [needsUnmute, setNeedsUnmute] = useState(promptAtStart);
+  const [needsStart, setNeedsStart] = useState(promptAtStart);
   const realtimeHealth = useRealtimeHealth();
   const [visibleRealtimeHealth, setVisibleRealtimeHealth] = useState<RealtimeHealthStatus>('healthy');
 
@@ -521,6 +529,7 @@ export function ProgramVideoPlayer({
     try {
       await playWithDeadline();
       if (playbackWasStopped()) return false;
+      if (!video.muted) soundStarted = true;
       if (mountedRef.current) {
         setNeedsStart(false);
         setNeedsUnmute(video.muted);
@@ -1030,6 +1039,10 @@ export function ProgramVideoPlayer({
         console.warn('Reconnect seek will be retried:', reason);
       }
     }
+    // The Mux controls restore a saved mute on every new player. Setting
+    // muted directly leaves that saved value in place, so clear it here or
+    // each following cue starts muted and asks again.
+    try { window.localStorage.setItem('media-chrome-pref-muted', 'false'); } catch { /* storage unavailable */ }
     if (playbackShouldPlay(anchor, performance.now(), isHoldScreen)) {
       video.muted = false;
       setNeedsUnmute(true);

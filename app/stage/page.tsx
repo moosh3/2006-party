@@ -88,7 +88,7 @@ export default function StagePage() {
             captionUrl={stream.captionUrl}
             captionLabel={stream.captionLabel}
             captionLanguage={stream.captionLanguage}
-            onPlaybackError={refresh}
+            onPlaybackError={refresh} rememberSound
           />
         </ErrorBoundary>
       </section>

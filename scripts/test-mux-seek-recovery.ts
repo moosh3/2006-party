@@ -242,7 +242,9 @@ const seekedBinding = /onSeeked=\{canBroadcastAdminControls \? handleSeek : [^}]
 assert(seekedBinding.test(componentSource), 'The host/guest seeked binding must remain explicit');
 const legacySource = componentSource.replace(seekedBinding,
   'onSeeked={canBroadcastAdminControls ? handleSeek : correctViewerControlAttempt}');
-const initialRecoveryState = "useState(viewerLocked && (isHoldScreen || playbackState === 'playing'))";
+assert(componentSource.includes("const promptAtStart = viewerLocked && !(rememberSound && soundStarted) && (isHoldScreen || playbackState === 'playing');"),
+  'The startup prompt must default to guest-playing, skipped only for a stage that already has sound');
+const initialRecoveryState = 'useState(promptAtStart)';
 assert.equal(componentSource.split(initialRecoveryState).length - 1, 2, 'Both startup recovery flags must have the guest-playing initializer');
 // Diagnostic-only reconstruction: the guards and play handling remain real,
 // but the original hidden recovery flags reproduce the pre-fix UI dead ends.
